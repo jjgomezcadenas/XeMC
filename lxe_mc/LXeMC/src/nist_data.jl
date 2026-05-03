@@ -208,7 +208,9 @@ end
     NISTData
 
 Bundle of loaded XCOM and ESTAR data with pre-computed energy grid
-for efficient repeated interpolation.
+for efficient repeated interpolation. Includes a pre-tabulated
+bremsstrahlung cross section σ_brems(T) for k > k_min, eliminating
+the need for per-step numerical integration during transport.
 """
 struct NISTData
     xcom::XCOMData
@@ -217,6 +219,9 @@ struct NISTData
     A::Float64
     N_A::Float64
     rho::Float64
+    # Pre-tabulated brems cross section
+    brems_T::Vector{Float64}    # log-spaced kinetic energy grid [MeV]
+    brems_σ::Vector{Float64}    # σ_brems(T) for k > k_min [cm²/atom]
 end
 
 
@@ -233,7 +238,35 @@ function load_nist_data(cfg::SimConfig; data_dir::Union{String,Nothing}=nothing)
     xcom = load_xcom(joinpath(data_dir, "xcom_xe.csv"))
     estar = load_estar(joinpath(data_dir, "estar_xe.csv"))
     E_nudged = _prepare_xcom_energy(xcom)
-    NISTData(xcom, estar, E_nudged, cfg.A, cfg.N_A, cfg.rho_LXe)
+
+    # Pre-tabulate brems cross section σ(T) for k > k_min
+    brems_T, brems_σ = _build_brems_table(cfg)
+
+    NISTData(xcom, estar, E_nudged, cfg.A, cfg.N_A, cfg.rho_LXe, brems_T, brems_σ)
+end
+
+
+"""
+    _build_brems_table(cfg::SimConfig) -> (T_grid, σ_grid)
+
+Pre-compute the total bremsstrahlung cross section [cm²/atom] for photon
+energies k > k_min on a 200-point log-spaced grid from k_min to 10 MeV.
+Each point is computed by trapezoidal integration of the BH-Tsai
+differential. This table is built once at load time and used via
+log-log interpolation during transport.
+"""
+function _build_brems_table(cfg::SimConfig)
+    T_max = 10.0  # MeV, well above our ROI
+    k_min = cfg.k_min
+    n_grid = 200
+    T_grid = exp.(range(log(k_min * 1.01), log(T_max), length=n_grid))
+    σ_grid = Vector{Float64}(undef, n_grid)
+
+    for i in 1:n_grid
+        σ_grid[i] = sigma_brems_above_kmin(T_grid[i], k_min, cfg)
+    end
+
+    (T_grid, σ_grid)
 end
 
 
@@ -365,4 +398,20 @@ CSDA range in liquid xenon [mm].
 """
 function csda_range_LXe_mm(nd::NISTData, T_MeV::Float64)::Float64
     csda_range_g_per_cm2(nd, T_MeV) / nd.rho * 10.0  # cm → mm
+end
+
+
+# =====================================================================
+# Pre-tabulated bremsstrahlung cross section
+# =====================================================================
+
+"""
+    sigma_brems_table(nd::NISTData, T_MeV) -> Float64
+
+Total bremsstrahlung cross section [cm²/atom] for k > k_min at electron
+kinetic energy `T_MeV`, from the pre-tabulated log-log interpolation.
+Returns 0 for T below the table range.
+"""
+function sigma_brems_table(nd::NISTData, T_MeV::Float64)::Float64
+    interp_loglog(T_MeV, nd.brems_T, nd.brems_σ)
 end

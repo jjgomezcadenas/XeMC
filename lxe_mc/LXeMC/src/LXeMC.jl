@@ -48,6 +48,7 @@ export sigma_compton_NIST, sigma_pair_NIST, sigma_phot_NIST, sigma_total_NIST
 export mfp_LXe, branching_NIST
 export dEdx_collision_NIST, dEdx_radiative_NIST, dEdx_total_NIST
 export csda_range_g_per_cm2, csda_range_LXe_mm
+export sigma_brems_table
 
 # --- Physics utilities ---
 export coulomb_correction_fc, dsigma_dk_brems

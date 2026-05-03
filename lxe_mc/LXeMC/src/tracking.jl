@@ -242,13 +242,15 @@ Transport an electron or positron through LXe using condensed-history
 stepping with continuous collisional energy loss and explicit discrete
 bremsstrahlung sampling.
 
-**Stepping**: each step is `min(ds_ceil, max(ds_floor, f_range × R_CSDA))`,
-where R_CSDA is the residual CSDA range. Collisional energy loss is
+**Stepping**: fixed step size `ds_step` (default 0.5 mm), clamped to
+not overshoot the remaining kinetic energy. Collisional energy loss is
 deposited at the midpoint of each step.
 
 **Bremsstrahlung**: at each step, the probability of emitting a hard photon
-(k > k_min) is P = n_atom × σ_brems × ds. If triggered, the photon energy
-is sampled from the BH-Tsai spectrum and pushed onto the stack.
+(k > k_min) is P = n_atom × σ_brems(T) × ds, where σ_brems is looked up
+from a pre-tabulated log-log table (no per-step numerical integration).
+If triggered, the photon energy is sampled from the BH-Tsai spectrum and
+pushed onto the stack.
 
 **End of range**: residual energy is deposited locally. Positrons
 annihilate at rest, producing two back-to-back 511 keV photons.
@@ -263,12 +265,9 @@ function transport_lepton!(track::Track, geom::Geometry,
     gen = track.generation
 
     while T >= cfg.Te_cut
-        # Step size from residual CSDA range
-        R_cm = csda_range_g_per_cm2(nd, T) / cfg.rho_LXe
-        ds = clamp(cfg.f_range * R_cm, cfg.ds_floor, cfg.ds_ceil)
-
-        # Collisional energy loss (continuous)
+        # Fixed step size, clamped to not overshoot
         dEdx_col = dEdx_collision_NIST(nd, T) * cfg.rho_LXe  # MeV/cm
+        ds = cfg.ds_step
         dE_col = dEdx_col * ds
         if dE_col >= T
             ds = T / dEdx_col * 0.9
@@ -288,7 +287,7 @@ function transport_lepton!(track::Track, geom::Geometry,
 
         # Sample bremsstrahlung
         if T > cfg.k_min
-            sig_b = sigma_brems_above_kmin(T, cfg.k_min, cfg)
+            sig_b = sigma_brems_table(nd, T)
             P_brems = min(cfg.n_atom * sig_b * ds, 0.5)  # safety cap
             if rand(rng) < P_brems
                 k = sample_brems(T, cfg.k_min, cfg, rng)

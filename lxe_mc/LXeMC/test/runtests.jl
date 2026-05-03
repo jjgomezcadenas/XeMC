@@ -76,6 +76,18 @@ end
 
 
 # =====================================================================
+# Test 5b: Brems table matches direct integration
+# =====================================================================
+@testset "Brems table vs direct integration" begin
+    for T in [0.1, 0.5, 1.0, 2.0, 5.0]
+        σ_table  = sigma_brems_table(ND, T)
+        σ_direct = sigma_brems_above_kmin(T, CFG.k_min, CFG)
+        @test σ_table ≈ σ_direct  rtol=0.02
+    end
+end
+
+
+# =====================================================================
 # Test 6: Compton sampler — Compton edge
 # =====================================================================
 @testset "Compton edge" begin

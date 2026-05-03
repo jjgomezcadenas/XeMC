@@ -12,7 +12,7 @@ run by editing the data file without touching source code.
   fluorescence yield, mean excitation energy.
 - **Transport cuts**: minimum energies for photon and lepton tracking;
   bremsstrahlung photon threshold.
-- **Stepping parameters**: fraction-of-range step sizing with floor/ceiling.
+- **Stepping parameters**: fixed step size for lepton transport.
 - **Safety**: generation cap to prevent runaway cascades.
 - **Clustering**: z-resolution for single-site / multi-site classification.
 - **Physical constants**: electron mass, classical radius, fine-structure
@@ -37,9 +37,10 @@ struct SimConfig
     k_min::Float64          # bremsstrahlung photon threshold [MeV]
 
     # --- Stepping ---
-    f_range::Float64        # max step = f_range × residual CSDA range
-    ds_floor::Float64       # minimum step size [cm]
-    ds_ceil::Float64        # maximum step size [cm]
+    ds_step::Float64        # fixed step size for lepton transport [cm]
+    f_range::Float64        # (legacy) fraction-of-range step sizing
+    ds_floor::Float64       # (legacy) minimum step size [cm]
+    ds_ceil::Float64        # (legacy) maximum step size [cm]
 
     # --- Safety ---
     generation_cap::Int     # max cascade generations
@@ -95,6 +96,7 @@ function load_config(path::AbstractString)::SimConfig
         Float64(pc["Egamma_cut_MeV"]),
         Float64(lc["Te_cut_MeV"]),
         Float64(br["k_min_MeV"]),
+        Float64(st["ds_step_cm"]),
         Float64(st["f_range"]),
         Float64(st["ds_floor_cm"]),
         Float64(st["ds_ceil_cm"]),
