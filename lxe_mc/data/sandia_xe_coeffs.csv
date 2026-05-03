@@ -1,0 +1,37 @@
+# Sandia photoelectric cross section coefficients for xenon (Z=54)
+# Source: Geant4 G4StaticSandiaData.cc (verbatim from Geant4 source)
+# Reference: F. Biggs, R. Lighthill, "Analytical Approximation for X-Ray Cross
+#            Sections III", Sandia Report SAND87-0070 (May 1990)
+# First two intervals corrected to match J.B. West & J. Morton, "Absolute
+# Photoionization Cross-sections Tables for Xenon in the VUV and the Soft
+# X-ray regions", Atomic Data and Nuclear Data Tables 22 (1978) 103-107.
+#
+# Formula (within each interval starting at E_lower):
+#    sigma_phot/rho [cm^2/g] = a1/E + a2/E^2 + a3/E^3 + a4/E^4
+#  with E in keV.
+#
+# Units of coefficients: a_i in cm^2 keV^i / g
+#
+# IMPORTANT VALIDITY DOMAIN:
+# Sandia agrees with NIST XCOM to ~1% below 500 keV.
+# Above 500 keV the high-energy interval extrapolates poorly:
+#   at 1 MeV  : Sandia gives 1.56e-2 cm^2/g, XCOM gives 4.34e-3 -> off by 3.6x
+#   at 3 MeV  : Sandia gives 1.03e-3 cm^2/g, XCOM gives 6.42e-4 -> off by 1.6x
+# In our simulation we use Sandia for E < 500 keV and XCOM interpolation above.
+#
+# Columns: E_lower[keV], a1, a2, a3, a4
+#
+E_lower_keV,a1,a2,a3,a4
+0.01,3.405E+03,-3.311E+02,1.048E+01,-7.987E-02
+0.065,-4.118E+04,2.024E+04,-2.136E+03,6.490E+01
+0.1073,7.622E+04,-2.983E+04,3.608E+03,-1.222E+02
+0.180,-4.086E+02,2.713E+03,-8.147E+02,6.519E+01
+0.672,5.494E+04,-4.316E+04,-3.353E+04,3.122E+04
+0.936,-2.422E+04,6.454E+04,-3.914E+04,8.599E+03
+1.143,-6.606E+02,7.269E+03,6.119E+03,-3.383E+03
+4.782,-1.565E+02,5.749E+03,5.985E+04,-2.396E+04
+5.102,-2.236E+02,9.444E+03,7.463E+04,-3.742E+04
+5.445,-2.010E+01,2.400E+03,1.720E+05,-2.977E+05
+34.561,-1.622E+00,1.830E+03,1.780E+06,-1.721E+07
+100.0,2.082E+00,3.625E+02,1.962E+06,-2.448E+07
+500.0,1.148E+00,1.892E+03,1.133E+07,1.244E+09

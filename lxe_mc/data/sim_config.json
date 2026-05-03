@@ -1,0 +1,49 @@
+{
+    "_doc": "LXeMC simulation configuration. All energies in MeV, lengths in cm.",
+
+    "xenon": {
+        "Z":               54,
+        "A":               131.293,
+        "rho_LXe_g_cm3":   2.953,
+        "EK_MeV":          0.034561,
+        "EL1_MeV":         0.005453,
+        "EL2_MeV":         0.005104,
+        "EL3_MeV":         0.004782,
+        "omega_K":         0.89,
+        "EK_alpha_MeV":    0.02978,
+        "I_MeV":           0.000482
+    },
+
+    "photon_cuts": {
+        "Egamma_cut_MeV":  0.010
+    },
+
+    "lepton_cuts": {
+        "Te_cut_MeV":      0.050
+    },
+
+    "bremsstrahlung": {
+        "k_min_MeV":       0.050
+    },
+
+    "stepping": {
+        "f_range":         0.05,
+        "ds_floor_cm":     0.001,
+        "ds_ceil_cm":      0.10
+    },
+
+    "safety": {
+        "generation_cap":  100
+    },
+
+    "clustering": {
+        "dz_resolution_cm": 0.30
+    },
+
+    "constants": {
+        "me_MeV":          0.5109989461,
+        "re_cm":           2.8179403262e-13,
+        "alpha_fs":        0.007297352566,
+        "N_A":             6.02214076e23
+    }
+}
