@@ -19,11 +19,11 @@
     },
 
     "lepton_cuts": {
-        "Te_cut_MeV":      0.050
+        "Te_cut_MeV":      0.10
     },
 
     "bremsstrahlung": {
-        "k_min_MeV":       0.050
+        "k_min_MeV":       0.10
     },
 
     "stepping": {
