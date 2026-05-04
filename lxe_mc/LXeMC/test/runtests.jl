@@ -52,18 +52,33 @@ end
 # =====================================================================
 @testset "Detector geometry" begin
     @test DET.name == "LZ"
-    @test length(DET.volumes) >= 1
+    @test length(DET.volumes) == 7   # TPC + 3 OCV + 3 ICV
     @test VOL.name == "LXeTPC"
-    # Check volume dimensions
+
+    # TPC dimensions and containment
     @test VOL.logical.solid.radius_cm ≈ 72.8
     @test VOL.logical.solid.half_height_cm ≈ 72.8
-    # Mass should be positive and reasonable (thousands of kg for LZ)
-    m_kg = mass(VOL) / 1000.0
-    @test 1000.0 < m_kg < 20000.0
-    # is_inside checks
     @test is_inside(VOL, [0.0, 0.0, 0.0])
-    @test !is_inside(VOL, [100.0, 0.0, 0.0])  # outside radius
-    @test !is_inside(VOL, [0.0, 0.0, 100.0])   # outside height
+    @test !is_inside(VOL, [100.0, 0.0, 0.0])
+    @test !is_inside(VOL, [0.0, 0.0, 100.0])
+
+    # Masses vs LZ reference (within 1%)
+    m_tpc = mass(VOL) / 1000.0
+    @test 7000.0 < m_tpc < 7300.0                         # ~7159 kg
+
+    by_name = Dict(v.name => v for v in DET.volumes)
+
+    m_ocv_barrel = mass(by_name["OCV_barrel"]) / 1000.0
+    m_ocv_top    = mass(by_name["OCV_top"]) / 1000.0
+    m_ocv_bot    = mass(by_name["OCV_bottom"]) / 1000.0
+    m_ocv_total  = m_ocv_barrel + m_ocv_top + m_ocv_bot
+    @test m_ocv_total ≈ 778.6  rtol=0.01                  # ref 778.6 kg
+
+    m_icv_barrel = mass(by_name["ICV_barrel"]) / 1000.0
+    m_icv_top    = mass(by_name["ICV_top"]) / 1000.0
+    m_icv_bot    = mass(by_name["ICV_bottom"]) / 1000.0
+    m_icv_total  = m_icv_barrel + m_icv_top + m_icv_bot
+    @test m_icv_total ≈ 651.1  rtol=0.01                  # ref 651.1 kg
 end
 
 
