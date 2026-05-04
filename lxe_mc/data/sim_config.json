@@ -17,7 +17,7 @@
     },
 
     "bremsstrahlung": {
-        "k_min_MeV":       0.10
+        "k_min_MeV":       0.05
     },
 
     "stepping": {
