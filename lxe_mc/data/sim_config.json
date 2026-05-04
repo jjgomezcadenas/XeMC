@@ -27,10 +27,7 @@
     },
 
     "stepping": {
-        "ds_step_cm":      0.05,
-        "f_range":         0.05,
-        "ds_floor_cm":     0.001,
-        "ds_ceil_cm":      0.10
+        "ds_step_cm":      0.10
     },
 
     "safety": {

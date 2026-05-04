@@ -38,9 +38,6 @@ struct SimConfig
 
     # --- Stepping ---
     ds_step::Float64        # fixed step size for lepton transport [cm]
-    f_range::Float64        # (legacy) fraction-of-range step sizing
-    ds_floor::Float64       # (legacy) minimum step size [cm]
-    ds_ceil::Float64        # (legacy) maximum step size [cm]
 
     # --- Safety ---
     generation_cap::Int     # max cascade generations
@@ -97,9 +94,6 @@ function load_config(path::AbstractString)::SimConfig
         Float64(lc["Te_cut_MeV"]),
         Float64(br["k_min_MeV"]),
         Float64(st["ds_step_cm"]),
-        Float64(st["f_range"]),
-        Float64(st["ds_floor_cm"]),
-        Float64(st["ds_ceil_cm"]),
         Int(sa["generation_cap"]),
         Float64(cl["dz_resolution_cm"]),
         Float64(co["me_MeV"]),
