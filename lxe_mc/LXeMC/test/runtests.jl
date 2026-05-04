@@ -68,6 +68,39 @@ end
 
 
 # =====================================================================
+# Test 3b: Geometric solids and CylShell
+# =====================================================================
+@testset "Geometry solids" begin
+    # Solid cylinder
+    c = Cyl(10.0, 20.0)
+    @test volume(c) ≈ π * 100.0 * 40.0
+
+    # CylShell: R_inner=50, wall=2, half_height=30
+    cs = CylShell(50.0, 2.0, 30.0)
+    @test R_outer(cs) ≈ 52.0
+    @test volume(cs) ≈ π * (52.0^2 - 50.0^2) * 60.0
+    @test volume_inner(cs) ≈ π * 50.0^2 * 60.0
+
+    # LCylShell placement and is_inside
+    lcs = LCylShell(cs, [0.0, 0.0, 0.0])
+    @test is_inside(lcs, [51.0, 0.0, 0.0])   # in shell
+    @test !is_inside(lcs, [49.0, 0.0, 0.0])  # inside bore
+    @test !is_inside(lcs, [53.0, 0.0, 0.0])  # outside
+    @test !is_inside(lcs, [51.0, 0.0, 31.0]) # above height
+
+    # Offset placement
+    lcs2 = LCylShell(cs, [0.0, 0.0, 100.0])
+    @test is_inside(lcs2, [51.0, 0.0, 100.0])
+    @test !is_inside(lcs2, [51.0, 0.0, 0.0])
+
+    # Box validation
+    @test_throws ErrorException Cyl(-1.0, 5.0)
+    @test_throws ErrorException CylShell(10.0, -1.0, 5.0)
+    @test_throws ErrorException Box(0.0, 5.0, 5.0)
+end
+
+
+# =====================================================================
 # Test 4: XCOM total = sum of channels
 # =====================================================================
 @testset "XCOM total = sum of channels" begin
