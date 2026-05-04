@@ -103,6 +103,7 @@ struct Material
     # Pre-tabulated brems cross section (active only)
     brems_T::Union{Vector{Float64},Nothing}
     brems_σ::Union{Vector{Float64},Nothing}
+    brems_M::Union{Vector{Float64},Nothing}   # rejection ceiling M(T) for sample_brems
 end
 
 
@@ -187,14 +188,15 @@ function _build_material(name::String, d, elements::Dict{String,ElementData},
     # Pre-tabulate brems (active materials only)
     brems_T = nothing
     brems_σ = nothing
+    brems_M = nothing
     if is_active && EK > 0.0
-        brems_T, brems_σ = _build_brems_table_for_material(cfg, Z_eff, A_eff)
+        brems_T, brems_σ, brems_M = _build_brems_table_for_material(cfg, Z_eff, A_eff)
     end
 
     Material(name, density, components,
              is_active, is_tracking, is_full,
              EK, Z_eff, A_eff, n_atom,
-             xcom, E_nudged, estar, brems_T, brems_σ)
+             xcom, E_nudged, estar, brems_T, brems_σ, brems_M)
 end
 
 
@@ -222,11 +224,11 @@ end
 
 
 """
-    _build_brems_table_for_material(cfg, Z, A) -> (T_grid, σ_grid)
+    _build_brems_table_for_material(cfg, Z, A) -> (T_grid, σ_grid, M_grid)
 
-Pre-compute bremsstrahlung cross section on a log grid, using the
-material's Z and A. Creates a temporary SimConfig-like parameter set
-for the dsigma_dk_brems integration.
+Pre-compute bremsstrahlung cross section σ(T) and rejection ceiling
+M(T) = max{k × dσ/dk} × 1.05 on a log grid. M(T) is used by
+`sample_brems` to avoid recomputing the 50-point grid at every call.
 """
 function _build_brems_table_for_material(cfg::SimConfig, Z::Int, A::Float64)
     k_min = cfg.k_min
@@ -234,12 +236,19 @@ function _build_brems_table_for_material(cfg::SimConfig, Z::Int, A::Float64)
     n_grid = 200
     T_grid = exp.(range(log(k_min * 1.01), log(T_max), length=n_grid))
     σ_grid = Vector{Float64}(undef, n_grid)
+    M_grid = Vector{Float64}(undef, n_grid)
 
     for i in 1:n_grid
-        σ_grid[i] = sigma_brems_above_kmin(T_grid[i], k_min, cfg)
+        T = T_grid[i]
+        σ_grid[i] = sigma_brems_above_kmin(T, k_min, cfg)
+
+        # Rejection ceiling: max(k * dσ/dk) over k ∈ [k_min, T]
+        k_pts = exp.(range(log(k_min), log(T * 0.9999), length=50))
+        ds = dsigma_dk_brems(k_pts, T, Z, cfg)
+        M_grid[i] = maximum(k_pts .* ds) * 1.05
     end
 
-    (T_grid, σ_grid)
+    (T_grid, σ_grid, M_grid)
 end
 
 
@@ -413,4 +422,18 @@ function sigma_brems(mat::Material, T_MeV::Float64)::Float64
     _check_active(mat)
     mat.brems_T === nothing && return 0.0
     interp_loglog(T_MeV, mat.brems_T, mat.brems_σ)
+end
+
+
+"""
+    brems_rejection_M(mat::Material, T_MeV) -> Float64
+
+Pre-tabulated rejection ceiling M(T) = max{k × dσ/dk} × 1.05 for
+bremsstrahlung sampling. Eliminates the 50-point grid computation
+that was the main bottleneck in `sample_brems`.
+"""
+function brems_rejection_M(mat::Material, T_MeV::Float64)::Float64
+    _check_active(mat)
+    mat.brems_M === nothing && return 0.0
+    interp_loglog(T_MeV, mat.brems_T, mat.brems_M)
 end

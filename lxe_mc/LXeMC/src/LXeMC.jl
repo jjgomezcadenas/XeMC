@@ -56,7 +56,7 @@ export Material, ElementData, load_elements, load_materials
 export sigma_compton, sigma_pair, sigma_phot, sigma_total
 export mu_over_rho, mfp, branching
 export dEdx_collision, dEdx_radiative, dEdx_total
-export csda_range_g_per_cm2, csda_range_mm, sigma_brems
+export csda_range_g_per_cm2, csda_range_mm, sigma_brems, brems_rejection_M
 
 # --- Physics utilities ---
 export coulomb_correction_fc, dsigma_dk_brems

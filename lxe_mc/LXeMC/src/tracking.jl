@@ -225,7 +225,8 @@ function transport_lepton!(track::Track, vol::PhysicalVolume,
             sig_b = sigma_brems(mat, T)
             P_brems = min(mat.n_atom * sig_b * ds, 0.5)
             if rand(rng) < P_brems
-                k = sample_brems(T, cfg.k_min, mat.Z_eff, cfg, rng)
+                M_rej = brems_rejection_M(mat, T)
+                k = sample_brems(T, cfg.k_min, mat.Z_eff, M_rej, cfg, rng)
                 if k !== nothing && k < T
                     θ_g = brems_photon_angle(T, cfg, rng)
                     ϕ_g = 2π * rand(rng)

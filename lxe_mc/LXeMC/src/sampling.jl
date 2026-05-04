@@ -308,19 +308,20 @@ end
 
 
 """
-    sample_brems(T, k_min, Z, cfg, rng) -> Union{Float64, Nothing}
+    sample_brems(T, k_min, Z, M, cfg, rng) -> Union{Float64, Nothing}
 
 Sample bremsstrahlung photon energy k > k_min [MeV].
 
-**Strategy**: 1/k envelope rejection. Acceptance rate typically > 60%.
+**Strategy**: 1/k envelope rejection with pre-computed ceiling `M`.
+The ceiling M(T) = max{k × dσ/dk} × 1.05 is looked up from a table,
+eliminating the 50-point grid that was the main bottleneck.
+Each rejection attempt requires only one `dsigma_dk_brems` evaluation.
+Acceptance rate typically > 60%.
 """
-function sample_brems(T::Float64, k_min::Float64, Z::Int,
+function sample_brems(T::Float64, k_min::Float64, Z::Int, M::Float64,
                       cfg::SimConfig, rng::AbstractRNG)::Union{Float64,Nothing}
     k_min >= T && return nothing
-
-    k_grid = exp.(range(log(k_min), log(T * 0.9999), length=50))
-    ds = dsigma_dk_brems(k_grid, T, Z, cfg)
-    M = maximum(k_grid .* ds) * 1.05
+    M <= 0.0 && return nothing
 
     while true
         r = rand(rng)

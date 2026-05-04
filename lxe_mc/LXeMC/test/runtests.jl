@@ -167,7 +167,8 @@ end
     rng = MersenneTwister(2)
     T0 = 2.0
     for _ in 1:100
-        k = sample_brems(T0, CFG.k_min, MAT.Z_eff, CFG, rng)
+        M = brems_rejection_M(MAT, T0)
+        k = sample_brems(T0, CFG.k_min, MAT.Z_eff, M, CFG, rng)
         @test k !== nothing
         @test k >= CFG.k_min
         @test k < T0
