@@ -177,3 +177,18 @@ end
     frac = n_ss / N
     @test 0.05 < frac < 0.30
 end
+
+
+# =====================================================================
+# Test 11: Photon-only mode energy conservation
+# =====================================================================
+@testset "Photon-only energy conservation" begin
+    rng = MersenneTwister(10)
+    E0 = 2.615
+    N = 200
+    for _ in 1:N
+        deps = simulate_event_photon_only(E0, ND, CFG; rng=rng)
+        E_dep = sum(d.energy for d in deps)
+        @test E_dep ≈ E0  rtol=1e-10
+    end
+end

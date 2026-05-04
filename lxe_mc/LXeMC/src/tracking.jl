@@ -359,6 +359,117 @@ end
 
 
 # =====================================================================
+# Photon-only mode (Mode 2)
+# =====================================================================
+
+"""
+    transport_photon_only!(track::Track, geom::Geometry,
+                           deposits::Vector{Deposit}, stack::ParticleStack,
+                           nd::NISTData, cfg::SimConfig, rng::AbstractRNG)
+
+Photon-only transport: electrons are never tracked. At each interaction:
+
+- **Compton**: recoil electron energy deposited locally at the interaction
+  point; scattered photon continues with reduced energy and new direction.
+- **Pair**: entire photon energy deposited locally (both leptons + rest mass
+  are sub-mm range in LXe). Photon consumed.
+- **Photoelectric**: same as full mode — deposit locally.
+
+This mode is much faster but ignores the spatial extent of electron tracks
+(~mm in LXe). Useful for studying the contribution of electron transport
+to SS/MS topology.
+"""
+function transport_photon_only!(track::Track, geom::Geometry,
+                                deposits::Vector{Deposit}, stack::ParticleStack,
+                                nd::NISTData, cfg::SimConfig, rng::AbstractRNG)
+    pos = copy(track.position)
+    dir = copy(track.direction)
+    E = track.energy
+    gen = track.generation
+    tid = objectid(track)
+
+    while E >= cfg.Egamma_cut
+        sC  = sigma_compton_NIST(nd, E; per_atom=true)
+        sP  = sigma_pair_NIST(nd, E; per_atom=true)
+        sPh = sigma_phot_NIST(nd, E; per_atom=true)
+        s_tot = sC + sP + sPh
+        Σ_tot = cfg.n_atom * s_tot
+
+        s = sample_distance(Σ_tot, rng)
+        pos .= pos .+ dir .* s
+        is_inside(geom, pos) || return
+
+        proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
+
+        if proc === :compton
+            Egp, cos_t = sample_compton(E, cfg, rng)
+            T_e = E - Egp
+
+            # Deposit electron energy locally
+            push!(deposits, Deposit(copy(pos), T_e, :electron))
+
+            # Update scattered photon direction
+            ϕ = 2π * rand(rng)
+            sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
+            local_vec = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
+            dir = rotate_to_global(local_vec, dir)
+            E = Egp
+
+        elseif proc === :pair
+            # Deposit entire photon energy locally
+            push!(deposits, Deposit(copy(pos), E, :pair))
+            return
+
+        elseif proc === :photoelectric
+            # Deposit entire photon energy locally
+            push!(deposits, Deposit(copy(pos), E, :photoelectric))
+            return
+        end
+    end
+
+    # Below cutoff
+    push!(deposits, Deposit(pos, E, :gamma_local))
+end
+
+
+"""
+    simulate_event_photon_only(E_MeV::Float64, nd::NISTData, cfg::SimConfig;
+                               position=(0.0, 0.0, 0.0),
+                               direction=(0.0, 0.0, 1.0),
+                               geom::Geometry=InfiniteLXe(),
+                               rng::AbstractRNG=Random.default_rng()) -> Vector{Deposit}
+
+Photon-only simulation (Mode 2): only photons are tracked on the stack.
+All electron/positron energy is deposited locally at the interaction point.
+No lepton transport, no bremsstrahlung, no positron annihilation photons.
+
+Useful for comparing SS/MS topology with and without electron transport
+to quantify the effect of finite electron range in LXe.
+"""
+function simulate_event_photon_only(E_MeV::Float64, nd::NISTData, cfg::SimConfig;
+                                    position::NTuple{3,Float64}=(0.0, 0.0, 0.0),
+                                    direction::NTuple{3,Float64}=(0.0, 0.0, 1.0),
+                                    geom::Geometry=InfiniteLXe(),
+                                    rng::AbstractRNG=Random.default_rng())::Vector{Deposit}
+    deposits = Deposit[]
+    stack = ParticleStack()
+    push!(stack, Track(:gamma, E_MeV,
+                       Float64[position...],
+                       Float64[direction...],
+                       -1, 0))
+
+    while !isempty(stack)
+        t = pop!(stack)
+        t.generation > cfg.generation_cap && continue
+        # Only photons on the stack in this mode
+        transport_photon_only!(t, geom, deposits, stack, nd, cfg, rng)
+    end
+
+    deposits
+end
+
+
+# =====================================================================
 # Deposit clustering and SS/MS classification
 # =====================================================================
 

@@ -64,6 +64,7 @@ export sigma_brems_above_kmin, sample_brems, brems_photon_angle
 export Geometry, InfiniteLXe, CylinderLXe, is_inside
 export Track, ParticleStack, Deposit
 export transport_photon!, transport_lepton!
-export simulate_event, cluster_deposits_in_z, is_single_site
+export simulate_event, simulate_event_photon_only
+export cluster_deposits_in_z, is_single_site
 
 end # module LXeMC

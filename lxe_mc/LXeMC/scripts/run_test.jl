@@ -53,6 +53,10 @@ function parse_args()
             help = "Geometry: 'infinite' or 'cylinder,R_cm,H_cm' (half-height)"
             arg_type = String
             default = "infinite"
+        "--mode", "-m"
+            help = "Simulation mode: 'full' (with electron transport) or 'photon-only'"
+            arg_type = String
+            default = "full"
     end
 
     return ArgParse.parse_args(s)
@@ -87,6 +91,9 @@ function run_simulation(args)
     outdir  = args["output-dir"]
     save_ev = args["save-events"]
     geom    = build_geometry(args["geometry"])
+    mode    = lowercase(strip(args["mode"]))
+    mode in ("full", "photon-only") || error("Unknown mode '$mode'. Use 'full' or 'photon-only'.")
+    photon_only = mode == "photon-only"
 
     mkpath(outdir)
 
@@ -112,6 +119,7 @@ function run_simulation(args)
     @printf("  Energy:     %.4f MeV\n", E_MeV)
     @printf("  Seed:       %d\n", seed)
     @printf("  Geometry:   %s\n", args["geometry"])
+    @printf("  Mode:       %s\n", mode)
     @printf("  Output dir: %s\n", outdir)
     @printf("  Save CSV:   %s\n", save_ev ? "yes" : "no")
     println("-" ^ 60)
@@ -119,7 +127,9 @@ function run_simulation(args)
     t_start = time()
 
     for i in 1:N
-        deposits = simulate_event(E_MeV, nd, cfg; geom=geom, rng=rng)
+        deposits = photon_only ?
+            simulate_event_photon_only(E_MeV, nd, cfg; geom=geom, rng=rng) :
+            simulate_event(E_MeV, nd, cfg; geom=geom, rng=rng)
         clusters = cluster_deposits_in_z(deposits, cfg.dz_resolution)
 
         E_dep = sum(d.energy for d in deposits; init=0.0)
@@ -156,6 +166,7 @@ function run_simulation(args)
     push!(summary_lines, @sprintf("  Events simulated:    %d", N))
     push!(summary_lines, @sprintf("  Primary energy:      %.4f MeV", E_MeV))
     push!(summary_lines, @sprintf("  Geometry:            %s", args["geometry"]))
+    push!(summary_lines, @sprintf("  Mode:                %s", mode))
     push!(summary_lines, @sprintf("  Seed:                %d", seed))
     push!(summary_lines, "-" ^ 60)
     push!(summary_lines, @sprintf("  Mean E_deposited:    %.4f MeV", mean(E_deps)))
