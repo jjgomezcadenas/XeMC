@@ -335,15 +335,16 @@ end
 
     # Gammas from TPC wall (r=72.8, aimed inward at z=72.8 = TPC center height)
     n_vetoed = 0; n_accepted = 0; n_lost = 0
+    n_int_vetoed = Int[]
     for _ in 1:N
-        # Random phi, start at field cage wall, aim radially inward
         φ = 2π * rand(rng)
         pos = (72.0 * cos(φ), 72.0 * sin(φ), 72.8)
-        dir_vec = (-cos(φ), -sin(φ), 0.0)  # radially inward
+        dir_vec = (-cos(φ), -sin(φ), 0.0)
 
         result = propagate_to_fiducial(E0, pos, dir_vec, DET, CFG, rng)
         if result.status === :vetoed
             n_vetoed += 1
+            push!(n_int_vetoed, result.n_interactions)
         elseif result.status === :accepted
             n_accepted += 1
         else
@@ -360,4 +361,10 @@ end
     @test 0.90 < frac_vetoed < 0.99     # ~97% vetoed
     @test 0.01 < frac_accepted < 0.07   # ~2-5% reach FV
     @test n_lost == 0                    # radial gammas don't escape
+
+    # Nearly all vetoed events are killed at the first interaction
+    # (99.8% at interaction 1, 0.2% at interaction 2, from 10k-event study)
+    frac_first = count(==(1), n_int_vetoed) / length(n_int_vetoed)
+    @test frac_first > 0.95              # >95% vetoed at first interaction
+    @test maximum(n_int_vetoed) <= 3     # never needs more than ~2-3 steps
 end

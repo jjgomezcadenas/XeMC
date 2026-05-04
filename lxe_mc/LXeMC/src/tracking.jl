@@ -413,6 +413,7 @@ struct PropagationResult
     energy::Float64         # gamma energy at outcome point [MeV]
     position::Vector{Float64}  # position at outcome point [cm]
     direction::Vector{Float64} # direction at outcome point
+    n_interactions::Int     # number of photon interactions before outcome
 end
 
 
@@ -451,30 +452,28 @@ function propagate_to_fiducial(E_MeV::Float64,
     pos = Float64[position...]
     dir = Float64[direction...]
     E = E_MeV
+    n_int = 0
 
     while E >= cfg.Egamma_cut
-        # Cross sections and distance to next interaction
         sC, sP, sPh = sigma_three(mat, E)
         s_tot = sC + sP + sPh
         Σ_tot = mat.n_atom * s_tot
 
         s = sample_distance(Σ_tot, rng)
         pos .= pos .+ dir .* s
+        n_int += 1
 
         # Escaped the active volume entirely
         if !is_inside(vol, pos)
-            return PropagationResult(:lost, E, pos, dir)
+            return PropagationResult(:lost, E, pos, dir, n_int)
         end
 
         # Reached the fiducial volume — accept for full simulation
         if is_inside(fv, pos)
-            return PropagationResult(:accepted, E, pos, dir)
+            return PropagationResult(:accepted, E, pos, dir, n_int)
         end
 
         # Determine veto threshold based on region
-        # (inside TPC active but outside FV → veto_TPC;
-        #  could extend to skin with find_volume, but for now
-        #  everything inside vol but outside fv uses veto_TPC)
         veto_threshold = cfg.veto_TPC
 
         # Sample interaction
@@ -482,10 +481,10 @@ function propagate_to_fiducial(E_MeV::Float64,
 
         if proc === :compton
             Egp, cos_t = sample_compton(E, cfg, rng)
-            T_e = E - Egp    # energy deposited by recoil electron
+            T_e = E - Egp
 
             if T_e > veto_threshold
-                return PropagationResult(:vetoed, E, pos, dir)
+                return PropagationResult(:vetoed, E, pos, dir, n_int)
             end
 
             # Below veto: gamma continues, deposit is invisible
@@ -496,23 +495,20 @@ function propagate_to_fiducial(E_MeV::Float64,
             E = Egp
 
         elseif proc === :pair
-            # Pair deposits entire gamma energy locally
             if E > veto_threshold
-                return PropagationResult(:vetoed, E, pos, dir)
+                return PropagationResult(:vetoed, E, pos, dir, n_int)
             end
-            return PropagationResult(:lost, 0.0, pos, dir)
+            return PropagationResult(:lost, 0.0, pos, dir, n_int)
 
         elseif proc === :photoelectric
-            # Photoelectric deposits entire gamma energy locally
             if E > veto_threshold
-                return PropagationResult(:vetoed, E, pos, dir)
+                return PropagationResult(:vetoed, E, pos, dir, n_int)
             end
-            return PropagationResult(:lost, 0.0, pos, dir)
+            return PropagationResult(:lost, 0.0, pos, dir, n_int)
         end
     end
 
-    # Gamma fell below Egamma_cut without triggering veto
-    PropagationResult(:lost, E, pos, dir)
+    PropagationResult(:lost, E, pos, dir, n_int)
 end
 
 
