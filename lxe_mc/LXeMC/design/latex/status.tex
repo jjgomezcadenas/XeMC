@@ -1,0 +1,193 @@
+\documentclass{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{verbatim}
+
+\title{LXeMC --- Current Status}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Architecture}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+File & Role \\
+\midrule
+\texttt{config.jl}        & \texttt{SimConfig} --- transport thresholds, stepping, physical constants \\
+\texttt{nist\_data.jl}     & XCOM/ESTAR CSV loaders, log-log interpolation utilities \\
+\texttt{physics\_utils.jl} & Bethe-Heitler-Tsai bremsstrahlung $d\sigma/dk$, Coulomb correction \\
+\texttt{materials.jl}      & \texttt{Material} struct --- density, composition, XCOM/ESTAR/brems data, physics methods \\
+\texttt{geometry.jl}       & \texttt{Cyl}/\texttt{Box} $\to$ \texttt{LCyl}/\texttt{LBox} $\to$ \texttt{PCyl}/\texttt{PBox} $\to$ \texttt{RCyl}, \texttt{Detector} \\
+\texttt{sampling.jl}       & MC samplers: Compton (KN), pair (BH), photoelectric (Sauter), brems ($1/k$ rejection) \\
+\texttt{tracking.jl}       & \texttt{Track}, \texttt{Deposit}, \texttt{ParticleStack}, transport functions, event simulation, clustering \\
+\texttt{LXeMC.jl}          & Module wrapper, includes, exports \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Physics implemented}
+
+\subsection{Photon interactions (from NIST XCOM tables)}
+
+\begin{itemize}
+  \item \textbf{Compton scattering}: Klein-Nishina sampled by composition+rejection (Butcher-Messel). Scattered photon continues; recoil electron pushed onto stack.
+  \item \textbf{Pair production}: Bethe-Heitler energy split with flat+rejection sampling. Positron and electron pushed onto stack. Positrons annihilate at rest (two 511\,keV back-to-back photons).
+  \item \textbf{Photoelectric absorption}: above K-edge, $E_K$ deposited locally (relaxation cascade is sub-mm); photoelectron tracked if $T_e > T_{e,\mathrm{cut}}$. Below K-edge, full energy deposited locally.
+\end{itemize}
+
+\subsection{Electron/positron transport}
+
+\begin{itemize}
+  \item Condensed-history with fixed step size (1\,mm).
+  \item Continuous collisional energy loss from NIST ESTAR tables.
+  \item Discrete hard bremsstrahlung ($k > k_{\min}$) via $1/k$ envelope rejection with pre-tabulated cross section and rejection ceiling.
+  \item No multiple scattering (straight-line steps) --- adequate for LXe where electron range $\sim$\,mm.
+  \item No energy-loss straggling.
+\end{itemize}
+
+\subsection{What is NOT implemented}
+
+\begin{itemize}
+  \item Coherent (Rayleigh) scattering --- negligible above 100\,keV.
+  \item Multiple scattering --- needed for gas, not for LXe at current resolution.
+  \item Delta-ray production.
+  \item Energy-loss straggling (Landau/Vavilov fluctuations).
+  \item Source generation (position, direction, spectrum sampling).
+  \item Multi-volume transport (particle crossing volume boundaries).
+  \item Passive shielding attenuation.
+\end{itemize}
+
+\section{Geometry and materials}
+
+\subsection{Geometry hierarchy}
+
+\begin{verbatim}
+Cyl / Box          (geometric solid: dimensions)
+  +-- LCyl / LBox   (logical volume: solid + position in MARS)
+      +-- PCyl / PBox  (physical volume: logical + material)
+          +-- RCyl      (radioactive volume: physical + specific activities)
+
+Detector = MARS (vacuum) + list of physical volumes
+\end{verbatim}
+
+\subsection{Defined detector: LZ}
+
+\begin{itemize}
+  \item MARS: cylinder $R = 110$\,cm, $H_{\mathrm{half}} = 155$\,cm, Vacuum
+  \item LXeTPC: cylinder $R = 72.8$\,cm, $H_{\mathrm{half}} = 72.8$\,cm, LXe, centered at origin, mass $\sim$7160\,kg
+\end{itemize}
+
+\subsection{Materials loaded}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llllll@{}}
+\toprule
+Material & Density [g/cm$^3$] & Type & XCOM & ESTAR & mfp at 2.615\,MeV \\
+\midrule
+LXe        & 2.953 & active+tracking & yes & yes & 8.9\,cm \\
+HPGXe      & 0.089 & active+tracking & yes & yes & 297\,cm \\
+PTFE       & 2.20  & passive         & yes & no  & 12.2\,cm \\
+Ti         & 4.507 & passive         & yes & no  & 6.0\,cm \\
+Steel (Fe) & 7.99  & passive         & yes & no  & 3.3\,cm \\
+Vacuum     & 0.0   & ---             & no  & no  & $\infty$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Material capability flags}
+
+\begin{itemize}
+  \item \textbf{active}: XCOM + ESTAR + brems tables loaded. Can do photon + electron transport.
+  \item \textbf{tracking}: condensed-history electron stepping (straight-line, no MS).
+  \item \textbf{full\_tracking} (future): + multiple scattering + straggling for gas.
+\end{itemize}
+
+\section{Source generation}
+
+\textbf{Current limitation}: primary photon is generated at a fixed position (default origin) with fixed direction (default $+z$) and fixed energy (caller-specified). No built-in source sampling.
+
+\textbf{Needed}:
+\begin{itemize}
+  \item Uniform generation within a volume (for bulk contamination).
+  \item Surface generation (for external backgrounds).
+  \item Isotropic direction sampling.
+  \item Spectrum sampling (fixed gamma lines: 2.448\,MeV Bi-214, 2.615\,MeV Tl-208).
+  \item Integration with \texttt{RCyl} radioactive volumes for flux-weighted generation.
+\end{itemize}
+
+\section{Simulation modes}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+Mode & Function & Electrons & Use case \\
+\midrule
+Full        & \texttt{simulate\_event}              & Tracked (condensed-history) & Production: correct SS/MS topology \\
+Photon-only & \texttt{simulate\_event\_photon\_only} & Deposited locally           & Fast studies, baseline comparison \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key result at 2.615\,MeV in LZ: SS fraction is 10\% (full) vs 25\% (photon-only), showing that mm-scale electron tracks drive MS topology in LXe.
+
+\section{Output and analysis}
+
+\begin{itemize}
+  \item \textbf{Deposits}: list of (position, energy, source\_label) per event.
+  \item \textbf{Clustering}: \texttt{cluster\_deposits\_in\_z(deposits, dz\_cm; E\_min)} groups deposits by $z$-proximity. Energy-weighted centroid. Sub-threshold clusters discarded.
+  \item \textbf{SS/MS classification}: \texttt{is\_single\_site(deposits, dz, E\_min)} --- true if $\leq 1$ cluster survives.
+  \item \textbf{Driver script} (\texttt{scripts/run\_test.jl}): CLI with \texttt{-{}-nevents}, \texttt{-{}-energy}, \texttt{-{}-mode}, \texttt{-{}-detector}, \texttt{-{}-save-events}. Outputs summary to stdout + \texttt{summary.txt}; optionally writes long-format \texttt{events.csv} (one row per cluster, event fields repeated).
+\end{itemize}
+
+\subsection{Current parameters}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+Parameter & Value & Justification \\
+\midrule
+$T_{e,\mathrm{cut}}$   & 400\,keV & CSDA range 0.74\,mm $\ll$ 3\,mm $z$-resolution \\
+$k_{\min}$              & 50\,keV  & Photon mfp 0.27\,mm $\ll$ 3\,mm \\
+$E_{\gamma,\mathrm{cut}}$ & 10\,keV  & mfp 0.027\,mm \\
+$ds_{\mathrm{step}}$    & 1\,mm    & Fixed, adequate for LXe \\
+$dz_{\mathrm{resolution}}$ & 3\,mm    & SS/MS $z$-clustering \\
+$E_{\mathrm{cluster,min}}$ & 10\,keV  & Sub-threshold cluster filter \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Performance}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+Measurement & Events/sec \\
+\midrule
+Full mode (warm, 500k events)  & 293,000 \\
+Photon-only (warm)             & $\sim$400,000+ \\
+Full mode (driver, 50k events) & $\sim$58,000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At 293k events/sec, $10^8$ events takes $\sim$5.7 minutes.
+
+Main CPU consumers (profiled): XCOM interpolation (22\%), Compton electron direction (11\%), ESTAR interpolation (7\%), brems table lookup (6\%).
+
+\section{Test suite}
+
+14 test sets covering: config loading, material loading, detector geometry, XCOM consistency, NIST interpolation accuracy, Coulomb correction, bremsstrahlung $d\sigma/dk$, brems table vs direct integration, Compton edge, pair energy split, brems photon energy, energy conservation (full), SS fraction (Tl-208), energy conservation (photon-only).
+
+\end{document}

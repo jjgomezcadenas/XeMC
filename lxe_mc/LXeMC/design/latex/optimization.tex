@@ -1,0 +1,128 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+
+\title{LXeMC --- Optimization History}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Measurement caveats}
+
+Early benchmarks ($\leq$5k events from CLI) include Julia JIT compilation
+overhead, which dominates for small $N$. Numbers below 50k events from
+a cold session are unreliable. Warm-loop measurements (200k+ events,
+post-warmup) are marked with~*.
+
+\section{Algorithm changes (affect precision/physics tradeoff)}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}lllllp{4.5cm}@{}}
+\toprule
+Change & Te\_cut & k\_min & Step & Events/sec & Notes \\
+\midrule
+Original (fraction-of-range, per-step brems integration)
+  & 50\,keV & 50\,keV & 5\% of range & $\sim$655 (cold, 100 events)
+  & JIT-dominated \\
+Pre-tabulated $\sigma_\mathrm{brems}(T)$ + fixed 0.5\,mm step
+  & 50\,keV & 50\,keV & 0.5\,mm & $\sim$7{,}200 (cold, 5k)
+  & Eliminated 100-point integration per step \\
+Fixed 1\,mm step
+  & 50\,keV & 50\,keV & 1.0\,mm & $\sim$25{,}000 (cold, 5k)
+  & Range at 400\,keV = 0.74\,mm, adequate for 3\,mm resolution \\
+Raised Te\_cut to 100\,keV
+  & 100\,keV & 100\,keV & 1.0\,mm & $\sim$26{,}000 (cold, 5k)
+  & \\
+Te\_cut scan: 400\,keV optimal
+  & 400\,keV & 50\,keV & 1.0\,mm & $\sim$46{,}000 (cold, 5k)
+  & CSDA range at 400\,keV = 0.74\,mm $\ll$ 3\,mm z-resolution \\
+Simplified photoelectric (deposit $E_K$ locally)
+  & 400\,keV & 50\,keV & 1.0\,mm & $\sim$26{,}000 (cold, 5k)
+  & No speed gain (photo is 2\% of events), but exact energy conservation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key physics parameters (current):}
+\begin{itemize}
+  \item Te\_cut = 400\,keV (CSDA range 0.74\,mm)
+  \item k\_min = 50\,keV (photon mfp 0.27\,mm)
+  \item Egamma\_cut = 10\,keV (mfp 0.027\,mm)
+  \item Step = 1\,mm fixed
+  \item All sub-cut: deposit locally. SS/MS classification at 3\,mm
+        z-resolution, 10\,keV cluster threshold.
+\end{itemize}
+
+\section{Implementation optimizations (no physics change)}
+
+Measured with warm loop (200k--500k events, post-warmup).
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+Change & Events/sec* & Speedup \\
+\midrule
+Baseline (after algorithm changes + geometry refactor)
+  & 162{,}000 & 1$\times$ \\
+Pre-tabulated brems rejection ceiling $M(T)$
+  & 220{,}000 & 1.36$\times$ \\
+Combined sigma\_three (1 binary search for 3 XCOM channels)
+  & --- & --- \\
+Pre-logged XCOM/ESTAR/brems grids (avoid log/exp on grid points)
+  & --- & --- \\
+Replace objectid with integer track counter
+  & --- & --- \\
+\textbf{All three combined}
+  & \textbf{293{,}000} & \textbf{1.81$\times$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Current profile (500k events, 2.615\,MeV in LZ TPC)}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+Function & \% CPU & Notes \\
+\midrule
+transport\_photon! & 59\% & Cross-section lookups + Compton kinematics \\
+\quad$\vdash$ sigma\_three (XCOM interp) & 22\% & One search, three interpolations \\
+\quad$\vdash$ compton\_electron\_direction & 11\% & Vector allocations \\
+\quad$\vdash$ sample\_compton & 4\% & KN rejection sampling \\
+transport\_lepton! & 38\% & Stepping + brems \\
+\quad$\vdash$ dEdx\_collision (ESTAR interp) & 7\% & One lookup per step \\
+\quad$\vdash$ sigma\_brems (table lookup) & 6\% & One lookup per step \\
+\quad$\vdash$ brems sampling + stepping & 21\% & \\
+objectid (now removed) & 4\% & Replaced by counter \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Remaining opportunities}
+
+\begin{itemize}
+  \item \textbf{StaticArrays SVector\{3,Float64\}}: would eliminate
+        $\sim$9\,KB/event of heap allocations from
+        \texttt{Vector\{Float64\}} temporaries in position/direction
+        vectors. Estimated 20--30\% further gain. Requires changing Track,
+        Deposit, and all transport functions.
+\end{itemize}
+
+\section{Performance summary}
+
+At 293k events/sec (warm), $10^8$ events takes $\sim$5.7 minutes.
+Photon-only mode runs at $\sim$400k+ events/sec.
+
+\end{document}
