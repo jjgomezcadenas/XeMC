@@ -31,7 +31,8 @@ Fields:
 - `energy`: kinetic energy [MeV] (for leptons) or total energy (for photons)
 - `position`: 3-vector [cm]
 - `direction`: unit 3-vector
-- `parent_id`: unique id of parent track (-1 for primaries)
+- `track_id`: unique integer id (assigned by event loop counter)
+- `parent_id`: track_id of parent (0 for primaries)
 - `generation`: cascade depth (0 for primaries)
 """
 struct Track
@@ -39,6 +40,7 @@ struct Track
     energy::Float64
     position::Vector{Float64}
     direction::Vector{Float64}
+    track_id::Int
     parent_id::Int
     generation::Int
 end
@@ -91,18 +93,17 @@ energy falls below cutoff. Material properties come from `vol.material`.
 """
 function transport_photon!(track::Track, vol::PhysicalVolume,
                            deposits::Vector{Deposit}, stack::ParticleStack,
+                           track_counter::Ref{Int},
                            cfg::SimConfig, rng::AbstractRNG)
     mat = vol.material
     pos = copy(track.position)
     dir = copy(track.direction)
     E = track.energy
-    tid = objectid(track)
+    tid = track.track_id
     gen = track.generation
 
     while E >= cfg.Egamma_cut
-        sC  = sigma_compton(mat, E; per_atom=true)
-        sP  = sigma_pair(mat, E; per_atom=true)
-        sPh = sigma_phot(mat, E; per_atom=true)
+        sC, sP, sPh = sigma_three(mat, E)
         s_tot = sC + sP + sPh
         Σ_tot = mat.n_atom * s_tot
 
@@ -118,8 +119,9 @@ function transport_photon!(track::Track, vol::PhysicalVolume,
 
             n_e = compton_electron_direction(cos_t, ϕ, E, dir, cfg)
             T_e = E - Egp
+            track_counter[] += 1
             push!(stack, Track(:electron, T_e, copy(pos), n_e,
-                               Int(tid % typemax(Int)), gen + 1))
+                               track_counter[], tid, gen + 1))
 
             sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
             local_vec = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
@@ -143,8 +145,9 @@ function transport_photon!(track::Track, vol::PhysicalVolume,
                 local_vec = Float64[sin(θ)*cos(ϕ_lep), sin(θ)*sin(ϕ_lep), cos(θ)]
                 d_lep = rotate_to_global(local_vec, dir)
                 if T > 0.0
+                    track_counter[] += 1
                     push!(stack, Track(kind, T, copy(pos), d_lep,
-                                       Int(tid % typemax(Int)), gen + 1))
+                                       track_counter[], tid, gen + 1))
                 end
             end
             return
@@ -163,8 +166,9 @@ function transport_photon!(track::Track, vol::PhysicalVolume,
                 ϕ_e = 2π * rand(rng)
                 local_vec = Float64[sin(θ_e)*cos(ϕ_e), sin(θ_e)*sin(ϕ_e), cos(θ_e)]
                 d_e = rotate_to_global(local_vec, dir)
+                track_counter[] += 1
                 push!(stack, Track(:electron, T_e, copy(pos), d_e,
-                                   Int(tid % typemax(Int)), gen + 1))
+                                   track_counter[], tid, gen + 1))
             else
                 push!(deposits, Deposit(copy(pos), T_e, :photoelectric))
             end
@@ -195,12 +199,13 @@ Material properties (stopping power, brems cross section) come from
 """
 function transport_lepton!(track::Track, vol::PhysicalVolume,
                            deposits::Vector{Deposit}, stack::ParticleStack,
+                           track_counter::Ref{Int},
                            cfg::SimConfig, rng::AbstractRNG)
     mat = vol.material
     pos = copy(track.position)
     dir = copy(track.direction)
     T = track.energy
-    tid = objectid(track)
+    tid = track.track_id
     gen = track.generation
 
     while T >= cfg.Te_cut
@@ -232,8 +237,9 @@ function transport_lepton!(track::Track, vol::PhysicalVolume,
                     ϕ_g = 2π * rand(rng)
                     local_vec = Float64[sin(θ_g)*cos(ϕ_g), sin(θ_g)*sin(ϕ_g), cos(θ_g)]
                     d_g = rotate_to_global(local_vec, dir)
+                    track_counter[] += 1
                     push!(stack, Track(:gamma, k, copy(pos), d_g,
-                                       Int(tid % typemax(Int)), gen + 1))
+                                       track_counter[], tid, gen + 1))
                     T -= k
                 end
             end
@@ -250,8 +256,9 @@ function transport_lepton!(track::Track, vol::PhysicalVolume,
         sin_t = sqrt(1.0 - cos_t^2)
         d_g = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
         for d in [d_g, -d_g]
+            track_counter[] += 1
             push!(stack, Track(:gamma, cfg.me, copy(pos), d,
-                               Int(tid % typemax(Int)), gen + 1))
+                               track_counter[], tid, gen + 1))
         end
     end
 end
@@ -273,18 +280,20 @@ function simulate_event(E_MeV::Float64, vol::PhysicalVolume, cfg::SimConfig;
                         rng::AbstractRNG=Random.default_rng())::Vector{Deposit}
     deposits = Deposit[]
     stack = ParticleStack()
+    track_counter = Ref(0)
+    track_counter[] += 1
     push!(stack, Track(:gamma, E_MeV,
                        Float64[position...],
                        Float64[direction...],
-                       -1, 0))
+                       track_counter[], 0, 0))
 
     while !isempty(stack)
         t = pop!(stack)
         t.generation > cfg.generation_cap && continue
         if t.kind === :gamma
-            transport_photon!(t, vol, deposits, stack, cfg, rng)
+            transport_photon!(t, vol, deposits, stack, track_counter, cfg, rng)
         else
-            transport_lepton!(t, vol, deposits, stack, cfg, rng)
+            transport_lepton!(t, vol, deposits, stack, track_counter, cfg, rng)
         end
     end
 
@@ -311,12 +320,10 @@ function transport_photon_only!(track::Track, vol::PhysicalVolume,
     dir = copy(track.direction)
     E = track.energy
     gen = track.generation
-    tid = objectid(track)
+    tid = track.parent_id  # not used for secondaries in photon-only
 
     while E >= cfg.Egamma_cut
-        sC  = sigma_compton(mat, E; per_atom=true)
-        sP  = sigma_pair(mat, E; per_atom=true)
-        sPh = sigma_phot(mat, E; per_atom=true)
+        sC, sP, sPh = sigma_three(mat, E)
         s_tot = sC + sP + sPh
         Σ_tot = mat.n_atom * s_tot
 
@@ -365,7 +372,7 @@ function simulate_event_photon_only(E_MeV::Float64, vol::PhysicalVolume, cfg::Si
     push!(stack, Track(:gamma, E_MeV,
                        Float64[position...],
                        Float64[direction...],
-                       -1, 0))
+                       1, 0, 0))
 
     while !isempty(stack)
         t = pop!(stack)

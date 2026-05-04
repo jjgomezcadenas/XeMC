@@ -144,36 +144,81 @@ functions between grid points.
 function interp_loglog(x::Float64, xp::Vector{Float64}, fp::Vector{Float64})::Float64
     x <= 0.0 && return 0.0
 
-    # Find positive-value region
     n = length(xp)
 
-    # Below table range
     if x < xp[1]
         return fp[1] > 0.0 ? fp[1] : 0.0
     end
-    # Above table range
     if x > xp[end]
         return fp[end]
     end
 
-    # Binary search for bracketing interval
     lo = searchsortedlast(xp, x)
     lo = clamp(lo, 1, n - 1)
     hi = lo + 1
 
-    # Handle zero/negative values (e.g., pair below threshold)
     if fp[lo] <= 0.0 && fp[hi] <= 0.0
         return 0.0
     elseif fp[lo] <= 0.0
-        return 0.0  # below first positive value
+        return 0.0
     elseif fp[hi] <= 0.0
         return fp[lo]
     end
 
-    # Log-log linear interpolation
     lx = log(x)
     t = (lx - log(xp[lo])) / (log(xp[hi]) - log(xp[lo]))
     return exp(log(fp[lo]) + t * (log(fp[hi]) - log(fp[lo])))
+end
+
+
+"""
+    interp_loglog_prelogged(lx, log_xp, log_fp, fp, lo) -> Float64
+
+Fast log-log interpolation with pre-computed log arrays and a known
+bracket index `lo`. Avoids `searchsortedlast` and `log` calls on the
+grid — only `log(x)` (passed as `lx`) and one `exp` are needed.
+"""
+function interp_loglog_prelogged(lx::Float64, log_xp::Vector{Float64},
+                                  log_fp::Vector{Float64}, fp::Vector{Float64},
+                                  lo::Int)::Float64
+    hi = lo + 1
+    @inbounds begin
+        fp_lo = fp[lo]
+        fp_hi = fp[hi]
+    end
+
+    if fp_lo <= 0.0 && fp_hi <= 0.0
+        return 0.0
+    elseif fp_lo <= 0.0
+        return 0.0
+    elseif fp_hi <= 0.0
+        return fp_lo
+    end
+
+    @inbounds begin
+        t = (lx - log_xp[lo]) / (log_xp[hi] - log_xp[lo])
+        return exp(log_fp[lo] + t * (log_fp[hi] - log_fp[lo]))
+    end
+end
+
+
+"""
+    PreloggedGrid
+
+Pre-computed log arrays for fast log-log interpolation.
+"""
+struct PreloggedGrid
+    x::Vector{Float64}
+    log_x::Vector{Float64}
+end
+
+function PreloggedGrid(x::Vector{Float64})
+    PreloggedGrid(x, log.(x))
+end
+
+"""Pre-log a data column, replacing non-positive values with -Inf."""
+function prelog_data(fp::Vector{Float64})::Vector{Float64}
+    [f > 0.0 ? log(f) : -Inf for f in fp]
 end
 
 
