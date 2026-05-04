@@ -54,7 +54,7 @@ end
 # =====================================================================
 @testset "Detector geometry" begin
     @test DET.name == "LZ"
-    @test length(DET.volumes) == 11  # TPC + FC + Skin + RFR + Dome + 3 OCV + 3 ICV
+    @test length(DET.volumes) == 11  # TPC + FC + Skin + RFR + Dome + 3 OCV + 3 ICV (FV separate)
     @test VOL.name == "LXeTPC"
 
     # TPC: centered at z=72.8 (cathode at z=0, drift upward)
@@ -86,6 +86,18 @@ end
 
     # Field cage is PTFE
     @test by_name["FieldCage"].material.name == "PTFE"
+
+    # Fiducial volume
+    fv = fiducial_volume(DET)
+    @test fv.name == "FV"
+    @test fv.logical.solid.radius_cm ≈ 39.0
+    @test fv.logical.solid.half_height_cm ≈ 35.0
+    @test is_inside(fv, [0.0, 0.0, 61.0])      # FV center
+    @test !is_inside(fv, [0.0, 0.0, 0.0])       # cathode, outside FV
+    @test !is_inside(fv, [40.0, 0.0, 61.0])     # outside FV radius
+    @test is_inside(VOL, fv.logical.position)    # FV center is inside TPC
+    m_fv = mass(fv) / 1e6                        # tonnes
+    @test 0.9 < m_fv < 1.1                       # ~1 tonne fiducial
 end
 
 

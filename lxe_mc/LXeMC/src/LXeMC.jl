@@ -67,7 +67,7 @@ export R_outer, depth, is_flat
 export LCyl, LCylShell, LBox, LDisk, is_inside
 export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
 export RCyl, RCylShell, RDisk, activity_U238, activity_Th232, gamma_flux
-export Detector, active_volume, find_volume, load_detector
+export Detector, active_volume, fiducial_volume, find_volume, load_detector
 
 # --- Sampling ---
 export sample_distance, sample_process

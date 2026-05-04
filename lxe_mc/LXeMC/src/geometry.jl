@@ -449,11 +449,16 @@ gamma_flux(rd::RDisk) = (activity_U238(rd), activity_Th232(rd))
 
 Complete detector geometry: MARS mother volume (Vacuum) containing
 one or more physical volumes placed in MARS coordinates.
+
+The optional `fiducial` field holds the fiducial volume (a virtual
+volume used for analysis cuts, not transport). It is set automatically
+by `load_detector` when a volume has `"fiducial": true` in the JSON.
 """
 struct Detector
     name::String
     mars::PhysicalVolume
     volumes::Vector{PhysicalVolume}
+    fiducial::Union{PhysicalVolume,Nothing}
 end
 
 
@@ -467,6 +472,17 @@ function active_volume(det::Detector)::PhysicalVolume
         v.material.active && return v
     end
     error("No active volume found in detector '$(det.name)'")
+end
+
+
+"""
+    fiducial_volume(det) -> PhysicalVolume
+
+Return the fiducial volume. Errors if none defined.
+"""
+function fiducial_volume(det::Detector)::PhysicalVolume
+    det.fiducial !== nothing && return det.fiducial
+    error("No fiducial volume defined in detector '$(det.name)'")
 end
 
 
@@ -507,12 +523,18 @@ function load_detector(path::AbstractString,
     mars = _build_volume("MARS", md, mars_mat)
 
     volumes = PhysicalVolume[]
+    fid = nothing
     for vd in raw["volumes"]
         mat = materials[vd["material"]]
-        push!(volumes, _build_volume(vd["name"], vd, mat))
+        vol = _build_volume(vd["name"], vd, mat)
+        if Bool(get(vd, "fiducial", false))
+            fid = vol
+        else
+            push!(volumes, vol)
+        end
     end
 
-    Detector(det_name, mars, volumes)
+    Detector(det_name, mars, volumes, fid)
 end
 
 
