@@ -1,29 +1,15 @@
 """
     SimConfig
 
-Simulation configuration for the LXe Monte Carlo.
+Simulation transport parameters for the LXe Monte Carlo.
 
-All energies are in MeV, lengths in cm. Loaded from a JSON file
-(default: `data/sim_config.json`) so that sensitivity studies can be
-run by editing the data file without touching source code.
+Material properties (Z, A, density, cross sections) are now in
+`Material`; geometry is in `Detector`. This struct holds only
+transport thresholds, stepping parameters, and physical constants.
 
-# Sections
-- **Xenon properties**: atomic number, mass, density, K-shell binding energy.
-- **Transport cuts**: minimum energies for photon and lepton tracking;
-  bremsstrahlung photon threshold.
-- **Stepping parameters**: fixed step size for lepton transport.
-- **Safety**: generation cap to prevent runaway cascades.
-- **Clustering**: z-resolution for single-site / multi-site classification.
-- **Physical constants**: electron mass, classical radius, fine-structure
-  constant, Avogadro number.
+Loaded from `data/sim_config.json`.
 """
 struct SimConfig
-    # --- Xenon properties ---
-    Z::Int                  # atomic number
-    A::Float64              # standard atomic weight [g/mol]
-    rho_LXe::Float64        # liquid xenon density [g/cm³]
-    EK::Float64             # K-shell binding energy [MeV]
-
     # --- Transport cuts ---
     Egamma_cut::Float64     # photon tracking cutoff [MeV]
     Te_cut::Float64         # lepton tracking cutoff [MeV]
@@ -44,9 +30,6 @@ struct SimConfig
     re::Float64             # classical electron radius [cm]
     alpha_fs::Float64       # fine-structure constant
     N_A::Float64            # Avogadro number [mol⁻¹]
-
-    # --- Derived ---
-    n_atom::Float64         # atom number density in LXe [cm⁻³]
 end
 
 
@@ -54,14 +37,12 @@ end
     load_config(path::AbstractString) -> SimConfig
 
 Read a JSON configuration file and return a `SimConfig`.
-The JSON schema must match `data/sim_config.json`.
 """
 function load_config(path::AbstractString)::SimConfig
     raw = open(path, "r") do io
         JSON.parse(io)
     end
 
-    xe  = raw["xenon"]
     pc  = raw["photon_cuts"]
     lc  = raw["lepton_cuts"]
     br  = raw["bremsstrahlung"]
@@ -70,14 +51,7 @@ function load_config(path::AbstractString)::SimConfig
     cl  = raw["clustering"]
     co  = raw["constants"]
 
-    Z   = Int(xe["Z"])
-    A   = Float64(xe["A"])
-    rho = Float64(xe["rho_LXe_g_cm3"])
-    N_A = Float64(co["N_A"])
-
     SimConfig(
-        Z, A, rho,
-        Float64(xe["EK_MeV"]),
         Float64(pc["Egamma_cut_MeV"]),
         Float64(lc["Te_cut_MeV"]),
         Float64(br["k_min_MeV"]),
@@ -88,8 +62,7 @@ function load_config(path::AbstractString)::SimConfig
         Float64(co["me_MeV"]),
         Float64(co["re_cm"]),
         Float64(co["alpha_fs"]),
-        N_A,
-        N_A * rho / A   # n_atom: atom number density [cm⁻³]
+        Float64(co["N_A"])
     )
 end
 
@@ -97,8 +70,7 @@ end
 """
     default_config() -> SimConfig
 
-Load the default configuration from `data/sim_config.json`,
-located relative to the package source directory.
+Load the default configuration from `data/sim_config.json`.
 """
 function default_config()::SimConfig
     default_path = normpath(joinpath(@__DIR__, "..", "..", "data", "sim_config.json"))

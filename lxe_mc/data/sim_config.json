@@ -1,12 +1,5 @@
 {
-    "_doc": "LXeMC simulation configuration. All energies in MeV, lengths in cm.",
-
-    "xenon": {
-        "Z":               54,
-        "A":               131.293,
-        "rho_LXe_g_cm3":   2.953,
-        "EK_MeV":          0.034561
-    },
+    "_doc": "LXeMC transport parameters. Material properties in materials.json, geometry in detector_*.json.",
 
     "photon_cuts": {
         "Egamma_cut_MeV":  0.010

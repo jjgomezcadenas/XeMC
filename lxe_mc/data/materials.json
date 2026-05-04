@@ -1,0 +1,60 @@
+{
+    "_doc": "Material definitions. Paths are relative to data/. active=true means full photon+electron transport data available. tracking=true means condensed-history electron transport (straight-line steps). full_tracking=true (future) adds multiple scattering and straggling for gas.",
+
+    "Vacuum": {
+        "density": 0.0,
+        "components": {},
+        "active": false,
+        "tracking": false,
+        "full_tracking": false
+    },
+
+    "LXe": {
+        "density": 2.953,
+        "components": {"Xe": 1.0},
+        "active": true,
+        "tracking": true,
+        "full_tracking": false,
+        "EK_MeV": 0.034561,
+        "xcom": "xcom_xe.csv",
+        "estar": "estar_xe.csv"
+    },
+
+    "HPGXe": {
+        "density": 0.089,
+        "components": {"Xe": 1.0},
+        "active": true,
+        "tracking": true,
+        "full_tracking": true,
+        "EK_MeV": 0.034561,
+        "xcom": "xcom_xe.csv",
+        "estar": "estar_xe.csv"
+    },
+
+    "PTFE": {
+        "density": 2.20,
+        "components": {"C": 0.240, "F": 0.760},
+        "active": false,
+        "tracking": false,
+        "full_tracking": false,
+        "xcom": "xcom_teflon.csv"
+    },
+
+    "Ti": {
+        "density": 4.507,
+        "components": {"Ti": 1.0},
+        "active": false,
+        "tracking": false,
+        "full_tracking": false,
+        "xcom": "xcom_ti.csv"
+    },
+
+    "Steel": {
+        "density": 7.99,
+        "components": {"Fe": 0.70, "Cr": 0.18, "Ni": 0.10, "Mo": 0.02},
+        "active": false,
+        "tracking": false,
+        "full_tracking": false,
+        "xcom": "xcom_fe.csv"
+    }
+}

@@ -1,0 +1,23 @@
+{
+    "_doc": "LZ detector geometry. All dimensions in cm. Positions are center coordinates in MARS frame.",
+
+    "name": "LZ",
+
+    "mars": {
+        "shape": "cylinder",
+        "radius_cm": 110.0,
+        "half_height_cm": 155.0,
+        "material": "Vacuum"
+    },
+
+    "volumes": [
+        {
+            "name": "LXeTPC",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 72.8,
+            "position_cm": [0.0, 0.0, 0.0],
+            "material": "LXe"
+        }
+    ]
+}

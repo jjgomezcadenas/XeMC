@@ -19,12 +19,7 @@ come from the NIST interpolation tables in `nist_data.jl`.
 Davies-Bethe-Maximon Coulomb correction f_c(Z) for bremsstrahlung
 and pair production in the field of a nucleus with atomic number `Z`.
 
-The correction accounts for the distortion of the electron wave function
-by the nuclear Coulomb field beyond Born approximation:
-
     f_c = (αZ)² [ 1/(1+(αZ)²) + 0.20206 - 0.0369(αZ)² + 0.0083(αZ)⁴ - 0.002(αZ)⁶ ]
-
-For Xe (Z=54): f_c ≈ 0.0325.
 """
 function coulomb_correction_fc(Z::Int, α::Float64)::Float64
     a = α * Z
@@ -34,36 +29,19 @@ end
 
 
 """
-    dsigma_dk_brems(k::Float64, T::Float64, cfg::SimConfig) -> Float64
+    dsigma_dk_brems(k, T, Z, α, re, me) -> Float64
 
-Differential bremsstrahlung cross section dσ/dk [cm²/MeV/atom] for an
-electron of kinetic energy `T` [MeV] emitting a photon of energy `k` [MeV]
-in xenon.
+Differential bremsstrahlung cross section dσ/dk [cm²/MeV/atom].
 
-Uses the Bethe-Heitler-Tsai screened formula (Tsai, Rev. Mod. Phys. 46, 1974):
+Takes explicit physical parameters so it can be used with any material.
+`Z` = atomic number, `α` = fine-structure constant, `re` = classical
+electron radius [cm], `me` = electron mass [MeV].
 
-    dσ/dk = (4α r_e²) / (3k) × {
-        [y² + 2(1 + (1−y)²)] × [Z²(F_el − f_c) + Z F_inel]
-        + (1−y)(Z² + Z) / 3
-    }
-
-where:
-- y = k / (T + m_e) is the photon energy fraction of total energy
-- F_el  = ln(184.15 / Z^{1/3}) is the elastic atomic form factor
-- F_inel = ln(1194 / Z^{2/3})  is the inelastic atomic form factor
-- f_c is the Coulomb correction [`coulomb_correction_fc`](@ref)
-
-Returns 0 for k ≤ 0 or k ≥ T (kinematically forbidden).
-
-Accuracy: ~10% in the MeV range; for production use Seltzer-Berger tables.
+Returns 0 for k ≤ 0 or k ≥ T.
 """
-function dsigma_dk_brems(k::Float64, T::Float64, cfg::SimConfig)::Float64
+function dsigma_dk_brems(k::Float64, T::Float64,
+                         Z::Int, α::Float64, re::Float64, me::Float64)::Float64
     (k <= 0.0 || k >= T) && return 0.0
-
-    Z = cfg.Z
-    α = cfg.alpha_fs
-    re = cfg.re
-    me = cfg.me
 
     Etot = T + me
     y = k / Etot
@@ -81,12 +59,17 @@ function dsigma_dk_brems(k::Float64, T::Float64, cfg::SimConfig)::Float64
     )
 end
 
+"""Convenience: take Z from SimConfig (backwards compat for sampling)."""
+function dsigma_dk_brems(k::Float64, T::Float64, Z::Int, cfg::SimConfig)::Float64
+    dsigma_dk_brems(k, T, Z, cfg.alpha_fs, cfg.re, cfg.me)
+end
 
-"""
-    dsigma_dk_brems(k::Vector{Float64}, T::Float64, cfg::SimConfig) -> Vector{Float64}
+"""Vectorized form."""
+function dsigma_dk_brems(k::Vector{Float64}, T::Float64,
+                         Z::Int, α::Float64, re::Float64, me::Float64)::Vector{Float64}
+    [dsigma_dk_brems(ki, T, Z, α, re, me) for ki in k]
+end
 
-Vectorized form: evaluate dσ/dk at each photon energy in `k`.
-"""
-function dsigma_dk_brems(k::Vector{Float64}, T::Float64, cfg::SimConfig)::Vector{Float64}
-    [dsigma_dk_brems(ki, T, cfg) for ki in k]
+function dsigma_dk_brems(k::Vector{Float64}, T::Float64, Z::Int, cfg::SimConfig)::Vector{Float64}
+    [dsigma_dk_brems(ki, T, Z, cfg) for ki in k]
 end

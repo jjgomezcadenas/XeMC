@@ -2,14 +2,14 @@
 """
 run_test.jl — Driver script for LXeMC simulation.
 
-Simulates N gamma-ray events in a liquid xenon volume and reports
-summary statistics (deposited energy, SS/MS fraction, timing).
-Optionally saves per-event data in long-format CSV.
+Simulates N gamma-ray events in the active volume of a detector and
+reports summary statistics. Optionally saves per-event data in CSV.
 
 Usage:
     julia --project=.. scripts/run_test.jl -n 1000 -e 2.615
     julia --project=.. scripts/run_test.jl -n 500 -e 2.448 --save-events -o results/
-    julia --project=.. scripts/run_test.jl -n 100 -e 2.615 --geometry cylinder,65,65
+    julia --project=.. scripts/run_test.jl -n 100 -e 2.615 --mode photon-only
+    julia --project=.. scripts/run_test.jl -n 100 -e 2.615 --detector ../data/detector_lz.json
 """
 
 using ArgParse
@@ -24,8 +24,8 @@ using Printf
 
 function parse_args()
     s = ArgParseSettings(
-        description = "LXeMC: Monte Carlo simulation of gammas in liquid xenon",
-        version = "0.1.0",
+        description = "LXeMC: Monte Carlo simulation of gammas in xenon detectors",
+        version = "0.2.0",
         add_version = true
     )
 
@@ -49,35 +49,17 @@ function parse_args()
         "--save-events"
             help = "Save per-event data to events.csv"
             action = :store_true
-        "--geometry", "-g"
-            help = "Geometry: 'infinite' or 'cylinder,R_cm,H_cm' (half-height)"
-            arg_type = String
-            default = "infinite"
         "--mode", "-m"
             help = "Simulation mode: 'full' (with electron transport) or 'photon-only'"
             arg_type = String
             default = "full"
+        "--detector", "-d"
+            help = "Path to detector JSON file"
+            arg_type = String
+            default = ""
     end
 
     return ArgParse.parse_args(s)
-end
-
-# =====================================================================
-# Geometry parser
-# =====================================================================
-
-function build_geometry(spec::String)::Geometry
-    spec = strip(spec)
-    if lowercase(spec) == "infinite"
-        return InfiniteLXe()
-    end
-    parts = split(spec, ",")
-    if length(parts) == 3 && lowercase(strip(parts[1])) == "cylinder"
-        R = parse(Float64, strip(parts[2]))
-        H = parse(Float64, strip(parts[3]))
-        return CylinderLXe(R, H)
-    end
-    error("Unknown geometry '$spec'. Use 'infinite' or 'cylinder,R,H'.")
 end
 
 # =====================================================================
@@ -90,16 +72,22 @@ function run_simulation(args)
     seed    = args["seed"]
     outdir  = args["output-dir"]
     save_ev = args["save-events"]
-    geom    = build_geometry(args["geometry"])
     mode    = lowercase(strip(args["mode"]))
     mode in ("full", "photon-only") || error("Unknown mode '$mode'. Use 'full' or 'photon-only'.")
     photon_only = mode == "photon-only"
 
+    det_path = args["detector"]
+    if isempty(det_path)
+        det_path = default_detector_path()
+    end
+
     mkpath(outdir)
 
-    cfg = default_config()
-    nd  = load_nist_data(cfg)
-    rng = MersenneTwister(seed)
+    cfg  = default_config()
+    mats = load_materials(cfg)
+    det  = load_detector(det_path, mats)
+    vol  = active_volume(det)
+    rng  = MersenneTwister(seed)
 
     # Pre-allocate per-event storage
     E_deps     = Vector{Float64}(undef, N)
@@ -107,18 +95,18 @@ function run_simulation(args)
     n_clusters = Vector{Int}(undef, N)
     is_ss      = Vector{Bool}(undef, N)
 
-    # Cluster-level storage (for CSV output)
     if save_ev
-        ev_rows = Vector{NTuple{9, Any}}()  # will collect tuples
+        ev_rows = Vector{NTuple{9, Any}}()
     end
 
     println("=" ^ 60)
     println("LXeMC Simulation")
     println("=" ^ 60)
+    @printf("  Detector:   %s\n", det.name)
+    @printf("  Volume:     %s (%s)\n", vol.name, vol.material.name)
     @printf("  Events:     %d\n", N)
     @printf("  Energy:     %.4f MeV\n", E_MeV)
     @printf("  Seed:       %d\n", seed)
-    @printf("  Geometry:   %s\n", args["geometry"])
     @printf("  Mode:       %s\n", mode)
     @printf("  Output dir: %s\n", outdir)
     @printf("  Save CSV:   %s\n", save_ev ? "yes" : "no")
@@ -128,8 +116,8 @@ function run_simulation(args)
 
     for i in 1:N
         deposits = photon_only ?
-            simulate_event_photon_only(E_MeV, nd, cfg; geom=geom, rng=rng) :
-            simulate_event(E_MeV, nd, cfg; geom=geom, rng=rng)
+            simulate_event_photon_only(E_MeV, vol, cfg; rng=rng) :
+            simulate_event(E_MeV, vol, cfg; rng=rng)
         clusters = cluster_deposits_in_z(deposits, cfg.dz_resolution;
                                          E_min=cfg.E_cluster_min)
 
@@ -148,7 +136,6 @@ function run_simulation(args)
             end
         end
 
-        # Progress indicator
         if N >= 100 && i % (N ÷ 10) == 0
             @printf("  ... %d/%d events (%.0f%%)\n", i, N, 100.0 * i / N)
         end
@@ -156,7 +143,6 @@ function run_simulation(args)
 
     t_elapsed = time() - t_start
 
-    # ---- Summary statistics ----
     n_ss = count(is_ss)
     ss_frac = n_ss / N
 
@@ -164,9 +150,10 @@ function run_simulation(args)
     push!(summary_lines, "=" ^ 60)
     push!(summary_lines, "Results")
     push!(summary_lines, "=" ^ 60)
+    push!(summary_lines, @sprintf("  Detector:            %s", det.name))
+    push!(summary_lines, @sprintf("  Active volume:       %s (%s)", vol.name, vol.material.name))
     push!(summary_lines, @sprintf("  Events simulated:    %d", N))
     push!(summary_lines, @sprintf("  Primary energy:      %.4f MeV", E_MeV))
-    push!(summary_lines, @sprintf("  Geometry:            %s", args["geometry"]))
     push!(summary_lines, @sprintf("  Mode:                %s", mode))
     push!(summary_lines, @sprintf("  Seed:                %d", seed))
     push!(summary_lines, "-" ^ 60)
@@ -185,12 +172,10 @@ function run_simulation(args)
     push!(summary_lines, @sprintf("  Events/sec:          %.0f", N / t_elapsed))
     push!(summary_lines, "=" ^ 60)
 
-    # Print to stdout
     for line in summary_lines
         println(line)
     end
 
-    # Write summary.txt
     summary_path = joinpath(outdir, "summary.txt")
     open(summary_path, "w") do io
         for line in summary_lines
@@ -199,7 +184,6 @@ function run_simulation(args)
     end
     println("\nSummary written to: $summary_path")
 
-    # ---- Per-event CSV ----
     if save_ev
         csv_path = joinpath(outdir, "events.csv")
         open(csv_path, "w") do io
@@ -213,9 +197,5 @@ function run_simulation(args)
         println("Events CSV written to: $csv_path  ($(length(ev_rows)) rows)")
     end
 end
-
-# =====================================================================
-# Entry point
-# =====================================================================
 
 run_simulation(parse_args())

@@ -64,17 +64,26 @@ end
 """
     load_xcom(path::AbstractString) -> XCOMData
 
-Read NIST XCOM CSV for xenon. Lines starting with `#` or the header
-`E_MeV` are skipped. The K-edge duplicate at 0.034561 MeV is kept
-as-is; the interpolator handles it by nudging.
+Read NIST XCOM table. Accepts the standard NIST space-delimited format
+(2 header lines + blank line + data) with 8 columns:
+E, coherent, incoherent, photoelectric, pair_nuclear, pair_electron,
+total_w_coh, total_no_coh. All in cm²/g.
+
+K-edge duplicates are kept as-is; the interpolator handles them by nudging.
 """
 function load_xcom(path::AbstractString)::XCOMData
     rows = Vector{Vector{Float64}}()
     open(path, "r") do io
         for line in eachline(io)
             s = strip(line)
-            (isempty(s) || startswith(s, "#") || startswith(s, "E_MeV")) && continue
-            push!(rows, parse.(Float64, split(s, ",")))
+            isempty(s) && continue
+            # Skip any line that doesn't start with a digit (headers, comments)
+            c = s[1]
+            (c >= '0' && c <= '9') || continue
+            # Split on whitespace or comma
+            fields = split(s)
+            length(fields) >= 8 || continue
+            push!(rows, parse.(Float64, fields[1:8]))
         end
     end
     m = reduce(hcat, rows)'  # N×8 matrix
@@ -85,16 +94,24 @@ end
 """
     load_estar(path::AbstractString) -> ESTARData
 
-Read NIST ESTAR CSV for xenon. Computes CSDA range R(T) [g/cm²] by
-trapezoidal integration of 1/S_total over the tabulated grid.
+Read NIST ESTAR table. Accepts either comma-separated (with `#` comments)
+or space-delimited NIST format. Expects 5 columns:
+T, S_col, S_rad, S_tot, delta.
+
+Computes CSDA range R(T) [g/cm²] by trapezoidal integration of 1/S_total.
 """
 function load_estar(path::AbstractString)::ESTARData
     rows = Vector{Vector{Float64}}()
     open(path, "r") do io
         for line in eachline(io)
             s = strip(line)
-            (isempty(s) || startswith(s, "#") || startswith(s, "T_MeV")) && continue
-            push!(rows, parse.(Float64, split(s, ",")))
+            isempty(s) && continue
+            c = s[1]
+            (c >= '0' && c <= '9') || continue
+            # Split on comma or whitespace
+            fields = occursin(",", s) ? split(s, ",") : split(s)
+            length(fields) >= 5 || continue
+            push!(rows, parse.(Float64, fields[1:5]))
         end
     end
     m = reduce(hcat, rows)'

@@ -1,50 +1,20 @@
 """
-Stack-based Monte Carlo transport for photons and leptons in liquid xenon.
+Stack-based Monte Carlo transport for photons and leptons.
 
-Design follows Geant4: a single LIFO particle stack, physics processes are
-sampled at each interaction point, and secondaries are pushed onto the stack.
-Charged-particle transport uses condensed history with explicit hard-brems
-sampling.
+Transport occurs inside a `PhysicalVolume` (typically a `PCyl` filled
+with an active material). Material properties (cross sections, stopping
+powers) come from the `Material` attached to the volume. Boundary
+checking uses the volume's `is_inside` method.
 
 # Public API
 
-- [`simulate_event`](@ref): simulate one primary photon → list of energy deposits.
-- [`cluster_deposits_in_z`](@ref): group deposits by z-proximity for SS/MS classification.
+- [`simulate_event`](@ref): full simulation (photon + electron transport).
+- [`simulate_event_photon_only`](@ref): photon-only mode (electrons deposit locally).
+- [`cluster_deposits_in_z`](@ref): group deposits for SS/MS classification.
 - [`is_single_site`](@ref): convenience wrapper.
-
-# Geometry
-
-Two geometry types are provided:
-- [`InfiniteLXe`](@ref): no boundaries (all points inside).
-- [`CylinderLXe`](@ref): finite cylinder along z.
 """
 
 using Random
-
-
-# =====================================================================
-# Geometry
-# =====================================================================
-
-"""Abstract base for detector geometries."""
-abstract type Geometry end
-
-"""Infinite LXe volume (no boundaries)."""
-struct InfiniteLXe <: Geometry end
-is_inside(::InfiniteLXe, pos::Vector{Float64}) = true
-
-"""
-    CylinderLXe(radius_cm, half_height_cm)
-
-Cylindrical LXe volume along z, centered at origin.
-"""
-struct CylinderLXe <: Geometry
-    radius_cm::Float64
-    half_height_cm::Float64
-end
-function is_inside(cyl::CylinderLXe, pos::Vector{Float64})::Bool
-    pos[1]^2 + pos[2]^2 < cyl.radius_cm^2 && abs(pos[3]) < cyl.half_height_cm
-end
 
 
 # =====================================================================
@@ -92,13 +62,13 @@ Base.length(s::ParticleStack) = length(s.items)
 """
     Deposit
 
-An energy deposit in the LXe volume.
+An energy deposit in the detector volume.
 
 Fields:
 - `position`: 3-vector [cm]
 - `energy`: deposited energy [MeV]
 - `source`: origin label (`:electron`, `:positron`, `:photoelectric`,
-  `:auger`, `:gamma_local`, `:brems_local`)
+  `:pair`, `:gamma_local`)
 """
 struct Deposit
     position::Vector{Float64}
@@ -108,24 +78,21 @@ end
 
 
 # =====================================================================
-# Photon transport
+# Photon transport (full mode)
 # =====================================================================
 
 """
-    transport_photon!(track::Track, geom::Geometry,
+    transport_photon!(track::Track, vol::PhysicalVolume,
                       deposits::Vector{Deposit}, stack::ParticleStack,
-                      nd::NISTData, cfg::SimConfig, rng::AbstractRNG)
+                      cfg::SimConfig, rng::AbstractRNG)
 
-Transport one gamma until escape, absorption, or energy falls below cutoff.
-
-Pushes secondaries (electrons, positrons, photons) onto `stack` and
-appends energy deposits to `deposits`. The photon is consumed by
-pair production or photoelectric absorption, or continues after
-Compton scattering with reduced energy.
+Transport one gamma in the active volume until escape, absorption, or
+energy falls below cutoff. Material properties come from `vol.material`.
 """
-function transport_photon!(track::Track, geom::Geometry,
+function transport_photon!(track::Track, vol::PhysicalVolume,
                            deposits::Vector{Deposit}, stack::ParticleStack,
-                           nd::NISTData, cfg::SimConfig, rng::AbstractRNG)
+                           cfg::SimConfig, rng::AbstractRNG)
+    mat = vol.material
     pos = copy(track.position)
     dir = copy(track.direction)
     E = track.energy
@@ -133,32 +100,27 @@ function transport_photon!(track::Track, geom::Geometry,
     gen = track.generation
 
     while E >= cfg.Egamma_cut
-        # Cross sections per atom
-        sC  = sigma_compton_NIST(nd, E; per_atom=true)
-        sP  = sigma_pair_NIST(nd, E; per_atom=true)
-        sPh = sigma_phot_NIST(nd, E; per_atom=true)
+        sC  = sigma_compton(mat, E; per_atom=true)
+        sP  = sigma_pair(mat, E; per_atom=true)
+        sPh = sigma_phot(mat, E; per_atom=true)
         s_tot = sC + sP + sPh
-        Σ_tot = cfg.n_atom * s_tot
+        Σ_tot = mat.n_atom * s_tot
 
-        # Sample distance to next interaction
         s = sample_distance(Σ_tot, rng)
         pos .= pos .+ dir .* s
-        is_inside(geom, pos) || return  # escapes
+        is_inside(vol, pos) || return
 
-        # Sample which process
         proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
 
         if proc === :compton
             Egp, cos_t = sample_compton(E, cfg, rng)
             ϕ = 2π * rand(rng)
 
-            # Push recoil electron
             n_e = compton_electron_direction(cos_t, ϕ, E, dir, cfg)
             T_e = E - Egp
             push!(stack, Track(:electron, T_e, copy(pos), n_e,
                                Int(tid % typemax(Int)), gen + 1))
 
-            # Update scattered photon direction
             sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
             local_vec = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
             dir = rotate_to_global(local_vec, dir)
@@ -175,7 +137,6 @@ function transport_photon!(track::Track, geom::Geometry,
             θ_ele = pair_polar_angle(E_ele_total, cfg, rng)
             ϕ = 2π * rand(rng)
 
-            # Positron and electron, coplanar with incoming photon
             for (sign_val, θ, T, kind) in [(1.0, θ_pos, T_pos, :positron),
                                             (-1.0, θ_ele, T_ele, :electron)]
                 ϕ_lep = ϕ + (sign_val < 0.0 ? π : 0.0)
@@ -186,21 +147,17 @@ function transport_photon!(track::Track, geom::Geometry,
                                        Int(tid % typemax(Int)), gen + 1))
                 end
             end
-            return  # photon consumed
+            return
 
         elseif proc === :photoelectric
-            if E < cfg.EK
-                # Below K-edge: deposit everything locally
+            if E < mat.EK
                 push!(deposits, Deposit(copy(pos), E, :photoelectric))
                 return
             end
 
-            # Above K-edge: deposit EK locally (relaxation cascade is
-            # always local — fluorescence mfp ~0.05 mm, Auger range < 1 µm)
-            push!(deposits, Deposit(copy(pos), cfg.EK, :photoelectric))
+            push!(deposits, Deposit(copy(pos), mat.EK, :photoelectric))
 
-            # Photoelectron carries the rest
-            T_e = E - cfg.EK
+            T_e = E - mat.EK
             if T_e > cfg.Te_cut
                 θ_e = sample_photoelectron_angle(T_e, cfg, rng)
                 ϕ_e = 2π * rand(rng)
@@ -211,44 +168,35 @@ function transport_photon!(track::Track, geom::Geometry,
             else
                 push!(deposits, Deposit(copy(pos), T_e, :photoelectric))
             end
-            return  # photon consumed
+            return
         end
     end
 
-    # Below cutoff: deposit residual energy locally
     push!(deposits, Deposit(pos, E, :gamma_local))
 end
 
 
 # =====================================================================
-# Lepton transport (electron and positron)
+# Lepton transport
 # =====================================================================
 
 """
-    transport_lepton!(track::Track, geom::Geometry,
+    transport_lepton!(track::Track, vol::PhysicalVolume,
                       deposits::Vector{Deposit}, stack::ParticleStack,
-                      nd::NISTData, cfg::SimConfig, rng::AbstractRNG)
+                      cfg::SimConfig, rng::AbstractRNG)
 
-Transport an electron or positron through LXe using condensed-history
-stepping with continuous collisional energy loss and explicit discrete
-bremsstrahlung sampling.
+Transport an electron or positron using condensed-history stepping.
+Material properties (stopping power, brems cross section) come from
+`vol.material`.
 
-**Stepping**: fixed step size `ds_step` (default 0.5 mm), clamped to
-not overshoot the remaining kinetic energy. Collisional energy loss is
-deposited at the midpoint of each step.
-
-**Bremsstrahlung**: at each step, the probability of emitting a hard photon
-(k > k_min) is P = n_atom × σ_brems(T) × ds, where σ_brems is looked up
-from a pre-tabulated log-log table (no per-step numerical integration).
-If triggered, the photon energy is sampled from the BH-Tsai spectrum and
-pushed onto the stack.
-
-**End of range**: residual energy is deposited locally. Positrons
-annihilate at rest, producing two back-to-back 511 keV photons.
+**Stepping**: fixed step size `ds_step`, clamped to not overshoot.
+**Bremsstrahlung**: probability from pre-tabulated σ_brems table.
+**End of range**: deposit locally; positrons annihilate at rest.
 """
-function transport_lepton!(track::Track, geom::Geometry,
+function transport_lepton!(track::Track, vol::PhysicalVolume,
                            deposits::Vector{Deposit}, stack::ParticleStack,
-                           nd::NISTData, cfg::SimConfig, rng::AbstractRNG)
+                           cfg::SimConfig, rng::AbstractRNG)
+    mat = vol.material
     pos = copy(track.position)
     dir = copy(track.direction)
     T = track.energy
@@ -256,8 +204,7 @@ function transport_lepton!(track::Track, geom::Geometry,
     gen = track.generation
 
     while T >= cfg.Te_cut
-        # Fixed step size, clamped to not overshoot
-        dEdx_col = dEdx_collision_NIST(nd, T) * cfg.rho_LXe  # MeV/cm
+        dEdx_col = dEdx_collision(mat, T) * mat.density  # MeV/cm
         ds = cfg.ds_step
         dE_col = dEdx_col * ds
         if dE_col >= T
@@ -265,23 +212,20 @@ function transport_lepton!(track::Track, geom::Geometry,
             dE_col = dEdx_col * ds
         end
 
-        # Deposit collisional energy at step midpoint
         mid_pos = pos .+ dir .* (ds * 0.5)
         push!(deposits, Deposit(copy(mid_pos), dE_col, track.kind))
         T -= dE_col
 
-        # Advance position
         pos .= pos .+ dir .* ds
-        is_inside(geom, pos) || return
+        is_inside(vol, pos) || return
 
         T < cfg.Te_cut && break
 
-        # Sample bremsstrahlung
         if T > cfg.k_min
-            sig_b = sigma_brems_table(nd, T)
-            P_brems = min(cfg.n_atom * sig_b * ds, 0.5)  # safety cap
+            sig_b = sigma_brems(mat, T)
+            P_brems = min(mat.n_atom * sig_b * ds, 0.5)
             if rand(rng) < P_brems
-                k = sample_brems(T, cfg.k_min, cfg, rng)
+                k = sample_brems(T, cfg.k_min, mat.Z_eff, cfg, rng)
                 if k !== nothing && k < T
                     θ_g = brems_photon_angle(T, cfg, rng)
                     ϕ_g = 2π * rand(rng)
@@ -295,12 +239,10 @@ function transport_lepton!(track::Track, geom::Geometry,
         end
     end
 
-    # End-of-range: deposit residual kinetic energy
-    if T > 0.0 && is_inside(geom, pos)
+    if T > 0.0 && is_inside(vol, pos)
         push!(deposits, Deposit(copy(pos), T, track.kind))
     end
 
-    # Positron annihilation at rest: two back-to-back 511 keV photons
     if track.kind === :positron
         cos_t = -1.0 + 2.0 * rand(rng)
         ϕ = 2π * rand(rng)
@@ -315,27 +257,18 @@ end
 
 
 # =====================================================================
-# Top-level event simulation
+# Top-level event simulation (full mode)
 # =====================================================================
 
 """
-    simulate_event(E_MeV::Float64, nd::NISTData, cfg::SimConfig;
-                   position=(0.0, 0.0, 0.0),
-                   direction=(0.0, 0.0, 1.0),
-                   geom::Geometry=InfiniteLXe(),
-                   rng::AbstractRNG=Random.default_rng()) -> Vector{Deposit}
+    simulate_event(E_MeV, vol::PhysicalVolume, cfg::SimConfig; ...) -> Vector{Deposit}
 
-Simulate one primary photon entering the calorimeter with energy `E_MeV`.
-Returns a list of energy `Deposit` objects.
-
-The simulation runs a LIFO stack loop: pop the next particle, transport it
-(sampling interactions, depositing energy, pushing secondaries), repeat
-until the stack is empty. A generation cap prevents runaway cascades.
+Simulate one primary photon in the active volume `vol`.
+Full mode: photons and leptons are both tracked.
 """
-function simulate_event(E_MeV::Float64, nd::NISTData, cfg::SimConfig;
+function simulate_event(E_MeV::Float64, vol::PhysicalVolume, cfg::SimConfig;
                         position::NTuple{3,Float64}=(0.0, 0.0, 0.0),
                         direction::NTuple{3,Float64}=(0.0, 0.0, 1.0),
-                        geom::Geometry=InfiniteLXe(),
                         rng::AbstractRNG=Random.default_rng())::Vector{Deposit}
     deposits = Deposit[]
     stack = ParticleStack()
@@ -348,9 +281,9 @@ function simulate_event(E_MeV::Float64, nd::NISTData, cfg::SimConfig;
         t = pop!(stack)
         t.generation > cfg.generation_cap && continue
         if t.kind === :gamma
-            transport_photon!(t, geom, deposits, stack, nd, cfg, rng)
+            transport_photon!(t, vol, deposits, stack, cfg, rng)
         else
-            transport_lepton!(t, geom, deposits, stack, nd, cfg, rng)
+            transport_lepton!(t, vol, deposits, stack, cfg, rng)
         end
     end
 
@@ -363,25 +296,16 @@ end
 # =====================================================================
 
 """
-    transport_photon_only!(track::Track, geom::Geometry,
+    transport_photon_only!(track::Track, vol::PhysicalVolume,
                            deposits::Vector{Deposit}, stack::ParticleStack,
-                           nd::NISTData, cfg::SimConfig, rng::AbstractRNG)
+                           cfg::SimConfig, rng::AbstractRNG)
 
-Photon-only transport: electrons are never tracked. At each interaction:
-
-- **Compton**: recoil electron energy deposited locally at the interaction
-  point; scattered photon continues with reduced energy and new direction.
-- **Pair**: entire photon energy deposited locally (both leptons + rest mass
-  are sub-mm range in LXe). Photon consumed.
-- **Photoelectric**: same as full mode — deposit locally.
-
-This mode is much faster but ignores the spatial extent of electron tracks
-(~mm in LXe). Useful for studying the contribution of electron transport
-to SS/MS topology.
+Photon-only transport: electrons deposit locally. No lepton tracking.
 """
-function transport_photon_only!(track::Track, geom::Geometry,
+function transport_photon_only!(track::Track, vol::PhysicalVolume,
                                 deposits::Vector{Deposit}, stack::ParticleStack,
-                                nd::NISTData, cfg::SimConfig, rng::AbstractRNG)
+                                cfg::SimConfig, rng::AbstractRNG)
+    mat = vol.material
     pos = copy(track.position)
     dir = copy(track.direction)
     E = track.energy
@@ -389,26 +313,23 @@ function transport_photon_only!(track::Track, geom::Geometry,
     tid = objectid(track)
 
     while E >= cfg.Egamma_cut
-        sC  = sigma_compton_NIST(nd, E; per_atom=true)
-        sP  = sigma_pair_NIST(nd, E; per_atom=true)
-        sPh = sigma_phot_NIST(nd, E; per_atom=true)
+        sC  = sigma_compton(mat, E; per_atom=true)
+        sP  = sigma_pair(mat, E; per_atom=true)
+        sPh = sigma_phot(mat, E; per_atom=true)
         s_tot = sC + sP + sPh
-        Σ_tot = cfg.n_atom * s_tot
+        Σ_tot = mat.n_atom * s_tot
 
         s = sample_distance(Σ_tot, rng)
         pos .= pos .+ dir .* s
-        is_inside(geom, pos) || return
+        is_inside(vol, pos) || return
 
         proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
 
         if proc === :compton
             Egp, cos_t = sample_compton(E, cfg, rng)
             T_e = E - Egp
-
-            # Deposit electron energy locally
             push!(deposits, Deposit(copy(pos), T_e, :electron))
 
-            # Update scattered photon direction
             ϕ = 2π * rand(rng)
             sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
             local_vec = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
@@ -416,40 +337,27 @@ function transport_photon_only!(track::Track, geom::Geometry,
             E = Egp
 
         elseif proc === :pair
-            # Deposit entire photon energy locally
             push!(deposits, Deposit(copy(pos), E, :pair))
             return
 
         elseif proc === :photoelectric
-            # Deposit entire photon energy locally
             push!(deposits, Deposit(copy(pos), E, :photoelectric))
             return
         end
     end
 
-    # Below cutoff
     push!(deposits, Deposit(pos, E, :gamma_local))
 end
 
 
 """
-    simulate_event_photon_only(E_MeV::Float64, nd::NISTData, cfg::SimConfig;
-                               position=(0.0, 0.0, 0.0),
-                               direction=(0.0, 0.0, 1.0),
-                               geom::Geometry=InfiniteLXe(),
-                               rng::AbstractRNG=Random.default_rng()) -> Vector{Deposit}
+    simulate_event_photon_only(E_MeV, vol::PhysicalVolume, cfg::SimConfig; ...) -> Vector{Deposit}
 
-Photon-only simulation (Mode 2): only photons are tracked on the stack.
-All electron/positron energy is deposited locally at the interaction point.
-No lepton transport, no bremsstrahlung, no positron annihilation photons.
-
-Useful for comparing SS/MS topology with and without electron transport
-to quantify the effect of finite electron range in LXe.
+Photon-only simulation: electrons deposit locally, no lepton transport.
 """
-function simulate_event_photon_only(E_MeV::Float64, nd::NISTData, cfg::SimConfig;
+function simulate_event_photon_only(E_MeV::Float64, vol::PhysicalVolume, cfg::SimConfig;
                                     position::NTuple{3,Float64}=(0.0, 0.0, 0.0),
                                     direction::NTuple{3,Float64}=(0.0, 0.0, 1.0),
-                                    geom::Geometry=InfiniteLXe(),
                                     rng::AbstractRNG=Random.default_rng())::Vector{Deposit}
     deposits = Deposit[]
     stack = ParticleStack()
@@ -461,8 +369,7 @@ function simulate_event_photon_only(E_MeV::Float64, nd::NISTData, cfg::SimConfig
     while !isempty(stack)
         t = pop!(stack)
         t.generation > cfg.generation_cap && continue
-        # Only photons on the stack in this mode
-        transport_photon_only!(t, geom, deposits, stack, nd, cfg, rng)
+        transport_photon_only!(t, vol, deposits, stack, cfg, rng)
     end
 
     deposits
@@ -474,16 +381,11 @@ end
 # =====================================================================
 
 """
-    cluster_deposits_in_z(deposits::Vector{Deposit}, dz_cm::Float64;
-                          E_min::Float64=0.0)
-        -> Vector{Tuple{Float64, Float64}}
+    cluster_deposits_in_z(deposits, dz_cm; E_min=0.0)
 
 Group deposits into clusters whose z-extent is within `dz_cm`.
-Clusters with total energy below `E_min` are discarded (they represent
-sub-threshold deposits invisible to the detector).
-
-Returns a list of `(z_centroid, total_energy)` tuples, sorted by z.
-The centroid is energy-weighted.
+Clusters below `E_min` are discarded.
+Returns `(z_centroid, total_energy)` tuples.
 """
 function cluster_deposits_in_z(deposits::Vector{Deposit},
                                dz_cm::Float64;
@@ -515,17 +417,14 @@ function cluster_deposits_in_z(deposits::Vector{Deposit},
     z_cent = sum(z * e for (z, e) in zip(cur_zs, cur_es)) / E_tot
     push!(all_clusters, (z_cent, E_tot))
 
-    # Filter by minimum cluster energy
     E_min > 0.0 ? filter(c -> c[2] >= E_min, all_clusters) : all_clusters
 end
 
 
 """
-    is_single_site(deposits::Vector{Deposit}, dz_cm::Float64;
-                   E_min::Float64=0.0) -> Bool
+    is_single_site(deposits, dz_cm; E_min=0.0) -> Bool
 
-Return `true` if all deposits cluster into a single site with
-z-resolution `dz_cm`, after discarding clusters below `E_min`.
+True if deposits form at most one cluster above `E_min`.
 """
 function is_single_site(deposits::Vector{Deposit}, dz_cm::Float64;
                         E_min::Float64=0.0)::Bool

@@ -282,19 +282,17 @@ end
 # =====================================================================
 
 """
-    sigma_brems_above_kmin(T::Float64, k_min::Float64,
-                           cfg::SimConfig) -> Float64
+    sigma_brems_above_kmin(T, k_min, Z, cfg) -> Float64
 
 Total bremsstrahlung cross section [cm²/atom] for photon energies
 k > k_min, computed by trapezoidal integration of the BH-Tsai
-differential [`dsigma_dk_brems`](@ref) on a log-spaced grid.
+differential on a log-spaced grid.
 """
 function sigma_brems_above_kmin(T::Float64, k_min::Float64,
-                                cfg::SimConfig)::Float64
+                                Z::Int, cfg::SimConfig)::Float64
     k_min >= T && return 0.0
     k = exp.(range(log(k_min), log(T * 0.9999), length=100))
-    ds = dsigma_dk_brems(k, T, cfg)
-    # Trapezoidal integration
+    ds = dsigma_dk_brems(k, T, Z, cfg)
     s = 0.0
     @inbounds for i in 2:length(k)
         s += 0.5 * (ds[i-1] + ds[i]) * (k[i] - k[i-1])
@@ -302,44 +300,32 @@ function sigma_brems_above_kmin(T::Float64, k_min::Float64,
     s
 end
 
+# Legacy: no Z argument, uses Xe (Z=54) — for brems table building
+function sigma_brems_above_kmin(T::Float64, k_min::Float64,
+                                cfg::SimConfig)::Float64
+    sigma_brems_above_kmin(T, k_min, 54, cfg)
+end
+
 
 """
-    sample_brems(T::Float64, k_min::Float64, cfg::SimConfig,
-                 rng::AbstractRNG) -> Union{Float64, Nothing}
+    sample_brems(T, k_min, Z, cfg, rng) -> Union{Float64, Nothing}
 
 Sample bremsstrahlung photon energy k > k_min [MeV].
 
-**Strategy**: 1/k envelope rejection.
-
-The BH-Tsai spectrum is approximately ∝ 1/k, so we use the exact 1/k
-distribution as the proposal:
-
-    k = k_min × (T/k_min)^ξ,  ξ ~ U(0,1)
-
-This samples k with PDF ∝ 1/k over [k_min, T]. The rejection weight is
-
-    w = k × dσ/dk(k) / M
-
-where M = max{k × dσ/dk} over the range (pre-computed on a 50-point grid
-with 5% safety margin). Acceptance rate is typically > 60%.
-
-Returns `nothing` if k_min ≥ T (kinematically forbidden).
+**Strategy**: 1/k envelope rejection. Acceptance rate typically > 60%.
 """
-function sample_brems(T::Float64, k_min::Float64, cfg::SimConfig,
-                      rng::AbstractRNG)::Union{Float64,Nothing}
+function sample_brems(T::Float64, k_min::Float64, Z::Int,
+                      cfg::SimConfig, rng::AbstractRNG)::Union{Float64,Nothing}
     k_min >= T && return nothing
 
-    log_ratio = log(T / k_min)
-
-    # Pre-compute rejection ceiling M = max(k * dσ/dk) × 1.05
     k_grid = exp.(range(log(k_min), log(T * 0.9999), length=50))
-    ds = dsigma_dk_brems(k_grid, T, cfg)
+    ds = dsigma_dk_brems(k_grid, T, Z, cfg)
     M = maximum(k_grid .* ds) * 1.05
 
     while true
         r = rand(rng)
         k = k_min * (T / k_min)^r
-        ds_k = dsigma_dk_brems(k, T, cfg)
+        ds_k = dsigma_dk_brems(k, T, Z, cfg)
         if rand(rng) * M < k * ds_k
             return k
         end
