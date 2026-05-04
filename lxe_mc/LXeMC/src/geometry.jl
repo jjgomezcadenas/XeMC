@@ -105,6 +105,71 @@ surface_area(b::Box) = 8.0 * (b.half_x_cm * b.half_y_cm +
                                b.half_z_cm * b.half_x_cm)
 
 
+"""
+    Disk(radius_cm, wall_thickness_cm, aspect_ratio)
+
+Cryostat head or end cap. A thin shell whose shape ranges from flat to
+ellipsoidal, defined by:
+- `radius_cm`: equatorial radius (matches the cylinder it caps)
+- `wall_thickness_cm`: shell thickness
+- `aspect_ratio`: shape parameter n = R/depth:
+  - `Inf` → flat disc (depth = 0)
+  - `2`   → 2:1 ellipsoidal head (standard for LXe cryostats)
+  - `1`   → hemisphere
+
+The inner surface area uses the exact oblate/prolate spheroid formula.
+Volume is the thin-shell approximation: area × thickness (relative
+error O(t/R), ~1% for typical cryostat heads).
+"""
+struct Disk
+    radius_cm::Float64
+    wall_thickness_cm::Float64
+    aspect_ratio::Float64
+
+    function Disk(radius::Real, wall_thickness::Real, aspect_ratio::Real)
+        radius > 0 || error("Disk: radius must be positive (got $radius)")
+        wall_thickness >= 0 || error("Disk: wall_thickness must be ≥ 0 (got $wall_thickness)")
+        aspect_ratio > 0 || error("Disk: aspect_ratio must be positive (got $aspect_ratio)")
+        new(Float64(radius), Float64(wall_thickness), Float64(aspect_ratio))
+    end
+end
+
+"""Head depth along the axis [cm]. 0 for a flat disc."""
+depth(d::Disk) = isinf(d.aspect_ratio) ? 0.0 : d.radius_cm / d.aspect_ratio
+
+"""True if the head is flat (zero depth)."""
+is_flat(d::Disk) = isinf(d.aspect_ratio)
+
+"""
+    surface_area_inner(d::Disk) -> Float64
+
+Inner surface area [cm²]. Flat disc: πR². Hemisphere: 2πR².
+Ellipsoidal: half the oblate (or prolate) spheroid surface, with
+semi-axes a = R (equatorial) and c = R/n (polar).
+"""
+function surface_area_inner(d::Disk)::Float64
+    is_flat(d) && return π * d.radius_cm^2
+    n = d.aspect_ratio
+    n ≈ 1.0 && return 2π * d.radius_cm^2
+
+    a = d.radius_cm
+    c = d.radius_cm / n
+    if c < a
+        # Oblate: depth < equatorial radius (typical cryostat head)
+        e = sqrt(1.0 - (c/a)^2)
+        S_full = 2π * a^2 + π * (c^2 / e) * log((1 + e) / (1 - e))
+    else
+        # Prolate: depth > equatorial radius
+        e = sqrt(1.0 - (a/c)^2)
+        S_full = 2π * a^2 + 2π * a * c * asin(e) / e
+    end
+    S_full / 2.0
+end
+
+"""Thin-shell volume: area_inner × wall_thickness [cm³]."""
+volume(d::Disk) = surface_area_inner(d) * d.wall_thickness_cm
+
+
 # =====================================================================
 # Logical volumes (solid + placement)
 # =====================================================================
@@ -164,6 +229,64 @@ function is_inside(lb::LBox, pos::Vector{Float64})::Bool
     abs(pos[1] - lb.position[1]) < lb.solid.half_x_cm &&
     abs(pos[2] - lb.position[2]) < lb.solid.half_y_cm &&
     abs(pos[3] - lb.position[3]) < lb.solid.half_z_cm
+end
+
+
+"""
+    LDisk(solid, position, orientation)
+
+Logical disk: a `Disk` placed at `position` in MARS [cm].
+`orientation` is `:up` (dome bulges in +z) or `:down` (bulges in -z).
+The equator sits at `position[3]`; the apex is at
+`position[3] ± depth(solid)`.
+"""
+struct LDisk
+    solid::Disk
+    position::Vector{Float64}
+    orientation::Symbol    # :up or :down
+
+    function LDisk(solid::Disk, position::Vector{Float64}, orientation::Symbol)
+        orientation in (:up, :down) || error("LDisk: orientation must be :up or :down (got $orientation)")
+        new(solid, position, orientation)
+    end
+end
+
+"""
+True if `pos` is inside the disk shell. For a flat disk, checks if
+the point is within the disc at the equator plane (|dz| < thickness,
+r < R). For an ellipsoidal head, checks if the point lies between the
+inner and outer ellipsoidal surfaces.
+"""
+function is_inside(ld::LDisk, pos::Vector{Float64})::Bool
+    dx = pos[1] - ld.position[1]
+    dy = pos[2] - ld.position[2]
+    dz = pos[3] - ld.position[3]
+    r2 = dx^2 + dy^2
+    R = ld.solid.radius_cm
+    r2 > R^2 && return false
+
+    if is_flat(ld.solid)
+        # Flat disc: slab of thickness t at equator
+        sgn = ld.orientation === :up ? 1.0 : -1.0
+        return 0.0 <= sgn * dz <= ld.solid.wall_thickness_cm
+    end
+
+    # Ellipsoidal: inner surface is ellipsoid with a=R, c=R/n
+    # Point is inside shell if it's outside inner ellipsoid and inside outer
+    c_inner = depth(ld.solid)
+    c_outer = c_inner + ld.solid.wall_thickness_cm
+    sgn = ld.orientation === :up ? 1.0 : -1.0
+    dz_rel = sgn * dz  # 0 at equator, positive toward apex
+
+    # Must be on the dome side
+    dz_rel < 0.0 && return false
+
+    # Ellipsoid test: (r/a)² + (z/c)² ≤ 1
+    r_frac2 = r2 / R^2
+    inside_outer = r_frac2 + (dz_rel / c_outer)^2 <= 1.0
+    outside_inner = r_frac2 + (dz_rel / c_inner)^2 >= 1.0
+
+    inside_outer && outside_inner
 end
 
 
@@ -229,6 +352,24 @@ mass(pb::PBox) = pb.material.density * volume(pb.logical.solid)
 is_inside(pb::PBox, pos::Vector{Float64}) = is_inside(pb.logical, pos)
 
 
+"""
+    PDisk <: PhysicalVolume
+
+Physical disk (end cap): logical disk + material.
+"""
+struct PDisk <: PhysicalVolume
+    name::String
+    logical::LDisk
+    material::Material
+end
+
+"""Mass [g] = density × shell volume."""
+mass(pd::PDisk) = pd.material.density * volume(pd.logical.solid)
+
+"""True if `pos` is inside the disk shell."""
+is_inside(pd::PDisk, pos::Vector{Float64}) = is_inside(pd.logical, pos)
+
+
 # =====================================================================
 # Radioactive volumes
 # =====================================================================
@@ -276,6 +417,27 @@ activity_Th232(rcs::RCylShell) = rcs.A_Th232 * mass(rcs.phys) / 1000.0
 
 """Gamma flux (Bi-214, Tl-208) [gammas/sec]."""
 gamma_flux(rcs::RCylShell) = (activity_U238(rcs), activity_Th232(rcs))
+
+
+"""
+    RDisk
+
+Radioactive disk (end cap). Wraps a `PDisk` with specific activities.
+"""
+struct RDisk
+    phys::PDisk
+    A_U238::Float64
+    A_Th232::Float64
+end
+
+"""Total U-238 activity [Bq]."""
+activity_U238(rd::RDisk) = rd.A_U238 * mass(rd.phys) / 1000.0
+
+"""Total Th-232 activity [Bq]."""
+activity_Th232(rd::RDisk) = rd.A_Th232 * mass(rd.phys) / 1000.0
+
+"""Gamma flux (Bi-214, Tl-208) [gammas/sec]."""
+gamma_flux(rd::RDisk) = (activity_U238(rd), activity_Th232(rd))
 
 
 # =====================================================================
@@ -372,6 +534,13 @@ function _build_volume(name::String, d, mat::Material)::PhysicalVolume
         solid = Box(Float64(d["half_x_cm"]), Float64(d["half_y_cm"]), Float64(d["half_z_cm"]))
         logical = LBox(solid, pos)
         return PBox(name, logical, mat)
+    elseif shape == "disk"
+        solid = Disk(Float64(d["radius_cm"]),
+                     Float64(d["wall_thickness_cm"]),
+                     Float64(get(d, "aspect_ratio", Inf)))
+        orient = Symbol(get(d, "orientation", "up"))
+        logical = LDisk(solid, pos, orient)
+        return PDisk(name, logical, mat)
     else
         error("Unknown shape '$shape' for volume '$name'")
     end

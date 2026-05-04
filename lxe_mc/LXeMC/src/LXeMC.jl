@@ -61,11 +61,12 @@ export csda_range_g_per_cm2, csda_range_mm, sigma_brems, brems_rejection_M
 export coulomb_correction_fc, dsigma_dk_brems
 
 # --- Geometry ---
-export Cyl, CylShell, Box, volume, volume_inner, surface_area
-export R_outer, surface_area_inner, surface_area_outer
-export LCyl, LCylShell, LBox, is_inside
-export PhysicalVolume, PCyl, PCylShell, PBox, mass
-export RCyl, RCylShell, activity_U238, activity_Th232, gamma_flux
+export Cyl, CylShell, Box, Disk
+export volume, volume_inner, surface_area, surface_area_inner, surface_area_outer
+export R_outer, depth, is_flat
+export LCyl, LCylShell, LBox, LDisk, is_inside
+export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
+export RCyl, RCylShell, RDisk, activity_U238, activity_Th232, gamma_flux
 export Detector, active_volume, find_volume, load_detector
 
 # --- Sampling ---

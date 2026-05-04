@@ -93,10 +93,42 @@ end
     @test is_inside(lcs2, [51.0, 0.0, 100.0])
     @test !is_inside(lcs2, [51.0, 0.0, 0.0])
 
-    # Box validation
+    # Flat disk: R=50, t=1, aspect=Inf
+    df = Disk(50.0, 1.0, Inf)
+    @test is_flat(df)
+    @test depth(df) ≈ 0.0
+    @test surface_area_inner(df) ≈ π * 50.0^2
+    @test volume(df) ≈ π * 50.0^2 * 1.0
+
+    # Hemisphere: R=50, t=1, aspect=1
+    dh = Disk(50.0, 1.0, 1.0)
+    @test !is_flat(dh)
+    @test depth(dh) ≈ 50.0
+    @test surface_area_inner(dh) ≈ 2π * 50.0^2
+
+    # 2:1 ellipsoidal: R=50, t=1, aspect=2
+    de = Disk(50.0, 1.0, 2.0)
+    @test depth(de) ≈ 25.0
+    # Area should be between flat (πR²) and hemisphere (2πR²)
+    @test π * 50.0^2 < surface_area_inner(de) < 2π * 50.0^2
+
+    # LDisk is_inside: flat disk pointing up at origin
+    ldf = LDisk(Disk(50.0, 2.0, Inf), [0.0, 0.0, 0.0], :up)
+    @test is_inside(ldf, [10.0, 0.0, 1.0])    # inside disc
+    @test !is_inside(ldf, [10.0, 0.0, -1.0])  # below equator
+    @test !is_inside(ldf, [60.0, 0.0, 1.0])   # outside radius
+
+    # LDisk is_inside: 2:1 ellipsoidal pointing up
+    lde = LDisk(Disk(50.0, 2.0, 2.0), [0.0, 0.0, 0.0], :up)
+    @test is_inside(lde, [0.0, 0.0, 25.5])     # near apex, in shell
+    @test !is_inside(lde, [0.0, 0.0, 12.0])    # inside inner ellipsoid
+    @test !is_inside(lde, [0.0, 0.0, 28.0])    # outside outer ellipsoid
+
+    # Validation
     @test_throws ErrorException Cyl(-1.0, 5.0)
     @test_throws ErrorException CylShell(10.0, -1.0, 5.0)
     @test_throws ErrorException Box(0.0, 5.0, 5.0)
+    @test_throws ErrorException Disk(-1.0, 1.0, 2.0)
 end
 
 
