@@ -1,21 +1,20 @@
 """
-NIST XCOM and ESTAR data tables for xenon, with log-log interpolators.
+NIST data loaders and interpolation utilities.
 
-These are the authoritative numerical values used in the Monte Carlo.
-The XCOM table provides photon cross sections (cm²/g); the ESTAR table
-provides electron stopping powers (MeV cm²/g).
+Provides CSV loaders for NIST XCOM (photon cross sections) and ESTAR
+(electron stopping powers) tables, plus log-log interpolation routines
+used throughout the simulation.
 
 # Data structures
-
-- [`XCOMData`](@ref): holds XCOM energy grid and cross-section columns.
-- [`ESTARData`](@ref): holds ESTAR energy grid, stopping powers, and
-  CSDA range computed by numerical integration of 1/S_total.
+- [`XCOMData`](@ref): XCOM energy grid and 7 cross-section columns [cm²/g].
+- [`ESTARData`](@ref): ESTAR energy grid, stopping powers [MeV cm²/g],
+  and CSDA range [g/cm²] computed by numerical integration of 1/S_total.
 
 # Interpolation
-
-All interpolations use log-log linear interpolation via
-[`interp_loglog`](@ref). This is exact for power-law regions and
-accurate to < 1% between NIST grid points.
+- [`interp_loglog`](@ref): general-purpose log-log interpolation (with search).
+- [`interp_loglog_prelogged`](@ref): fast variant using pre-computed log arrays
+  and a known bracket index (avoids `searchsortedlast` and `log` on grid data).
+- [`prelog_data`](@ref): utility to pre-compute log arrays at load time.
 """
 
 
@@ -26,8 +25,8 @@ accurate to < 1% between NIST grid points.
 """
     XCOMData
 
-NIST XCOM photon cross sections for Xe. All fields are `Vector{Float64}`
-with units cm²/g (mass attenuation coefficients).
+NIST XCOM photon cross sections. All columns are `Vector{Float64}`
+in units of cm²/g (mass attenuation coefficients µ/ρ).
 """
 struct XCOMData
     E_MeV::Vector{Float64}
@@ -44,7 +43,7 @@ end
 """
     ESTARData
 
-NIST ESTAR electron stopping powers for Xe and derived CSDA range.
+NIST ESTAR electron stopping powers and derived CSDA range.
 Stopping powers in MeV cm²/g; CSDA range in g/cm².
 """
 struct ESTARData
@@ -53,7 +52,7 @@ struct ESTARData
     S_rad::Vector{Float64}
     S_tot::Vector{Float64}
     delta::Vector{Float64}
-    R_csda::Vector{Float64}   # g/cm², computed by integration of 1/S_tot
+    R_csda::Vector{Float64}   # g/cm², by trapezoidal integration of 1/S_tot
 end
 
 
@@ -62,14 +61,15 @@ end
 # =====================================================================
 
 """
-    load_xcom(path::AbstractString) -> XCOMData
+    load_xcom(path) -> XCOMData
 
-Read NIST XCOM table. Accepts the standard NIST space-delimited format
-(2 header lines + blank line + data) with 8 columns:
-E, coherent, incoherent, photoelectric, pair_nuclear, pair_electron,
-total_w_coh, total_no_coh. All in cm²/g.
+Read a NIST XCOM table in the standard space-delimited format
+(2 header lines + blank line + data rows with 8 numeric columns).
+Columns: E [MeV], coherent, incoherent, photoelectric, pair_nuclear,
+pair_electron, total_w_coh, total_no_coh — all in cm²/g.
 
-K-edge duplicates are kept as-is; the interpolator handles them by nudging.
+K-edge duplicate energies are preserved; the interpolator handles
+them via [`_prepare_xcom_energy`](@ref).
 """
 function load_xcom(path::AbstractString)::XCOMData
     rows = Vector{Vector{Float64}}()
@@ -77,28 +77,25 @@ function load_xcom(path::AbstractString)::XCOMData
         for line in eachline(io)
             s = strip(line)
             isempty(s) && continue
-            # Skip any line that doesn't start with a digit (headers, comments)
             c = s[1]
             (c >= '0' && c <= '9') || continue
-            # Split on whitespace or comma
             fields = split(s)
             length(fields) >= 8 || continue
             push!(rows, parse.(Float64, fields[1:8]))
         end
     end
-    m = reduce(hcat, rows)'  # N×8 matrix
+    m = reduce(hcat, rows)'
     XCOMData(m[:,1], m[:,2], m[:,3], m[:,4], m[:,5], m[:,6], m[:,7], m[:,8])
 end
 
 
 """
-    load_estar(path::AbstractString) -> ESTARData
+    load_estar(path) -> ESTARData
 
-Read NIST ESTAR table. Accepts either comma-separated (with `#` comments)
-or space-delimited NIST format. Expects 5 columns:
-T, S_col, S_rad, S_tot, delta.
-
-Computes CSDA range R(T) [g/cm²] by trapezoidal integration of 1/S_total.
+Read a NIST ESTAR table (comma- or space-delimited, 5 columns:
+T [MeV], S_col, S_rad, S_tot, delta). Lines not starting with a
+digit are skipped. CSDA range R(T) is computed by trapezoidal
+integration of 1/S_total.
 """
 function load_estar(path::AbstractString)::ESTARData
     rows = Vector{Vector{Float64}}()
@@ -108,7 +105,6 @@ function load_estar(path::AbstractString)::ESTARData
             isempty(s) && continue
             c = s[1]
             (c >= '0' && c <= '9') || continue
-            # Split on comma or whitespace
             fields = occursin(",", s) ? split(s, ",") : split(s)
             length(fields) >= 5 || continue
             push!(rows, parse.(Float64, fields[1:5]))
@@ -117,7 +113,6 @@ function load_estar(path::AbstractString)::ESTARData
     m = reduce(hcat, rows)'
     T = m[:,1]; Sc = m[:,2]; Sr = m[:,3]; St = m[:,4]; delta = m[:,5]
 
-    # CSDA range by trapezoidal integration of 1/S_tot
     R = zeros(length(T))
     @inbounds for i in 2:length(T)
         R[i] = R[i-1] + 0.5 * (1.0/St[i-1] + 1.0/St[i]) * (T[i] - T[i-1])
@@ -134,49 +129,50 @@ end
 """
     interp_loglog(x, xp, fp) -> Float64
 
-Linear interpolation in log-log space. `xp` must be increasing and
-positive. Zero or negative values in `fp` are handled by returning 0
-when `x` falls in or below the zero region.
+Log-log linear interpolation of `fp` at `x`, given grid `xp` (must be
+increasing, positive). Handles zero/negative `fp` values by returning 0
+in the zero region.
 
-Used for cross sections and stopping powers, which are smooth power-law
-functions between grid points.
+Uses `searchsortedlast` for the bracket and computes `log`/`exp` on the
+fly. For hot paths, prefer [`interp_loglog_prelogged`](@ref) which
+avoids these costs.
 """
 function interp_loglog(x::Float64, xp::Vector{Float64}, fp::Vector{Float64})::Float64
     x <= 0.0 && return 0.0
-
     n = length(xp)
+    x < xp[1] && return (fp[1] > 0.0 ? fp[1] : 0.0)
+    x > xp[end] && return fp[end]
 
-    if x < xp[1]
-        return fp[1] > 0.0 ? fp[1] : 0.0
-    end
-    if x > xp[end]
-        return fp[end]
-    end
-
-    lo = searchsortedlast(xp, x)
-    lo = clamp(lo, 1, n - 1)
+    lo = clamp(searchsortedlast(xp, x), 1, n - 1)
     hi = lo + 1
 
-    if fp[lo] <= 0.0 && fp[hi] <= 0.0
-        return 0.0
-    elseif fp[lo] <= 0.0
-        return 0.0
-    elseif fp[hi] <= 0.0
-        return fp[lo]
-    end
+    (fp[lo] <= 0.0 && fp[hi] <= 0.0) && return 0.0
+    fp[lo] <= 0.0 && return 0.0
+    fp[hi] <= 0.0 && return fp[lo]
 
     lx = log(x)
     t = (lx - log(xp[lo])) / (log(xp[hi]) - log(xp[lo]))
-    return exp(log(fp[lo]) + t * (log(fp[hi]) - log(fp[lo])))
+    exp(log(fp[lo]) + t * (log(fp[hi]) - log(fp[lo])))
 end
 
 
 """
     interp_loglog_prelogged(lx, log_xp, log_fp, fp, lo) -> Float64
 
-Fast log-log interpolation with pre-computed log arrays and a known
-bracket index `lo`. Avoids `searchsortedlast` and `log` calls on the
-grid — only `log(x)` (passed as `lx`) and one `exp` are needed.
+Fast log-log interpolation using pre-computed log arrays and a known
+bracket index `lo` (from a prior `searchsortedlast`). Only one `exp`
+call is needed; all `log` calls on grid data are eliminated.
+
+This is the hot-path interpolator used by [`sigma_three`](@ref),
+[`dEdx_collision`](@ref), [`sigma_brems`](@ref), and
+[`brems_rejection_M`](@ref).
+
+# Arguments
+- `lx`: log of the query point (caller computes once, reuses for multiple channels)
+- `log_xp`: pre-computed `log.(xp)`
+- `log_fp`: pre-computed `log.(fp)` (with `-Inf` for non-positive entries)
+- `fp`: raw data (for zero-checking)
+- `lo`: bracket index such that `xp[lo] ≤ x < xp[lo+1]`
 """
 function interp_loglog_prelogged(lx::Float64, log_xp::Vector{Float64},
                                   log_fp::Vector{Float64}, fp::Vector{Float64},
@@ -187,50 +183,39 @@ function interp_loglog_prelogged(lx::Float64, log_xp::Vector{Float64},
         fp_hi = fp[hi]
     end
 
-    if fp_lo <= 0.0 && fp_hi <= 0.0
-        return 0.0
-    elseif fp_lo <= 0.0
-        return 0.0
-    elseif fp_hi <= 0.0
-        return fp_lo
-    end
+    (fp_lo <= 0.0 && fp_hi <= 0.0) && return 0.0
+    fp_lo <= 0.0 && return 0.0
+    fp_hi <= 0.0 && return fp_lo
 
     @inbounds begin
         t = (lx - log_xp[lo]) / (log_xp[hi] - log_xp[lo])
-        return exp(log_fp[lo] + t * (log_fp[hi] - log_fp[lo]))
+        exp(log_fp[lo] + t * (log_fp[hi] - log_fp[lo]))
     end
 end
 
 
 """
-    PreloggedGrid
+    prelog_data(fp) -> Vector{Float64}
 
-Pre-computed log arrays for fast log-log interpolation.
+Compute `log.(fp)`, mapping non-positive values to `-Inf`.
+Used at load time to build pre-logged arrays for
+[`interp_loglog_prelogged`](@ref).
 """
-struct PreloggedGrid
-    x::Vector{Float64}
-    log_x::Vector{Float64}
-end
-
-function PreloggedGrid(x::Vector{Float64})
-    PreloggedGrid(x, log.(x))
-end
-
-"""Pre-log a data column, replacing non-positive values with -Inf."""
 function prelog_data(fp::Vector{Float64})::Vector{Float64}
     [f > 0.0 ? log(f) : -Inf for f in fp]
 end
 
 
 # =====================================================================
-# XCOM interpolation helpers
+# XCOM energy grid preparation
 # =====================================================================
 
 """
     _prepare_xcom_energy(xc::XCOMData) -> Vector{Float64}
 
 Return a copy of the XCOM energy grid with duplicate K-edge entries
-nudged apart so that `searchsortedlast` works correctly.
+nudged apart (by a factor of 1+10⁻⁹) so that `searchsortedlast`
+returns the correct bracket across the discontinuity.
 """
 function _prepare_xcom_energy(xc::XCOMData)::Vector{Float64}
     E = copy(xc.E_MeV)
@@ -240,240 +225,4 @@ function _prepare_xcom_energy(xc::XCOMData)::Vector{Float64}
         end
     end
     E
-end
-
-
-"""
-    _interp_xcom(xc::XCOMData, E_nudged::Vector{Float64},
-                 channel::Vector{Float64}, E_MeV::Float64;
-                 per_atom::Bool=true, cfg::SimConfig) -> Float64
-
-Interpolate one XCOM channel at energy `E_MeV`.
-Returns cm²/atom if `per_atom=true`, otherwise cm²/g.
-"""
-function _interp_xcom(E_nudged::Vector{Float64},
-                      channel::Vector{Float64},
-                      E_MeV::Float64;
-                      per_atom::Bool=true,
-                      A::Float64=131.293,
-                      N_A::Float64=6.02214076e23)::Float64
-    val = interp_loglog(E_MeV, E_nudged, channel)
-    per_atom ? val * A / N_A : val
-end
-
-
-# =====================================================================
-# Public photon cross-section API
-# =====================================================================
-
-"""
-    NISTData
-
-Bundle of loaded XCOM and ESTAR data with pre-computed energy grid
-for efficient repeated interpolation. Includes a pre-tabulated
-bremsstrahlung cross section σ_brems(T) for k > k_min, eliminating
-the need for per-step numerical integration during transport.
-"""
-struct NISTData
-    xcom::XCOMData
-    estar::ESTARData
-    E_nudged::Vector{Float64}   # K-edge-safe XCOM energy grid
-    A::Float64
-    N_A::Float64
-    rho::Float64
-    # Pre-tabulated brems cross section
-    brems_T::Vector{Float64}    # log-spaced kinetic energy grid [MeV]
-    brems_σ::Vector{Float64}    # σ_brems(T) for k > k_min [cm²/atom]
-end
-
-
-"""
-    load_nist_data(cfg::SimConfig; data_dir=nothing) -> NISTData
-
-Load all NIST tables from CSV files in `data_dir` (default: `../../data/`
-relative to source). Pre-computes the K-edge-nudged energy grid.
-"""
-function load_nist_data(cfg::SimConfig; data_dir::Union{String,Nothing}=nothing)::NISTData
-    if data_dir === nothing
-        data_dir = normpath(joinpath(@__DIR__, "..", "..", "data"))
-    end
-    xcom = load_xcom(joinpath(data_dir, "xcom_xe.csv"))
-    estar = load_estar(joinpath(data_dir, "estar_xe.csv"))
-    E_nudged = _prepare_xcom_energy(xcom)
-
-    # Pre-tabulate brems cross section σ(T) for k > k_min
-    brems_T, brems_σ = _build_brems_table(cfg)
-
-    NISTData(xcom, estar, E_nudged, cfg.A, cfg.N_A, cfg.rho_LXe, brems_T, brems_σ)
-end
-
-
-"""
-    _build_brems_table(cfg::SimConfig) -> (T_grid, σ_grid)
-
-Pre-compute the total bremsstrahlung cross section [cm²/atom] for photon
-energies k > k_min on a 200-point log-spaced grid from k_min to 10 MeV.
-Each point is computed by trapezoidal integration of the BH-Tsai
-differential. This table is built once at load time and used via
-log-log interpolation during transport.
-"""
-function _build_brems_table(cfg::SimConfig)
-    T_max = 10.0  # MeV, well above our ROI
-    k_min = cfg.k_min
-    n_grid = 200
-    T_grid = exp.(range(log(k_min * 1.01), log(T_max), length=n_grid))
-    σ_grid = Vector{Float64}(undef, n_grid)
-
-    for i in 1:n_grid
-        σ_grid[i] = sigma_brems_above_kmin(T_grid[i], k_min, cfg)
-    end
-
-    (T_grid, σ_grid)
-end
-
-
-"""
-    sigma_compton_NIST(nd::NISTData, E_MeV; per_atom=true) -> Float64
-
-Compton (incoherent) scattering cross section from NIST XCOM.
-Returns cm²/atom (default) or cm²/g.
-"""
-function sigma_compton_NIST(nd::NISTData, E_MeV::Float64; per_atom::Bool=true)::Float64
-    _interp_xcom(nd.E_nudged, nd.xcom.incoherent, E_MeV;
-                 per_atom=per_atom, A=nd.A, N_A=nd.N_A)
-end
-
-
-"""
-    sigma_pair_NIST(nd::NISTData, E_MeV; per_atom=true) -> Float64
-
-Pair production (nuclear + electron field) cross section from NIST XCOM.
-"""
-function sigma_pair_NIST(nd::NISTData, E_MeV::Float64; per_atom::Bool=true)::Float64
-    nuc = _interp_xcom(nd.E_nudged, nd.xcom.pair_nuclear, E_MeV;
-                       per_atom=per_atom, A=nd.A, N_A=nd.N_A)
-    ele = _interp_xcom(nd.E_nudged, nd.xcom.pair_electron, E_MeV;
-                       per_atom=per_atom, A=nd.A, N_A=nd.N_A)
-    nuc + ele
-end
-
-
-"""
-    sigma_phot_NIST(nd::NISTData, E_MeV; per_atom=true) -> Float64
-
-Photoelectric cross section from NIST XCOM.
-"""
-function sigma_phot_NIST(nd::NISTData, E_MeV::Float64; per_atom::Bool=true)::Float64
-    _interp_xcom(nd.E_nudged, nd.xcom.photoelectric, E_MeV;
-                 per_atom=per_atom, A=nd.A, N_A=nd.N_A)
-end
-
-
-"""
-    sigma_total_NIST(nd::NISTData, E_MeV; per_atom=true, include_coherent=false) -> Float64
-
-Total photon cross section from NIST XCOM.
-"""
-function sigma_total_NIST(nd::NISTData, E_MeV::Float64;
-                          per_atom::Bool=true,
-                          include_coherent::Bool=false)::Float64
-    channel = include_coherent ? nd.xcom.total_w_coh : nd.xcom.total_no_coh
-    _interp_xcom(nd.E_nudged, channel, E_MeV;
-                 per_atom=per_atom, A=nd.A, N_A=nd.N_A)
-end
-
-
-"""
-    mfp_LXe(nd::NISTData, E_MeV) -> Float64
-
-Photon mean free path [cm] in liquid xenon.
-"""
-function mfp_LXe(nd::NISTData, E_MeV::Float64)::Float64
-    mu_rho = sigma_total_NIST(nd, E_MeV; per_atom=false)
-    1.0 / (mu_rho * nd.rho)
-end
-
-
-"""
-    branching_NIST(nd::NISTData, E_MeV) -> (fC, fP, fPh)
-
-Compton, pair, and photoelectric branching fractions at energy `E_MeV`.
-"""
-function branching_NIST(nd::NISTData, E_MeV::Float64)::Tuple{Float64,Float64,Float64}
-    sC  = sigma_compton_NIST(nd, E_MeV; per_atom=false)
-    sP  = sigma_pair_NIST(nd, E_MeV; per_atom=false)
-    sPh = sigma_phot_NIST(nd, E_MeV; per_atom=false)
-    st  = sC + sP + sPh
-    (sC/st, sP/st, sPh/st)
-end
-
-
-# =====================================================================
-# Public electron stopping-power and range API
-# =====================================================================
-
-"""
-    dEdx_collision_NIST(nd::NISTData, T_MeV) -> Float64
-
-Mass collision stopping power [MeV cm²/g] from NIST ESTAR.
-"""
-function dEdx_collision_NIST(nd::NISTData, T_MeV::Float64)::Float64
-    interp_loglog(T_MeV, nd.estar.T_MeV, nd.estar.S_col)
-end
-
-
-"""
-    dEdx_radiative_NIST(nd::NISTData, T_MeV) -> Float64
-
-Mass radiative stopping power [MeV cm²/g] from NIST ESTAR.
-"""
-function dEdx_radiative_NIST(nd::NISTData, T_MeV::Float64)::Float64
-    interp_loglog(T_MeV, nd.estar.T_MeV, nd.estar.S_rad)
-end
-
-
-"""
-    dEdx_total_NIST(nd::NISTData, T_MeV) -> Float64
-
-Total mass stopping power [MeV cm²/g] from NIST ESTAR.
-"""
-function dEdx_total_NIST(nd::NISTData, T_MeV::Float64)::Float64
-    interp_loglog(T_MeV, nd.estar.T_MeV, nd.estar.S_tot)
-end
-
-
-"""
-    csda_range_g_per_cm2(nd::NISTData, T_MeV) -> Float64
-
-CSDA range [g/cm²] for electrons of kinetic energy `T_MeV` in Xe,
-computed by trapezoidal integration of 1/S_total over the ESTAR grid.
-"""
-function csda_range_g_per_cm2(nd::NISTData, T_MeV::Float64)::Float64
-    interp_loglog(T_MeV, nd.estar.T_MeV, nd.estar.R_csda)
-end
-
-
-"""
-    csda_range_LXe_mm(nd::NISTData, T_MeV) -> Float64
-
-CSDA range in liquid xenon [mm].
-"""
-function csda_range_LXe_mm(nd::NISTData, T_MeV::Float64)::Float64
-    csda_range_g_per_cm2(nd, T_MeV) / nd.rho * 10.0  # cm → mm
-end
-
-
-# =====================================================================
-# Pre-tabulated bremsstrahlung cross section
-# =====================================================================
-
-"""
-    sigma_brems_table(nd::NISTData, T_MeV) -> Float64
-
-Total bremsstrahlung cross section [cm²/atom] for k > k_min at electron
-kinetic energy `T_MeV`, from the pre-tabulated log-log interpolation.
-Returns 0 for T below the table range.
-"""
-function sigma_brems_table(nd::NISTData, T_MeV::Float64)::Float64
-    interp_loglog(T_MeV, nd.brems_T, nd.brems_σ)
 end

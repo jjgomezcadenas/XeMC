@@ -84,12 +84,19 @@ end
 # =====================================================================
 
 """
-    transport_photon!(track::Track, vol::PhysicalVolume,
-                      deposits::Vector{Deposit}, stack::ParticleStack,
-                      cfg::SimConfig, rng::AbstractRNG)
+    transport_photon!(track, vol, deposits, stack, track_counter, cfg, rng)
 
-Transport one gamma in the active volume until escape, absorption, or
-energy falls below cutoff. Material properties come from `vol.material`.
+Transport one gamma in the active volume `vol` until escape, absorption,
+or energy falls below `Egamma_cut`.
+
+At each interaction point, cross sections are looked up via
+[`sigma_three`](@ref) (single binary search for Compton + pair + photo).
+The interaction channel is sampled, and secondaries are pushed onto
+`stack` with IDs from `track_counter`. Material properties (cross
+sections, n_atom, EK) come from `vol.material`.
+
+Photoelectric absorption deposits E_K locally (relaxation cascade is
+sub-mm) and only tracks the photoelectron if T_e > Te_cut.
 """
 function transport_photon!(track::Track, vol::PhysicalVolume,
                            deposits::Vector{Deposit}, stack::ParticleStack,
@@ -185,17 +192,20 @@ end
 # =====================================================================
 
 """
-    transport_lepton!(track::Track, vol::PhysicalVolume,
-                      deposits::Vector{Deposit}, stack::ParticleStack,
-                      cfg::SimConfig, rng::AbstractRNG)
+    transport_lepton!(track, vol, deposits, stack, track_counter, cfg, rng)
 
-Transport an electron or positron using condensed-history stepping.
-Material properties (stopping power, brems cross section) come from
-`vol.material`.
+Transport an electron or positron through `vol` using condensed-history
+stepping with continuous collisional energy loss and discrete brems.
 
-**Stepping**: fixed step size `ds_step`, clamped to not overshoot.
-**Bremsstrahlung**: probability from pre-tabulated σ_brems table.
-**End of range**: deposit locally; positrons annihilate at rest.
+**Stepping**: fixed step `ds_step` [cm], clamped so dE < T. Collisional
+energy loss dE = (dE/dx)_col × ρ × ds deposited at step midpoint.
+
+**Bremsstrahlung**: per-step probability P = n_atom × σ_brems(T) × ds,
+with σ_brems and rejection ceiling M from pre-tabulated log grids.
+Hard photons (k > k_min) pushed onto stack.
+
+**End of range**: residual T deposited locally. Positrons annihilate
+at rest → two back-to-back 511 keV photons.
 """
 function transport_lepton!(track::Track, vol::PhysicalVolume,
                            deposits::Vector{Deposit}, stack::ParticleStack,
@@ -320,7 +330,7 @@ function transport_photon_only!(track::Track, vol::PhysicalVolume,
     dir = copy(track.direction)
     E = track.energy
     gen = track.generation
-    tid = track.parent_id  # not used for secondaries in photon-only
+    tid = track.track_id
 
     while E >= cfg.Egamma_cut
         sC, sP, sPh = sigma_three(mat, E)

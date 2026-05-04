@@ -14,10 +14,8 @@ is documented in each function's docstring.
 | `sample_compton`          | Composition + rejection (Butcher-Messel / KN)   |
 | `sample_pair`             | Flat envelope + rejection (BH shape)            |
 | `pair_polar_angle`        | Composition of two gamma distributions (Urban)  |
-| `sample_phot_shell`       | Direct discrete branching                       |
 | `sample_photoelectron_angle` | Rejection from uniform (Sauter distribution) |
-| `sample_atomic_relaxation_K` | Bernoulli (fluorescence yield)              |
-| `sample_brems`            | 1/k envelope + rejection (BH-Tsai shape)        |
+| `sample_brems`            | 1/k envelope + rejection (BH-Tsai shape, pre-tabulated M) |
 """
 
 using Random
@@ -300,11 +298,6 @@ function sigma_brems_above_kmin(T::Float64, k_min::Float64,
     s
 end
 
-# Legacy: no Z argument, uses Xe (Z=54) — for brems table building
-function sigma_brems_above_kmin(T::Float64, k_min::Float64,
-                                cfg::SimConfig)::Float64
-    sigma_brems_above_kmin(T, k_min, 54, cfg)
-end
 
 
 """

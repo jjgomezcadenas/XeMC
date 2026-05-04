@@ -118,7 +118,7 @@ end
     for T in [0.5, 1.0, 2.0, 5.0]
         T <= CFG.k_min && continue
         σ_table  = sigma_brems(MAT, T)
-        σ_direct = sigma_brems_above_kmin(T, CFG.k_min, MAT.Z_eff, CFG)
+        σ_direct = LXeMC.sigma_brems_above_kmin(T, CFG.k_min, MAT.Z_eff, CFG)
         @test σ_table ≈ σ_direct  rtol=0.02
     end
 end

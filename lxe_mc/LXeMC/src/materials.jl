@@ -63,23 +63,26 @@ end
 
 Complete physics description of a detector material.
 
-# Fields
-- `name::String`: material identifier (e.g., "LXe", "PTFE")
-- `density::Float64`: bulk density [g/cm³] (0 for vacuum)
-- `components::Dict{String,Float64}`: element symbol → mass fraction
-- `active::Bool`: has full transport data (XCOM + ESTAR + brems)
-- `tracking::Bool`: electron transport with condensed-history stepping
-- `full_tracking::Bool`: (future) multiple scattering + straggling
-- `EK::Float64`: K-shell binding energy [MeV] (active materials, 0 otherwise)
-- `Z_eff::Int`: effective atomic number (for single-element materials)
-- `A_eff::Float64`: effective atomic weight [g/mol]
-- `n_atom::Float64`: atom number density [cm⁻³] (derived)
+# Core fields
+- `name`, `density` [g/cm³], `components` (element → mass fraction)
+- `active`: has XCOM + ESTAR + brems (can transport photons and electrons)
+- `tracking`: condensed-history electron stepping (straight-line, no MS)
+- `full_tracking`: (future) with multiple scattering for gas
+- `EK`: K-shell binding energy [MeV] (0 for passive/vacuum)
+- `Z_eff`, `A_eff`, `n_atom`: derived from composition and density
 
-# NIST data (loaded from CSV)
-- `xcom`: photon cross-section table (all non-vacuum materials)
-- `E_nudged`: K-edge-safe XCOM energy grid
-- `estar`: electron stopping-power table (active materials only)
-- `brems_T`, `brems_σ`: pre-tabulated brems cross section (active materials only)
+# NIST data (loaded from CSV at construction)
+- `xcom`, `E_nudged`: XCOM cross sections and K-edge-safe energy grid
+- `estar`: ESTAR stopping powers and CSDA range (active only)
+- `brems_T`, `brems_σ`, `brems_M`: pre-tabulated bremsstrahlung cross
+  section σ(T) and rejection ceiling M(T) on a 200-point log grid (active only)
+
+# Pre-logged arrays (for [`interp_loglog_prelogged`](@ref))
+- `log_E`, `log_incoherent`, `log_photoelectric`, `log_pair_nuc`, `log_pair_ele`:
+  pre-computed `log` of XCOM grids, used by [`sigma_three`](@ref)
+- `log_T`, `log_S_col`: pre-computed `log` of ESTAR grids
+- `log_brems_T`, `log_brems_σ`, `log_brems_M`: pre-computed `log` of brems grids
+- `A_over_NA`: A_eff/N_A, pre-computed conversion factor cm²/g → cm²/atom
 """
 struct Material
     name::String
@@ -237,6 +240,11 @@ function _build_material(name::String, d, elements::Dict{String,ElementData},
 end
 
 
+"""
+Compute effective Z and A from mass-fraction composition.
+Single-element: exact Z, A. Compound: mass-fraction weighted Z,
+harmonic-mean A (i.e., 1/A_eff = Σ f_i/A_i).
+"""
 function _effective_ZA(components::Dict{String,Float64},
                        elements::Dict{String,ElementData})::Tuple{Int,Float64}
     isempty(components) && return (0, 0.0)
@@ -263,9 +271,13 @@ end
 """
     _build_brems_table_for_material(cfg, Z, A) -> (T_grid, σ_grid, M_grid)
 
-Pre-compute bremsstrahlung cross section σ(T) and rejection ceiling
-M(T) = max{k × dσ/dk} × 1.05 on a log grid. M(T) is used by
-`sample_brems` to avoid recomputing the 50-point grid at every call.
+Pre-compute on a 200-point log grid from k_min to 10 MeV:
+- σ_brems(T): total brems cross section [cm²/atom] for k > k_min
+  (by trapezoidal integration of Bethe-Heitler-Tsai dσ/dk).
+- M(T): rejection ceiling = max{k × dσ/dk} × 1.05, used by
+  [`sample_brems`](@ref) to avoid per-call grid evaluation.
+
+Built once per active material at load time.
 """
 function _build_brems_table_for_material(cfg::SimConfig, Z::Int, A::Float64)
     k_min = cfg.k_min
@@ -277,7 +289,7 @@ function _build_brems_table_for_material(cfg::SimConfig, Z::Int, A::Float64)
 
     for i in 1:n_grid
         T = T_grid[i]
-        σ_grid[i] = sigma_brems_above_kmin(T, k_min, cfg)
+        σ_grid[i] = sigma_brems_above_kmin(T, k_min, Z, cfg)
 
         # Rejection ceiling: max(k * dσ/dk) over k ∈ [k_min, T]
         k_pts = exp.(range(log(k_min), log(T * 0.9999), length=50))
@@ -337,53 +349,59 @@ end
 """
     sigma_compton(mat::Material, E_MeV; per_atom=true) -> Float64
 
-Compton (incoherent) cross section from NIST XCOM.
+Compton (incoherent) scattering cross section from NIST XCOM.
+Klein-Nishina Z×σ_KN per atom, tabulated by NIST.
+Returns cm²/atom (default) or cm²/g.
 """
 function sigma_compton(mat::Material, E_MeV::Float64; per_atom::Bool=true)::Float64
     _check_xcom(mat)
-    _interp_xcom(mat.E_nudged, mat.xcom.incoherent, E_MeV;
-                 per_atom=per_atom, A=mat.A_eff, N_A=6.02214076e23)
+    val = interp_loglog(E_MeV, mat.E_nudged, mat.xcom.incoherent)
+    per_atom ? val * mat.A_over_NA : val
 end
 
 
 """
     sigma_pair(mat::Material, E_MeV; per_atom=true) -> Float64
 
-Pair production cross section from NIST XCOM.
+Pair production cross section (nuclear + electron field) from NIST XCOM.
+Bethe-Heitler with screening; threshold at 2m_e = 1.022 MeV.
+Returns cm²/atom (default) or cm²/g.
 """
 function sigma_pair(mat::Material, E_MeV::Float64; per_atom::Bool=true)::Float64
     _check_xcom(mat)
-    nuc = _interp_xcom(mat.E_nudged, mat.xcom.pair_nuclear, E_MeV;
-                       per_atom=per_atom, A=mat.A_eff, N_A=6.02214076e23)
-    ele = _interp_xcom(mat.E_nudged, mat.xcom.pair_electron, E_MeV;
-                       per_atom=per_atom, A=mat.A_eff, N_A=6.02214076e23)
-    nuc + ele
+    nuc = interp_loglog(E_MeV, mat.E_nudged, mat.xcom.pair_nuclear)
+    ele = interp_loglog(E_MeV, mat.E_nudged, mat.xcom.pair_electron)
+    val = nuc + ele
+    per_atom ? val * mat.A_over_NA : val
 end
 
 
 """
     sigma_phot(mat::Material, E_MeV; per_atom=true) -> Float64
 
-Photoelectric cross section from NIST XCOM.
+Photoelectric absorption cross section from NIST XCOM.
+Includes all shells; shows K-edge discontinuity at E_K.
+Returns cm²/atom (default) or cm²/g.
 """
 function sigma_phot(mat::Material, E_MeV::Float64; per_atom::Bool=true)::Float64
     _check_xcom(mat)
-    _interp_xcom(mat.E_nudged, mat.xcom.photoelectric, E_MeV;
-                 per_atom=per_atom, A=mat.A_eff, N_A=6.02214076e23)
+    val = interp_loglog(E_MeV, mat.E_nudged, mat.xcom.photoelectric)
+    per_atom ? val * mat.A_over_NA : val
 end
 
 
 """
     sigma_total(mat::Material, E_MeV; per_atom=true, include_coherent=false) -> Float64
 
-Total photon cross section from NIST XCOM.
+Total photon cross section from NIST XCOM (sum of all channels).
+Returns cm²/atom (default) or cm²/g.
 """
 function sigma_total(mat::Material, E_MeV::Float64;
                      per_atom::Bool=true, include_coherent::Bool=false)::Float64
     _check_xcom(mat)
     ch = include_coherent ? mat.xcom.total_w_coh : mat.xcom.total_no_coh
-    _interp_xcom(mat.E_nudged, ch, E_MeV;
-                 per_atom=per_atom, A=mat.A_eff, N_A=6.02214076e23)
+    val = interp_loglog(E_MeV, mat.E_nudged, ch)
+    per_atom ? val * mat.A_over_NA : val
 end
 
 
@@ -489,7 +507,10 @@ end
 """
     sigma_brems(mat::Material, T_MeV) -> Float64
 
-Pre-tabulated total bremsstrahlung cross section [cm²/atom] for k > k_min.
+Total bremsstrahlung cross section [cm²/atom] for photon energies k > k_min,
+from the pre-tabulated log grid built at material load time. Used in
+`transport_lepton!` to compute the per-step brems probability
+P = n_atom × σ_brems × ds.
 """
 function sigma_brems(mat::Material, T_MeV::Float64)::Float64
     _check_active(mat)
@@ -505,7 +526,12 @@ end
 """
     brems_rejection_M(mat::Material, T_MeV) -> Float64
 
-Pre-tabulated rejection ceiling M(T) for bremsstrahlung sampling.
+Pre-tabulated rejection ceiling for [`sample_brems`](@ref):
+M(T) = max{k × dσ/dk(k,T)} × 1.05 over k ∈ [k_min, T].
+
+Pre-tabulating M eliminates the 50-point dσ/dk grid evaluation that
+was 28% of total CPU before this optimization. The 5% safety margin
+ensures the envelope always covers the true differential.
 """
 function brems_rejection_M(mat::Material, T_MeV::Float64)::Float64
     _check_active(mat)

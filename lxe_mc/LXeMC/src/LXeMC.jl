@@ -49,7 +49,6 @@ export SimConfig, load_config, default_config
 
 # --- NIST data (low-level, used internally by Material) ---
 export XCOMData, ESTARData
-export load_xcom, load_estar, interp_loglog
 
 # --- Materials ---
 export Material, ElementData, load_elements, load_materials
@@ -60,7 +59,6 @@ export csda_range_g_per_cm2, csda_range_mm, sigma_brems, brems_rejection_M
 
 # --- Physics utilities ---
 export coulomb_correction_fc, dsigma_dk_brems
-export sigma_brems_above_kmin
 
 # --- Geometry ---
 export Cyl, Box, volume, surface_area
