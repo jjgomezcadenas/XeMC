@@ -1,5 +1,5 @@
 {
-    "_doc": "LZ detector geometry. All dimensions in cm, thicknesses in cm. R convention: R_cm in CSV is outer radius; R_inner = R_cm - t_wall. Positions are center coordinates in MARS frame. z=0 is at the center of the TPC active volume.",
+    "_doc": "LZ detector geometry. z=0 is the cathode. TPC drifts upward (z>0). All dimensions in cm.",
 
     "name": "LZ",
 
@@ -12,17 +12,55 @@
 
     "volumes": [
         {
-            "_doc": "Active LXe TPC: R=72.8 cm, full height 145.6 cm",
+            "_doc": "Active LXe TPC: R=72.8, z=[0, 145.6], center z=72.8",
             "name": "LXeTPC",
             "shape": "cylinder",
             "radius_cm": 72.8,
             "half_height_cm": 72.8,
-            "position_cm": [0.0, 0.0, 0.0],
+            "position_cm": [0.0, 0.0, 72.8],
+            "material": "LXe"
+        },
+        {
+            "_doc": "Field cage (PTFE): R=[72.8, 74.3], z=[-13.75, 145.6], center z=65.925",
+            "name": "FieldCage",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 1.5,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "PTFE"
+        },
+        {
+            "_doc": "LXe skin (veto): R=[74.3, 82.1], z=[-13.75, 145.6], center z=65.925",
+            "name": "Skin",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 7.8,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "LXe"
+        },
+        {
+            "_doc": "Reverse field region (below cathode): R=72.8, z=[-13.75, 0], center z=-6.875",
+            "name": "RFR",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 6.875,
+            "position_cm": [0.0, 0.0, -6.875],
+            "material": "LXe"
+        },
+        {
+            "_doc": "Dome (below RFR, inside ICV bottom head): R=82.1, z=[-69.0, -13.75], center z=-41.375. Cylindrical approximation of the head-shaped volume.",
+            "name": "Dome",
+            "shape": "cylinder",
+            "radius_cm": 82.1,
+            "half_height_cm": 27.625,
+            "position_cm": [0.0, 0.0, -41.375],
             "material": "LXe"
         },
 
         {
-            "_doc": "OCV barrel: R_outer=91.5, t=7mm, z=[-52.67, +159.83], center at z=53.58",
+            "_doc": "OCV barrel: R_outer=91.5, t=7mm, z=[-52.67, +159.83], center z=53.58",
             "name": "OCV_barrel",
             "shape": "cylinder_shell",
             "R_inner_cm": 90.8,
@@ -55,7 +93,7 @@
         },
 
         {
-            "_doc": "ICV barrel: R_outer=83.0, t=9mm, z=[-41.33, +148.5], center at z=53.585",
+            "_doc": "ICV barrel: R_outer=83.0, t=9mm, z=[-41.33, +148.5], center z=53.585",
             "name": "ICV_barrel",
             "shape": "cylinder_shell",
             "R_inner_cm": 82.1,

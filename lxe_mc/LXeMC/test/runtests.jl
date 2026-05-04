@@ -8,6 +8,8 @@ const MATS = load_materials(CFG)
 const DET  = load_detector(default_detector_path(), MATS)
 const VOL  = active_volume(DET)
 const MAT  = VOL.material
+# TPC center position (cathode at z=0, TPC spans [0, 145.6])
+const TPC_CENTER = (0.0, 0.0, VOL.logical.position[3])
 
 
 # =====================================================================
@@ -52,33 +54,38 @@ end
 # =====================================================================
 @testset "Detector geometry" begin
     @test DET.name == "LZ"
-    @test length(DET.volumes) == 7   # TPC + 3 OCV + 3 ICV
+    @test length(DET.volumes) == 11  # TPC + FC + Skin + RFR + Dome + 3 OCV + 3 ICV
     @test VOL.name == "LXeTPC"
 
-    # TPC dimensions and containment
+    # TPC: centered at z=72.8 (cathode at z=0, drift upward)
     @test VOL.logical.solid.radius_cm ≈ 72.8
     @test VOL.logical.solid.half_height_cm ≈ 72.8
-    @test is_inside(VOL, [0.0, 0.0, 0.0])
-    @test !is_inside(VOL, [100.0, 0.0, 0.0])
-    @test !is_inside(VOL, [0.0, 0.0, 100.0])
-
-    # Masses vs LZ reference (within 1%)
-    m_tpc = mass(VOL) / 1000.0
-    @test 7000.0 < m_tpc < 7300.0                         # ~7159 kg
+    @test is_inside(VOL, [0.0, 0.0, 72.8])    # center of TPC
+    @test !is_inside(VOL, [0.0, 0.0, -1.0])   # below cathode
+    @test !is_inside(VOL, [100.0, 0.0, 72.8])  # outside radius
 
     by_name = Dict(v.name => v for v in DET.volumes)
 
-    m_ocv_barrel = mass(by_name["OCV_barrel"]) / 1000.0
-    m_ocv_top    = mass(by_name["OCV_top"]) / 1000.0
-    m_ocv_bot    = mass(by_name["OCV_bottom"]) / 1000.0
-    m_ocv_total  = m_ocv_barrel + m_ocv_top + m_ocv_bot
-    @test m_ocv_total ≈ 778.6  rtol=0.01                  # ref 778.6 kg
+    # LXe masses vs reference table (tonnes)
+    m_tpc  = mass(VOL) / 1e6                               # tonnes
+    m_skin = mass(by_name["Skin"]) / 1e6
+    m_rfr  = mass(by_name["RFR"]) / 1e6
+    m_dome = mass(by_name["Dome"]) / 1e6
+    m_lxe  = m_tpc + m_skin + m_rfr + m_dome
+    @test m_tpc  ≈ 7.16  rtol=0.01    # ref 7.16 t
+    @test m_skin ≈ 1.80  rtol=0.01    # ref 1.80 t
+    @test m_rfr  ≈ 0.68  rtol=0.01    # ref 0.68 t
+    @test m_dome ≈ 2.88  rtol=0.25    # cylindrical approx overestimates (ignores head curvature)
+    @test m_lxe  ≈ 12.52 rtol=0.06   # total LXe, dome approx inflates by ~0.6 t
 
-    m_icv_barrel = mass(by_name["ICV_barrel"]) / 1000.0
-    m_icv_top    = mass(by_name["ICV_top"]) / 1000.0
-    m_icv_bot    = mass(by_name["ICV_bottom"]) / 1000.0
-    m_icv_total  = m_icv_barrel + m_icv_top + m_icv_bot
-    @test m_icv_total ≈ 651.1  rtol=0.01                  # ref 651.1 kg
+    # Ti cryostat masses (within 1%)
+    m_ocv = sum(mass(by_name[n]) for n in ["OCV_barrel","OCV_top","OCV_bottom"]) / 1000.0
+    m_icv = sum(mass(by_name[n]) for n in ["ICV_barrel","ICV_top","ICV_bottom"]) / 1000.0
+    @test m_ocv ≈ 778.6  rtol=0.01
+    @test m_icv ≈ 651.1  rtol=0.01
+
+    # Field cage is PTFE
+    @test by_name["FieldCage"].material.name == "PTFE"
 end
 
 
@@ -265,7 +272,7 @@ end
     N = 200
     losses = Float64[]
     for _ in 1:N
-        deps = simulate_event(E0, VOL, CFG; rng=rng)
+        deps = simulate_event(E0, VOL, CFG; position=TPC_CENTER, rng=rng)
         E_dep = sum(d.energy for d in deps)
         push!(losses, E0 - E_dep)
     end
@@ -281,7 +288,7 @@ end
     N = 200
     n_ss = 0
     for _ in 1:N
-        deps = simulate_event(2.615, VOL, CFG; rng=rng)
+        deps = simulate_event(2.615, VOL, CFG; position=TPC_CENTER, rng=rng)
         if is_single_site(deps, CFG.dz_resolution; E_min=CFG.E_cluster_min)
             n_ss += 1
         end
@@ -299,7 +306,7 @@ end
     E0 = 2.615
     N = 200
     for _ in 1:N
-        deps = simulate_event_photon_only(E0, VOL, CFG; rng=rng)
+        deps = simulate_event_photon_only(E0, VOL, CFG; position=TPC_CENTER, rng=rng)
         E_dep = sum(d.energy for d in deps)
         @test E_dep ≈ E0  rtol=1e-10
     end
