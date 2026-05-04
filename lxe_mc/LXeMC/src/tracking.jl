@@ -189,36 +189,27 @@ function transport_photon!(track::Track, geom::Geometry,
             return  # photon consumed
 
         elseif proc === :photoelectric
-            shell, E_bind = sample_phot_shell(E, cfg, rng)
-            T_e = E - E_bind
-
-            θ_e = sample_photoelectron_angle(T_e, cfg, rng)
-            ϕ_e = 2π * rand(rng)
-            local_vec = Float64[sin(θ_e)*cos(ϕ_e), sin(θ_e)*sin(ϕ_e), cos(θ_e)]
-            d_e = rotate_to_global(local_vec, dir)
-
-            if T_e > 0.0
-                push!(stack, Track(:electron, T_e, copy(pos), d_e,
-                                   Int(tid % typemax(Int)), gen + 1))
+            if E < cfg.EK
+                # Below K-edge: deposit everything locally
+                push!(deposits, Deposit(copy(pos), E, :photoelectric))
+                return
             end
 
-            # Atomic relaxation
-            if shell === :K
-                outcome, E_relax = sample_atomic_relaxation_K(cfg, rng)
-                if outcome === :fluorescence
-                    # Isotropic fluorescence photon
-                    cos_t = -1.0 + 2.0 * rand(rng)
-                    ϕ = 2π * rand(rng)
-                    sin_t = sqrt(1.0 - cos_t^2)
-                    d_g = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
-                    push!(stack, Track(:gamma, E_relax, copy(pos), d_g,
-                                       Int(tid % typemax(Int)), gen + 1))
-                else
-                    push!(deposits, Deposit(copy(pos), E_relax, :auger))
-                end
+            # Above K-edge: deposit EK locally (relaxation cascade is
+            # always local — fluorescence mfp ~0.05 mm, Auger range < 1 µm)
+            push!(deposits, Deposit(copy(pos), cfg.EK, :photoelectric))
+
+            # Photoelectron carries the rest
+            T_e = E - cfg.EK
+            if T_e > cfg.Te_cut
+                θ_e = sample_photoelectron_angle(T_e, cfg, rng)
+                ϕ_e = 2π * rand(rng)
+                local_vec = Float64[sin(θ_e)*cos(ϕ_e), sin(θ_e)*sin(ϕ_e), cos(θ_e)]
+                d_e = rotate_to_global(local_vec, dir)
+                push!(stack, Track(:electron, T_e, copy(pos), d_e,
+                                   Int(tid % typemax(Int)), gen + 1))
             else
-                # L/M shell: deposit binding energy locally
-                push!(deposits, Deposit(copy(pos), E_bind, :auger))
+                push!(deposits, Deposit(copy(pos), T_e, :photoelectric))
             end
             return  # photon consumed
         end

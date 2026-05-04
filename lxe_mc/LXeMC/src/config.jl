@@ -8,8 +8,7 @@ All energies are in MeV, lengths in cm. Loaded from a JSON file
 run by editing the data file without touching source code.
 
 # Sections
-- **Xenon properties**: atomic number, mass, density, shell energies,
-  fluorescence yield, mean excitation energy.
+- **Xenon properties**: atomic number, mass, density, K-shell binding energy.
 - **Transport cuts**: minimum energies for photon and lepton tracking;
   bremsstrahlung photon threshold.
 - **Stepping parameters**: fixed step size for lepton transport.
@@ -24,12 +23,6 @@ struct SimConfig
     A::Float64              # standard atomic weight [g/mol]
     rho_LXe::Float64        # liquid xenon density [g/cm³]
     EK::Float64             # K-shell binding energy [MeV]
-    EL1::Float64            # L1-shell binding energy [MeV]
-    EL2::Float64            # L2-shell binding energy [MeV]
-    EL3::Float64            # L3-shell binding energy [MeV]
-    omega_K::Float64        # K-shell fluorescence yield
-    EK_alpha::Float64       # dominant K-alpha fluorescence line [MeV]
-    I_Xe::Float64           # mean excitation energy (ICRU-37) [MeV]
 
     # --- Transport cuts ---
     Egamma_cut::Float64     # photon tracking cutoff [MeV]
@@ -84,12 +77,6 @@ function load_config(path::AbstractString)::SimConfig
     SimConfig(
         Z, A, rho,
         Float64(xe["EK_MeV"]),
-        Float64(xe["EL1_MeV"]),
-        Float64(xe["EL2_MeV"]),
-        Float64(xe["EL3_MeV"]),
-        Float64(xe["omega_K"]),
-        Float64(xe["EK_alpha_MeV"]),
-        Float64(xe["I_MeV"]),
         Float64(pc["Egamma_cut_MeV"]),
         Float64(lc["Te_cut_MeV"]),
         Float64(br["k_min_MeV"]),

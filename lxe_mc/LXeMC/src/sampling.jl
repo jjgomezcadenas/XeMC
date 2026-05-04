@@ -246,35 +246,6 @@ end
 # =====================================================================
 
 """
-    sample_phot_shell(E::Float64, cfg::SimConfig, rng::AbstractRNG)
-        -> (shell::Symbol, E_bind::Float64)
-
-Sample which atomic shell is ionized in a photoelectric event.
-
-**Strategy**: direct discrete branching.
-Above the K-edge (E > E_K): K-shell 80%, L-shell 15%, M+ 5%.
-Below the K-edge: L-shell only.
-
-Returns the shell label and binding energy [MeV].
-"""
-function sample_phot_shell(E::Float64, cfg::SimConfig,
-                           rng::AbstractRNG)::Tuple{Symbol,Float64}
-    if E > cfg.EK
-        r = rand(rng)
-        if r < 0.80
-            return (:K, cfg.EK)
-        elseif r < 0.95
-            return (:L, 0.005)
-        else
-            return (:M, 0.0007)
-        end
-    else
-        return (:L, 0.005)
-    end
-end
-
-
-"""
     sample_photoelectron_angle(T_e::Float64, cfg::SimConfig,
                                rng::AbstractRNG) -> Float64
 
@@ -302,28 +273,6 @@ function sample_photoelectron_angle(T_e::Float64, cfg::SimConfig,
         if rand(rng) * M < f
             return acos(ct)
         end
-    end
-end
-
-
-"""
-    sample_atomic_relaxation_K(cfg::SimConfig, rng::AbstractRNG)
-        -> (outcome::Symbol, E::Float64)
-
-For a K-shell vacancy in Xe, sample the de-excitation channel.
-
-**Strategy**: Bernoulli trial with the K-shell fluorescence yield ω_K.
-
-- With probability ω_K ≈ 0.89: fluorescence, emitting a K-α photon
-  of energy E_Kα ≈ 29.78 keV.
-- Otherwise: Auger electron with energy ≈ E_K - 2E_L ≈ 24.6 keV.
-"""
-function sample_atomic_relaxation_K(cfg::SimConfig,
-                                    rng::AbstractRNG)::Tuple{Symbol,Float64}
-    if rand(rng) < cfg.omega_K
-        return (:fluorescence, cfg.EK_alpha)
-    else
-        return (:auger, cfg.EK - 2.0 * 0.005)
     end
 end
 

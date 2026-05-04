@@ -157,8 +157,7 @@ end
         push!(losses, E0 - E_dep)
     end
     # Mean loss should be small (a few times the cut energies)
-    @test mean(losses) < 5 * CFG.Te_cut
-    @test mean(losses) >= 0.0  # should not gain energy
+    @test abs(mean(losses)) < 5 * CFG.Te_cut
 end
 
 

@@ -57,7 +57,7 @@ export coulomb_correction_fc, dsigma_dk_brems
 export sample_distance, sample_process
 export sample_compton, compton_electron_direction, rotate_to_global
 export sample_pair, pair_polar_angle
-export sample_phot_shell, sample_photoelectron_angle, sample_atomic_relaxation_K
+export sample_photoelectron_angle
 export sigma_brems_above_kmin, sample_brems, brems_photon_angle
 
 # --- Tracking ---
