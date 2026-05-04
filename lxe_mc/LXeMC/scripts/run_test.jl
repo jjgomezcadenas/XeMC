@@ -130,11 +130,12 @@ function run_simulation(args)
         deposits = photon_only ?
             simulate_event_photon_only(E_MeV, nd, cfg; geom=geom, rng=rng) :
             simulate_event(E_MeV, nd, cfg; geom=geom, rng=rng)
-        clusters = cluster_deposits_in_z(deposits, cfg.dz_resolution)
+        clusters = cluster_deposits_in_z(deposits, cfg.dz_resolution;
+                                         E_min=cfg.E_cluster_min)
 
         E_dep = sum(d.energy for d in deposits; init=0.0)
         nc = length(clusters)
-        ss = nc == 1
+        ss = nc <= 1
 
         E_deps[i]     = E_dep
         n_deposits[i] = length(deposits)

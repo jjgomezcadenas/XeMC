@@ -170,7 +170,7 @@ end
     n_ss = 0
     for _ in 1:N
         deps = simulate_event(2.615, ND, CFG; rng=rng)
-        if is_single_site(deps, CFG.dz_resolution)
+        if is_single_site(deps, CFG.dz_resolution; E_min=CFG.E_cluster_min)
             n_ss += 1
         end
     end

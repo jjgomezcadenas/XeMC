@@ -474,22 +474,25 @@ end
 # =====================================================================
 
 """
-    cluster_deposits_in_z(deposits::Vector{Deposit}, dz_cm::Float64)
+    cluster_deposits_in_z(deposits::Vector{Deposit}, dz_cm::Float64;
+                          E_min::Float64=0.0)
         -> Vector{Tuple{Float64, Float64}}
 
 Group deposits into clusters whose z-extent is within `dz_cm`.
+Clusters with total energy below `E_min` are discarded (they represent
+sub-threshold deposits invisible to the detector).
 
 Returns a list of `(z_centroid, total_energy)` tuples, sorted by z.
-The centroid is energy-weighted. Used for single-site / multi-site
-classification.
+The centroid is energy-weighted.
 """
 function cluster_deposits_in_z(deposits::Vector{Deposit},
-                               dz_cm::Float64)::Vector{Tuple{Float64,Float64}}
+                               dz_cm::Float64;
+                               E_min::Float64=0.0)::Vector{Tuple{Float64,Float64}}
     isempty(deposits) && return Tuple{Float64,Float64}[]
 
     sorted = sort(deposits, by=d -> d.position[3])
 
-    clusters = Tuple{Float64,Float64}[]
+    all_clusters = Tuple{Float64,Float64}[]
     cur_zs = Float64[sorted[1].position[3]]
     cur_es = Float64[sorted[1].energy]
 
@@ -502,7 +505,7 @@ function cluster_deposits_in_z(deposits::Vector{Deposit},
         else
             E_tot = sum(cur_es)
             z_cent = sum(z * e for (z, e) in zip(cur_zs, cur_es)) / E_tot
-            push!(clusters, (z_cent, E_tot))
+            push!(all_clusters, (z_cent, E_tot))
             cur_zs = Float64[z]
             cur_es = Float64[e]
         end
@@ -510,18 +513,21 @@ function cluster_deposits_in_z(deposits::Vector{Deposit},
 
     E_tot = sum(cur_es)
     z_cent = sum(z * e for (z, e) in zip(cur_zs, cur_es)) / E_tot
-    push!(clusters, (z_cent, E_tot))
+    push!(all_clusters, (z_cent, E_tot))
 
-    clusters
+    # Filter by minimum cluster energy
+    E_min > 0.0 ? filter(c -> c[2] >= E_min, all_clusters) : all_clusters
 end
 
 
 """
-    is_single_site(deposits::Vector{Deposit}, dz_cm::Float64) -> Bool
+    is_single_site(deposits::Vector{Deposit}, dz_cm::Float64;
+                   E_min::Float64=0.0) -> Bool
 
 Return `true` if all deposits cluster into a single site with
-z-resolution `dz_cm`.
+z-resolution `dz_cm`, after discarding clusters below `E_min`.
 """
-function is_single_site(deposits::Vector{Deposit}, dz_cm::Float64)::Bool
-    length(cluster_deposits_in_z(deposits, dz_cm)) == 1
+function is_single_site(deposits::Vector{Deposit}, dz_cm::Float64;
+                        E_min::Float64=0.0)::Bool
+    length(cluster_deposits_in_z(deposits, dz_cm; E_min=E_min)) <= 1
 end

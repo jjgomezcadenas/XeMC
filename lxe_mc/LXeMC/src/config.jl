@@ -37,6 +37,7 @@ struct SimConfig
 
     # --- Clustering ---
     dz_resolution::Float64  # z-resolution for SS/MS classification [cm]
+    E_cluster_min::Float64  # minimum cluster energy for SS/MS classification [MeV]
 
     # --- Physical constants ---
     me::Float64             # electron mass [MeV/c²]
@@ -83,6 +84,7 @@ function load_config(path::AbstractString)::SimConfig
         Float64(st["ds_step_cm"]),
         Int(sa["generation_cap"]),
         Float64(cl["dz_resolution_cm"]),
+        Float64(cl["E_cluster_min_MeV"]),
         Float64(co["me_MeV"]),
         Float64(co["re_cm"]),
         Float64(co["alpha_fs"]),

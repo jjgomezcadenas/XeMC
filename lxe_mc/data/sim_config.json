@@ -29,7 +29,8 @@
     },
 
     "clustering": {
-        "dz_resolution_cm": 0.30
+        "dz_resolution_cm": 0.30,
+        "E_cluster_min_MeV": 0.010
     },
 
     "constants": {
