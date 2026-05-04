@@ -21,6 +21,11 @@
         "generation_cap":  100
     },
 
+    "veto": {
+        "veto_TPC_MeV":    0.010,
+        "veto_skin_MeV":   0.100
+    },
+
     "clustering": {
         "dz_resolution_cm": 0.30,
         "E_cluster_min_MeV": 0.010

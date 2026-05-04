@@ -323,3 +323,37 @@ end
         @test E_dep ≈ E0  rtol=1e-10
     end
 end
+
+
+# =====================================================================
+# Test 15: Veto pre-filter (propagate_to_fiducial)
+# =====================================================================
+@testset "Veto pre-filter" begin
+    rng = MersenneTwister(20)
+    E0 = 2.615
+    N = 1000
+
+    # Gammas from TPC wall (r=72.8, aimed inward at z=72.8 = TPC center height)
+    n_vetoed = 0; n_accepted = 0; n_lost = 0
+    for _ in 1:N
+        # Random phi, start at field cage wall, aim radially inward
+        φ = 2π * rand(rng)
+        pos = (72.0 * cos(φ), 72.0 * sin(φ), 72.8)
+        dir_vec = (-cos(φ), -sin(φ), 0.0)  # radially inward
+
+        result = propagate_to_fiducial(E0, pos, dir_vec, DET, CFG, rng)
+        if result.status === :vetoed
+            n_vetoed += 1
+        elseif result.status === :accepted
+            n_accepted += 1
+        else
+            n_lost += 1
+        end
+    end
+
+    # Most gammas should be vetoed (deposit visible energy outside FV)
+    @test n_vetoed > N * 0.7
+    # A few percent should reach the FV
+    @test n_accepted > 0
+    @test n_accepted < N * 0.15
+end

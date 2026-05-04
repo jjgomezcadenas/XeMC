@@ -80,6 +80,7 @@ export sample_brems, brems_photon_angle
 export Track, ParticleStack, Deposit
 export transport_photon!, transport_lepton!
 export simulate_event, simulate_event_photon_only
+export PropagationResult, propagate_to_fiducial
 export cluster_deposits_in_z, is_single_site
 
 # --- Convenience paths ---

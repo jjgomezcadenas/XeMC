@@ -21,6 +21,10 @@ struct SimConfig
     # --- Safety ---
     generation_cap::Int     # max cascade generations
 
+    # --- Veto thresholds (detection, not physics) ---
+    veto_TPC::Float64       # min visible deposit in TPC outside FV [MeV]
+    veto_skin::Float64      # min visible deposit in LXe skin [MeV]
+
     # --- Clustering ---
     dz_resolution::Float64  # z-resolution for SS/MS classification [cm]
     E_cluster_min::Float64  # minimum cluster energy for SS/MS classification [MeV]
@@ -51,12 +55,16 @@ function load_config(path::AbstractString)::SimConfig
     cl  = raw["clustering"]
     co  = raw["constants"]
 
+    vt  = raw["veto"]
+
     SimConfig(
         Float64(pc["Egamma_cut_MeV"]),
         Float64(lc["Te_cut_MeV"]),
         Float64(br["k_min_MeV"]),
         Float64(st["ds_step_cm"]),
         Int(sa["generation_cap"]),
+        Float64(vt["veto_TPC_MeV"]),
+        Float64(vt["veto_skin_MeV"]),
         Float64(cl["dz_resolution_cm"]),
         Float64(cl["E_cluster_min_MeV"]),
         Float64(co["me_MeV"]),
