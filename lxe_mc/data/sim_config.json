@@ -13,7 +13,7 @@
     },
 
     "lepton_cuts": {
-        "Te_cut_MeV":      0.10
+        "Te_cut_MeV":      0.400
     },
 
     "bremsstrahlung": {
