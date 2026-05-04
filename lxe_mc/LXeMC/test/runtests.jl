@@ -351,9 +351,13 @@ end
         end
     end
 
-    # Most gammas should be vetoed (deposit visible energy outside FV)
-    @test n_vetoed > N * 0.7
-    # A few percent should reach the FV
-    @test n_accepted > 0
-    @test n_accepted < N * 0.15
+    frac_vetoed  = n_vetoed / N
+    frac_accepted = n_accepted / N
+
+    # Radial shielding: 33.8 cm / 8.9 cm mfp ≈ 3.8 λ
+    # Unscattered survival ≈ exp(-3.8) ≈ 2.2%
+    # Accepted is slightly higher (~3%) due to forward Compton below veto threshold
+    @test 0.90 < frac_vetoed < 0.99     # ~97% vetoed
+    @test 0.01 < frac_accepted < 0.07   # ~2-5% reach FV
+    @test n_lost == 0                    # radial gammas don't escape
 end
