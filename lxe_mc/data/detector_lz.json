@@ -1,23 +1,90 @@
 {
-    "_doc": "LZ detector geometry. All dimensions in cm. Positions are center coordinates in MARS frame.",
+    "_doc": "LZ detector geometry. All dimensions in cm, thicknesses in cm. R convention: R_cm in CSV is outer radius; R_inner = R_cm - t_wall. Positions are center coordinates in MARS frame. z=0 is at the center of the TPC active volume.",
 
     "name": "LZ",
 
     "mars": {
         "shape": "cylinder",
-        "radius_cm": 110.0,
-        "half_height_cm": 155.0,
+        "radius_cm": 120.0,
+        "half_height_cm": 220.0,
         "material": "Vacuum"
     },
 
     "volumes": [
         {
+            "_doc": "Active LXe TPC: R=72.8 cm, full height 145.6 cm",
             "name": "LXeTPC",
             "shape": "cylinder",
             "radius_cm": 72.8,
             "half_height_cm": 72.8,
             "position_cm": [0.0, 0.0, 0.0],
             "material": "LXe"
+        },
+
+        {
+            "_doc": "OCV barrel: R_outer=91.5, t=7mm, z=[-52.67, +159.83], center at z=53.58",
+            "name": "OCV_barrel",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 90.8,
+            "wall_thickness_cm": 0.7,
+            "half_height_cm": 106.25,
+            "position_cm": [0.0, 0.0, 53.58],
+            "material": "Ti"
+        },
+        {
+            "_doc": "OCV top head: 2:1 ellipsoidal, R=91.5, t=9mm, equator at z=+159.83",
+            "name": "OCV_top",
+            "shape": "disk",
+            "radius_cm": 91.5,
+            "wall_thickness_cm": 0.9,
+            "aspect_ratio": 2.0,
+            "orientation": "up",
+            "position_cm": [0.0, 0.0, 159.83],
+            "material": "Ti"
+        },
+        {
+            "_doc": "OCV bottom head: 2:1 ellipsoidal, R=91.5, t=15mm, equator at z=-52.67",
+            "name": "OCV_bottom",
+            "shape": "disk",
+            "radius_cm": 91.5,
+            "wall_thickness_cm": 1.5,
+            "aspect_ratio": 2.0,
+            "orientation": "down",
+            "position_cm": [0.0, 0.0, -52.67],
+            "material": "Ti"
+        },
+
+        {
+            "_doc": "ICV barrel: R_outer=83.0, t=9mm, z=[-41.33, +148.5], center at z=53.585",
+            "name": "ICV_barrel",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 82.1,
+            "wall_thickness_cm": 0.9,
+            "half_height_cm": 94.915,
+            "position_cm": [0.0, 0.0, 53.585],
+            "material": "Ti"
+        },
+        {
+            "_doc": "ICV top head: 2:1 ellipsoidal, R=83.0, t=8mm, equator at z=+148.5",
+            "name": "ICV_top",
+            "shape": "disk",
+            "radius_cm": 83.0,
+            "wall_thickness_cm": 0.8,
+            "aspect_ratio": 2.0,
+            "orientation": "up",
+            "position_cm": [0.0, 0.0, 148.5],
+            "material": "Ti"
+        },
+        {
+            "_doc": "ICV bottom head: 3:1 ellipsoidal, R=83.0, t=12mm, equator at z=-41.33",
+            "name": "ICV_bottom",
+            "shape": "disk",
+            "radius_cm": 83.0,
+            "wall_thickness_cm": 1.2,
+            "aspect_ratio": 3.0,
+            "orientation": "down",
+            "position_cm": [0.0, 0.0, -41.33],
+            "material": "Ti"
         }
     ]
 }
