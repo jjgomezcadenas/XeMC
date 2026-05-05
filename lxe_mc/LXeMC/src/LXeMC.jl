@@ -44,6 +44,7 @@ include("geometry.jl")
 include("sampling.jl")
 include("tracking.jl")
 include("decays.jl")
+include("source.jl")
 
 # --- Config ---
 export SimConfig, load_config, default_config
@@ -87,6 +88,8 @@ export cluster_deposits_in_z, is_single_site
 # --- Decays ---
 export DecayGamma, DecayScheme, GammaEmission
 export load_decays, sample_decay, sample_isotropic_direction
+export FluxTable, spectrum_E, spectrum_u, E_centers, u_centers, survival_fraction
+export propagate_in_source, random_position_in_volume, generate_source_flux
 
 # --- Convenience paths ---
 """Path to the default detector JSON (LZ)."""
