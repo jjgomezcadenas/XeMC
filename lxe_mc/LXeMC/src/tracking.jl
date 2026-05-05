@@ -513,6 +513,214 @@ end
 
 
 # =====================================================================
+# Multi-volume propagation
+# =====================================================================
+
+"""
+    classify_lxe_region(pos, det) -> Symbol
+
+Classify the LXe region at `pos`:
+- `:fv` — fiducial volume (analysis target)
+- `:tpc` — TPC active (outside FV, veto threshold = veto_TPC)
+- `:skin` — LXe skin (between field cage and ICV, veto_skin)
+- `:passive` — dome or RFR (no veto, passive LXe)
+- `:none` — not in any LXe region
+
+Uses volume names from the detector JSON to identify regions.
+"""
+function classify_lxe_region(pos::Vector{Float64}, det::Detector)::Symbol
+    fv = det.fiducial
+    if fv !== nothing && is_inside(fv, pos)
+        return :fv
+    end
+
+    vol = find_volume(det, pos)
+    vol === nothing && return :none
+
+    name = lowercase(vol.name)
+    if name == "lxetpc"
+        return :tpc
+    elseif name == "skin"
+        return :skin
+    elseif name in ("rfr", "dome")
+        return :passive
+    elseif vol.material.name == "LXe"
+        return :passive  # any other LXe volume is passive
+    else
+        return :none
+    end
+end
+
+
+"""
+    veto_threshold(region::Symbol, cfg::SimConfig) -> Float64
+
+Return the veto energy threshold for a given LXe region.
+`:tpc` → veto_TPC, `:skin` → veto_skin, `:passive` → Inf (no veto),
+`:fv` → 0.0 (accept everything).
+"""
+function veto_threshold(region::Symbol, cfg::SimConfig)::Float64
+    region === :tpc && return cfg.veto_TPC
+    region === :skin && return cfg.veto_skin
+    region === :fv && return 0.0
+    region === :passive && return Inf  # no veto possible
+    Inf
+end
+
+
+"""
+    propagate_to_lxe(E_MeV, position, direction, det, cfg, rng)
+        -> PropagationResult
+
+Multi-volume photon propagation from any point in MARS toward the
+fiducial volume. Handles:
+
+- **Material volumes** (Ti, PTFE): Compton scatter or absorb, with
+  per-material cross sections.
+- **Vacuum** (between OCV and ICV): straight-line propagation to the
+  next volume boundary via `next_volume`.
+- **LXe regions**: apply region-specific veto thresholds.
+  TPC active: veto_TPC (10 keV). Skin: veto_skin (100 keV).
+  Passive (dome/RFR): no veto (Inf threshold).
+- **FV**: accept for full simulation.
+
+Returns `PropagationResult` with status `:accepted`, `:vetoed`, or `:lost`.
+"""
+function propagate_to_lxe(E_MeV::Float64,
+                          position::NTuple{3,Float64},
+                          direction::NTuple{3,Float64},
+                          det::Detector,
+                          cfg::SimConfig,
+                          rng::AbstractRNG)::PropagationResult
+
+    pos = Float64[position...]
+    dir = Float64[direction...]
+    E = E_MeV
+    n_int = 0
+
+    while E >= cfg.Egamma_cut
+        # Where are we?
+        vol = find_volume(det, pos)
+
+        if vol === nothing
+            # In vacuum (MARS, between vessels): propagate to next volume
+            if !is_inside(det.mars, pos)
+                return PropagationResult(:lost, E, pos, dir, n_int)
+            end
+            next_vol, t_next = next_volume(pos, dir, det)
+            if next_vol === nothing || t_next == Inf
+                return PropagationResult(:lost, E, pos, dir, n_int)
+            end
+            # Advance to just inside the next volume
+            pos .= pos .+ dir .* (t_next + 0.001)
+            continue
+        end
+
+        mat = vol.material
+
+        # Vacuum material (shouldn't happen if volumes are correct, but handle it)
+        if mat.density <= 0.0
+            # Advance through this vacuum volume
+            t_exit = distance_to_exit(pos, dir, vol.logical)
+            pos .= pos .+ dir .* (t_exit + 0.001)
+            continue
+        end
+
+        # Check if this is an LXe region
+        if mat.name == "LXe"
+            region = classify_lxe_region(pos, det)
+
+            # Reached FV: accept
+            if region === :fv
+                return PropagationResult(:accepted, E, pos, dir, n_int)
+            end
+
+            # LXe interaction with region-specific veto
+            v_thresh = veto_threshold(region, cfg)
+
+            sC, sP, sPh = sigma_three(mat, E)
+            s_tot = sC + sP + sPh
+            Σ_tot = mat.n_atom * s_tot
+            s = sample_distance(Σ_tot, rng)
+            pos .= pos .+ dir .* s
+            n_int += 1
+
+            # Left this LXe volume?
+            if !is_inside(vol, pos)
+                # Re-check where we are now
+                continue
+            end
+
+            # Re-classify after moving (might have entered FV)
+            region = classify_lxe_region(pos, det)
+            if region === :fv
+                return PropagationResult(:accepted, E, pos, dir, n_int)
+            end
+
+            v_thresh = veto_threshold(region, cfg)
+
+            proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
+
+            if proc === :compton
+                Egp, cos_t = sample_compton(E, cfg, rng)
+                T_e = E - Egp
+                if T_e > v_thresh
+                    return PropagationResult(:vetoed, E, pos, dir, n_int)
+                end
+                ϕ = 2π * rand(rng)
+                sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
+                local_vec = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
+                dir = rotate_to_global(local_vec, dir)
+                E = Egp
+            else
+                if E > v_thresh
+                    return PropagationResult(:vetoed, E, pos, dir, n_int)
+                end
+                return PropagationResult(:lost, 0.0, pos, dir, n_int)
+            end
+
+        else
+            # Non-LXe material (Ti, PTFE): interact or traverse
+            if mat.xcom === nothing
+                # No cross section data: treat as transparent
+                t_exit = distance_to_exit(pos, dir, vol.logical)
+                pos .= pos .+ dir .* (t_exit + 0.001)
+                continue
+            end
+
+            sC, sP, sPh = sigma_three(mat, E)
+            s_tot = sC + sP + sPh
+            Σ_tot = mat.n_atom * s_tot
+            s = sample_distance(Σ_tot, rng)
+            pos .= pos .+ dir .* s
+            n_int += 1
+
+            # Left this volume? (passed through without interacting)
+            if !is_inside(vol, pos)
+                continue
+            end
+
+            # Interacted inside this material
+            proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
+
+            if proc === :compton
+                Egp, cos_t = sample_compton(E, cfg, rng)
+                ϕ = 2π * rand(rng)
+                sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
+                local_vec = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
+                dir = rotate_to_global(local_vec, dir)
+                E = Egp
+            else
+                return PropagationResult(:lost, 0.0, pos, dir, n_int)
+            end
+        end
+    end
+
+    PropagationResult(:lost, E, pos, dir, n_int)
+end
+
+
+# =====================================================================
 # Deposit clustering and SS/MS classification
 # =====================================================================
 

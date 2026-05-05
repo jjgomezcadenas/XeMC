@@ -83,7 +83,8 @@ export sample_brems, brems_photon_angle
 export Track, ParticleStack, Deposit
 export transport_photon!, transport_lepton!
 export simulate_event, simulate_event_photon_only
-export PropagationResult, propagate_to_fiducial
+export PropagationResult, propagate_to_fiducial, propagate_to_lxe
+export classify_lxe_region, veto_threshold
 export cluster_deposits_in_z, is_single_site
 
 # --- Decays ---
