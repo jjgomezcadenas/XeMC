@@ -167,6 +167,41 @@ end
 
 
 # =====================================================================
+# Test 3c: Ray-volume intersection
+# =====================================================================
+@testset "Ray intersection" begin
+    # Cylinder at origin, R=10, H_half=20
+    lc = LCyl(Cyl(10.0, 20.0), [0.0, 0.0, 0.0])
+
+    # Ray from outside along +x, should hit at x=10 (distance 5 from x=15)
+    @test distance_to_entry([15.0, 0.0, 0.0], [-1.0, 0.0, 0.0], lc) ≈ 5.0  atol=0.01
+    # Ray from inside along +x, exits at x=10
+    @test distance_to_exit([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], lc) ≈ 10.0  atol=0.01
+    # Ray along +z from inside, exits at z=20
+    @test distance_to_exit([0.0, 0.0, 0.0], [0.0, 0.0, 1.0], lc) ≈ 20.0  atol=0.01
+    # Ray misses (parallel, offset)
+    @test distance_to_entry([15.0, 0.0, 0.0], [0.0, 1.0, 0.0], lc) == Inf
+
+    # CylShell: R_inner=50, wall=2, H_half=30
+    lcs = LCylShell(CylShell(50.0, 2.0, 30.0), [0.0, 0.0, 0.0])
+    # Ray from r=60 inward, should hit outer surface at r=52
+    t_entry = distance_to_entry([60.0, 0.0, 0.0], [-1.0, 0.0, 0.0], lcs)
+    @test t_entry ≈ 8.0  atol=0.1
+    # Ray from inside shell outward, exits at r=52 or r=50
+    t_exit = distance_to_exit([51.0, 0.0, 0.0], [-1.0, 0.0, 0.0], lcs)
+    @test t_exit ≈ 1.0  atol=0.1  # exits through inner surface
+
+    # next_volume: ray from outside MARS toward ICV barrel
+    by_name = Dict(v.name => v for v in DET.volumes)
+    icv = by_name["ICV_barrel"]
+    # From r=100, aimed at center, should hit ICV barrel
+    vol, t = next_volume([100.0, 0.0, 53.585], [-1.0, 0.0, 0.0], DET)
+    @test vol !== nothing
+    @test t < 100.0  # should hit something before traveling 100 cm
+end
+
+
+# =====================================================================
 # Test 4: XCOM total = sum of channels
 # =====================================================================
 @testset "XCOM total = sum of channels" begin

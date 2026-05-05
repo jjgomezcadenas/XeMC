@@ -501,6 +501,306 @@ end
 
 
 # =====================================================================
+# Ray-volume intersection
+# =====================================================================
+
+"""
+    distance_to_exit(pos, dir, lc::LCyl) -> Float64
+
+Distance along ray (pos, dir) to exit the cylinder. Returns `Inf` if
+the point is outside or the ray doesn't hit the boundary.
+
+Solves ray-cylinder (r² = R²) and ray-plane (z = ±H) intersections,
+returns the smallest positive distance.
+"""
+function distance_to_exit(pos::Vector{Float64}, dir::Vector{Float64}, lc::LCyl)::Float64
+    R = lc.solid.radius_cm
+    H = lc.solid.half_height_cm
+    cx, cy, cz = lc.position
+
+    dx = pos[1] - cx
+    dy = pos[2] - cy
+    dz = pos[3] - cz
+
+    t_min = Inf
+
+    # Lateral surface: (dx + t*dir_x)² + (dy + t*dir_y)² = R²
+    a = dir[1]^2 + dir[2]^2
+    if a > 1e-20
+        b = 2.0 * (dx * dir[1] + dy * dir[2])
+        c = dx^2 + dy^2 - R^2
+        disc = b^2 - 4*a*c
+        if disc >= 0.0
+            sq = sqrt(disc)
+            for t in [(-b + sq) / (2a), (-b - sq) / (2a)]
+                if t > 1e-10 && abs(dz + t*dir[3]) < H
+                    t_min = min(t_min, t)
+                end
+            end
+        end
+    end
+
+    # Top/bottom caps: dz + t*dir_z = ±H
+    if abs(dir[3]) > 1e-20
+        for z_face in [H, -H]
+            t = (z_face - dz) / dir[3]
+            if t > 1e-10
+                rx = dx + t*dir[1]
+                ry = dy + t*dir[2]
+                if rx^2 + ry^2 < R^2
+                    t_min = min(t_min, t)
+                end
+            end
+        end
+    end
+
+    t_min
+end
+
+
+"""
+    distance_to_entry(pos, dir, lc::LCyl) -> Float64
+
+Distance along ray to enter the cylinder from outside. Returns `Inf`
+if the ray misses.
+"""
+function distance_to_entry(pos::Vector{Float64}, dir::Vector{Float64}, lc::LCyl)::Float64
+    R = lc.solid.radius_cm
+    H = lc.solid.half_height_cm
+    cx, cy, cz = lc.position
+
+    dx = pos[1] - cx
+    dy = pos[2] - cy
+    dz = pos[3] - cz
+
+    t_min = Inf
+
+    # Lateral surface
+    a = dir[1]^2 + dir[2]^2
+    if a > 1e-20
+        b = 2.0 * (dx * dir[1] + dy * dir[2])
+        c = dx^2 + dy^2 - R^2
+        disc = b^2 - 4*a*c
+        if disc >= 0.0
+            sq = sqrt(disc)
+            for t in [(-b - sq) / (2a), (-b + sq) / (2a)]
+                if t > 1e-10 && abs(dz + t*dir[3]) < H
+                    t_min = min(t_min, t)
+                end
+            end
+        end
+    end
+
+    # Caps
+    if abs(dir[3]) > 1e-20
+        for z_face in [H, -H]
+            t = (z_face - dz) / dir[3]
+            if t > 1e-10
+                rx = dx + t*dir[1]
+                ry = dy + t*dir[2]
+                if rx^2 + ry^2 < R^2
+                    t_min = min(t_min, t)
+                end
+            end
+        end
+    end
+
+    t_min
+end
+
+
+"""
+    distance_to_entry(pos, dir, lcs::LCylShell) -> Float64
+
+Distance along ray to enter a cylindrical shell from outside.
+Tests both inner and outer cylindrical surfaces and top/bottom caps.
+"""
+function distance_to_entry(pos::Vector{Float64}, dir::Vector{Float64}, lcs::LCylShell)::Float64
+    R_i = lcs.solid.R_inner_cm
+    R_o = R_outer(lcs.solid)
+    H = lcs.solid.half_height_cm
+    cx, cy, cz = lcs.position
+
+    dx = pos[1] - cx
+    dy = pos[2] - cy
+    dz = pos[3] - cz
+
+    t_min = Inf
+
+    a = dir[1]^2 + dir[2]^2
+
+    # Test both cylindrical surfaces (inner and outer)
+    for R in [R_o, R_i]
+        if a > 1e-20
+            b = 2.0 * (dx * dir[1] + dy * dir[2])
+            c = dx^2 + dy^2 - R^2
+            disc = b^2 - 4*a*c
+            if disc >= 0.0
+                sq = sqrt(disc)
+                for t in [(-b - sq) / (2a), (-b + sq) / (2a)]
+                    if t > 1e-10 && abs(dz + t*dir[3]) < H
+                        # Check the hit point is in the shell
+                        rx = dx + t*dir[1]
+                        ry = dy + t*dir[2]
+                        r2 = rx^2 + ry^2
+                        if r2 >= R_i^2 - 1e-6 && r2 <= R_o^2 + 1e-6
+                            t_min = min(t_min, t)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    # Top/bottom annular caps
+    if abs(dir[3]) > 1e-20
+        for z_face in [H, -H]
+            t = (z_face - dz) / dir[3]
+            if t > 1e-10
+                rx = dx + t*dir[1]
+                ry = dy + t*dir[2]
+                r2 = rx^2 + ry^2
+                if r2 >= R_i^2 && r2 <= R_o^2
+                    t_min = min(t_min, t)
+                end
+            end
+        end
+    end
+
+    t_min
+end
+
+
+"""
+    distance_to_exit(pos, dir, lcs::LCylShell) -> Float64
+
+Distance to exit a cylindrical shell.
+"""
+function distance_to_exit(pos::Vector{Float64}, dir::Vector{Float64}, lcs::LCylShell)::Float64
+    R_i = lcs.solid.R_inner_cm
+    R_o = R_outer(lcs.solid)
+    H = lcs.solid.half_height_cm
+    cx, cy, cz = lcs.position
+
+    dx = pos[1] - cx
+    dy = pos[2] - cy
+    dz = pos[3] - cz
+
+    t_min = Inf
+    a = dir[1]^2 + dir[2]^2
+
+    # Inner surface (exit inward) and outer surface (exit outward)
+    for R in [R_i, R_o]
+        if a > 1e-20
+            b = 2.0 * (dx * dir[1] + dy * dir[2])
+            c = dx^2 + dy^2 - R^2
+            disc = b^2 - 4*a*c
+            if disc >= 0.0
+                sq = sqrt(disc)
+                for t in [(-b - sq) / (2a), (-b + sq) / (2a)]
+                    if t > 1e-10 && abs(dz + t*dir[3]) < H
+                        t_min = min(t_min, t)
+                    end
+                end
+            end
+        end
+    end
+
+    # Caps
+    if abs(dir[3]) > 1e-20
+        for z_face in [H, -H]
+            t = (z_face - dz) / dir[3]
+            if t > 1e-10
+                rx = dx + t*dir[1]
+                ry = dy + t*dir[2]
+                r2 = rx^2 + ry^2
+                if r2 >= R_i^2 && r2 <= R_o^2
+                    t_min = min(t_min, t)
+                end
+            end
+        end
+    end
+
+    t_min
+end
+
+
+# Fallback for logical volume types without analytic intersection: step search
+function distance_to_entry(pos::Vector{Float64}, dir::Vector{Float64}, lv::LBox)::Float64
+    ds = 0.1
+    for i in 1:10000
+        t = i * ds
+        test_pos = pos .+ dir .* t
+        if is_inside(lv, test_pos)
+            return t
+        end
+    end
+    Inf
+end
+
+function distance_to_entry(pos::Vector{Float64}, dir::Vector{Float64}, ld::LDisk)::Float64
+    ds = 0.1
+    for i in 1:10000
+        t = i * ds
+        test_pos = pos .+ dir .* t
+        if is_inside(ld, test_pos)
+            return t
+        end
+    end
+    Inf
+end
+
+# Fallback for physical volumes: delegate to logical
+function distance_to_entry(pos::Vector{Float64}, dir::Vector{Float64}, vol::PhysicalVolume)::Float64
+    # Step along ray until inside, max 1000 cm
+    ds = 0.1  # cm steps
+    for i in 1:10000
+        t = i * ds
+        test_pos = pos .+ dir .* t
+        if is_inside(vol, test_pos)
+            return t
+        end
+    end
+    Inf
+end
+
+function distance_to_exit(pos::Vector{Float64}, dir::Vector{Float64}, vol::PhysicalVolume)::Float64
+    ds = 0.1
+    for i in 1:10000
+        t = i * ds
+        test_pos = pos .+ dir .* t
+        if !is_inside(vol, test_pos)
+            return t
+        end
+    end
+    Inf
+end
+
+
+"""
+    next_volume(pos, dir, det) -> (PhysicalVolume or nothing, Float64)
+
+Find the nearest volume along ray (pos, dir) from a point in vacuum.
+Returns (volume, distance) or (nothing, Inf) if ray escapes MARS.
+"""
+function next_volume(pos::Vector{Float64}, dir::Vector{Float64},
+                     det::Detector)::Tuple{Union{PhysicalVolume,Nothing},Float64}
+    best_vol = nothing
+    best_t = Inf
+
+    for v in det.volumes
+        t = distance_to_entry(pos, dir, v.logical)
+        if t < best_t
+            best_t = t
+            best_vol = v
+        end
+    end
+
+    (best_vol, best_t)
+end
+
+
+# =====================================================================
 # Detector loader
 # =====================================================================
 
