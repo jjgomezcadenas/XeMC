@@ -1,0 +1,403 @@
+{
+    "_doc": "LZ detector geometry, schema v2. z=0 is the cathode. TPC drifts upward (z>0). All dimensions in cm. This file preserves the current simplified solids but makes topology and semantics explicit.",
+
+    "name": "LZ",
+    "version": 2,
+    "units": "cm",
+
+    "world": {
+        "name": "MARS",
+        "shape": "cylinder",
+        "radius_cm": 120.0,
+        "half_height_cm": 220.0,
+        "material": "Vacuum",
+        "tag": "world",
+        "role": "world",
+        "approximation": "exact"
+    },
+
+    "volumes": [
+        {
+            "_doc": "Approximate OCV internal cavity used as a containment region for the ICV and other internals.",
+            "name": "OCV_void",
+            "shape": "cylinder",
+            "radius_cm": 90.8,
+            "half_height_cm": 106.25,
+            "position_cm": [0.0, 0.0, 53.58],
+            "material": "Vacuum",
+            "parent": "MARS",
+            "tag": "vacuum",
+            "role": "cryostat_cavity",
+            "approximation": "cylindrical_proxy"
+        },
+        {
+            "_doc": "Approximate LXe envelope inside the ICV used as a containment region for TPC, skin, RFR, dome, and internal structures.",
+            "name": "ICV_LXe_interior",
+            "shape": "cylinder",
+            "radius_cm": 82.1,
+            "half_height_cm": 94.915,
+            "position_cm": [0.0, 0.0, 53.585],
+            "material": "LXe",
+            "parent": "OCV_void",
+            "tag": "passive_lxe",
+            "role": "inner_lxe_envelope",
+            "approximation": "cylindrical_proxy"
+        },
+
+        {
+            "_doc": "Active LXe TPC: R=72.8, z=[0, 145.6], center z=72.8",
+            "name": "LXeTPC",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 72.8,
+            "position_cm": [0.0, 0.0, 72.8],
+            "material": "LXe",
+            "parent": "ICV_LXe_interior",
+            "tag": "tpc_active",
+            "role": "active_region",
+            "approximation": "exact"
+        },
+        {
+            "_doc": "Fiducial volume: R=39.0, z=[26.0, 96.0], center z=61.0.",
+            "name": "FV",
+            "shape": "cylinder",
+            "radius_cm": 39.0,
+            "half_height_cm": 35.0,
+            "position_cm": [0.0, 0.0, 61.0],
+            "material": "LXe",
+            "parent": "LXeTPC",
+            "tag": "fv",
+            "role": "fiducial_region",
+            "approximation": "exact"
+        },
+        {
+            "_doc": "Field cage (PTFE): R=[72.8, 74.3], z=[-13.75, 145.6], center z=65.925",
+            "name": "FieldCage",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 1.5,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "PTFE",
+            "parent": "ICV_LXe_interior",
+            "tag": "structural",
+            "role": "field_cage",
+            "approximation": "exact"
+        },
+        {
+            "_doc": "Field-cage Ti rings proxy shell.",
+            "name": "FCRN",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 0.277,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "Ti",
+            "parent": "ICV_LXe_interior",
+            "tag": "structural",
+            "role": "field_cage_rings",
+            "approximation": "mass_equivalent_shell"
+        },
+        {
+            "_doc": "Field-cage resistors stainless-steel proxy shell.",
+            "name": "FCRS",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 0.000102,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "SS",
+            "parent": "ICV_LXe_interior",
+            "tag": "structural",
+            "role": "field_cage_resistors",
+            "approximation": "negligible_thickness_proxy"
+        },
+        {
+            "_doc": "TPC sensors stainless-steel proxy shell.",
+            "name": "FCSE",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 0.00851,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "SS",
+            "parent": "ICV_LXe_interior",
+            "tag": "structural",
+            "role": "tpc_sensors",
+            "approximation": "mass_equivalent_shell"
+        },
+        {
+            "_doc": "Top grid holders proxy slab.",
+            "name": "FCTG",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 7.5,
+            "half_height_cm": 0.779,
+            "position_cm": [0.0, 0.0, 146.379],
+            "material": "SS",
+            "parent": "ICV_LXe_interior",
+            "tag": "structural",
+            "role": "top_grid_holder",
+            "approximation": "mass_equivalent_slab"
+        },
+        {
+            "_doc": "Cathode grid holder proxy slab.",
+            "name": "FCBG",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 7.5,
+            "half_height_cm": 0.3895,
+            "position_cm": [0.0, 0.0, -0.3895],
+            "material": "SS",
+            "parent": "ICV_LXe_interior",
+            "tag": "structural",
+            "role": "cathode_grid_holder",
+            "approximation": "mass_equivalent_slab"
+        },
+        {
+            "_doc": "LXe skin veto region: R=[74.3, 82.1], z=[-13.75, 145.6], center z=65.925",
+            "name": "Skin",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 7.8,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "LXe",
+            "parent": "ICV_LXe_interior",
+            "tag": "skin",
+            "role": "veto_region",
+            "approximation": "exact"
+        },
+        {
+            "_doc": "Reverse field region below cathode.",
+            "name": "RFR",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 6.875,
+            "position_cm": [0.0, 0.0, -6.875],
+            "material": "LXe",
+            "parent": "ICV_LXe_interior",
+            "tag": "passive_lxe",
+            "role": "reverse_field_region",
+            "approximation": "exact"
+        },
+        {
+            "_doc": "Bottom dome region, modeled as a cylinder inside the ICV bottom head.",
+            "name": "Dome",
+            "shape": "cylinder",
+            "radius_cm": 82.1,
+            "half_height_cm": 27.625,
+            "position_cm": [0.0, 0.0, -41.375],
+            "material": "LXe",
+            "parent": "ICV_LXe_interior",
+            "tag": "passive_lxe",
+            "role": "bottom_dome_region",
+            "approximation": "cylindrical_proxy"
+        },
+
+        {
+            "_doc": "OCV barrel.",
+            "name": "OCV_barrel",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 90.8,
+            "wall_thickness_cm": 0.7,
+            "half_height_cm": 106.25,
+            "position_cm": [0.0, 0.0, 53.58],
+            "material": "Ti",
+            "parent": "MARS",
+            "tag": "structural",
+            "role": "cryostat_barrel",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "OCV top head.",
+            "name": "OCV_top",
+            "shape": "disk",
+            "radius_cm": 91.5,
+            "wall_thickness_cm": 0.9,
+            "aspect_ratio": 2.0,
+            "orientation": "up",
+            "position_cm": [0.0, 0.0, 159.83],
+            "material": "Ti",
+            "parent": "MARS",
+            "tag": "structural",
+            "role": "cryostat_head_top",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "OCV bottom head.",
+            "name": "OCV_bottom",
+            "shape": "disk",
+            "radius_cm": 91.5,
+            "wall_thickness_cm": 1.5,
+            "aspect_ratio": 2.0,
+            "orientation": "down",
+            "position_cm": [0.0, 0.0, -52.67],
+            "material": "Ti",
+            "parent": "MARS",
+            "tag": "structural",
+            "role": "cryostat_head_bottom",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+
+        {
+            "_doc": "ICV barrel.",
+            "name": "ICV_barrel",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 82.1,
+            "wall_thickness_cm": 0.9,
+            "half_height_cm": 94.915,
+            "position_cm": [0.0, 0.0, 53.585],
+            "material": "Ti",
+            "parent": "OCV_void",
+            "tag": "structural",
+            "role": "inner_cryostat_barrel",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "ICV top head.",
+            "name": "ICV_top",
+            "shape": "disk",
+            "radius_cm": 83.0,
+            "wall_thickness_cm": 0.8,
+            "aspect_ratio": 2.0,
+            "orientation": "up",
+            "position_cm": [0.0, 0.0, 148.5],
+            "material": "Ti",
+            "parent": "OCV_void",
+            "tag": "structural",
+            "role": "inner_cryostat_head_top",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "ICV bottom head.",
+            "name": "ICV_bottom",
+            "shape": "disk",
+            "radius_cm": 83.0,
+            "wall_thickness_cm": 1.2,
+            "aspect_ratio": 3.0,
+            "orientation": "down",
+            "position_cm": [0.0, 0.0, -41.33],
+            "material": "Ti",
+            "parent": "OCV_void",
+            "tag": "structural",
+            "role": "inner_cryostat_head_bottom",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+
+        {
+            "_doc": "OCV top reinforcing ring.",
+            "name": "OCV_top_ring",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 92.2,
+            "wall_thickness_cm": 4.0,
+            "half_height_cm": 2.5,
+            "position_cm": [0.0, 0.0, 176.5],
+            "material": "Ti",
+            "parent": "MARS",
+            "tag": "structural",
+            "role": "reinforcing_ring",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "OCV upper body flange pair.",
+            "name": "OCV_upper_flange",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 92.2,
+            "wall_thickness_cm": 12.8,
+            "half_height_cm": 3.0,
+            "position_cm": [0.0, 0.0, 100.0],
+            "material": "Ti",
+            "parent": "MARS",
+            "tag": "structural",
+            "role": "flange",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "OCV lower body flange pair.",
+            "name": "OCV_lower_flange",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 92.2,
+            "wall_thickness_cm": 12.8,
+            "half_height_cm": 3.0,
+            "position_cm": [0.0, 0.0, -10.0],
+            "material": "Ti",
+            "parent": "MARS",
+            "tag": "structural",
+            "role": "flange",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "OCV bottom support flange.",
+            "name": "OCV_bottom_flange",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 92.2,
+            "wall_thickness_cm": 0.6,
+            "half_height_cm": 4.0,
+            "position_cm": [0.0, 0.0, -38.0],
+            "material": "Ti",
+            "parent": "MARS",
+            "tag": "structural",
+            "role": "support_flange",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "ICV main flange pair.",
+            "name": "ICV_main_flange",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 83.0,
+            "wall_thickness_cm": 7.5,
+            "half_height_cm": 3.0,
+            "position_cm": [0.0, 0.0, 130.0],
+            "material": "Ti",
+            "parent": "OCV_void",
+            "tag": "structural",
+            "role": "inner_cryostat_flange",
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        }
+    ]
+}

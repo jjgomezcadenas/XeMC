@@ -4,3 +4,6 @@ Manifest.toml
 __pycache__/
 *.pyc
 .DS_Store
+lxe_mc/LXeMC/results/
+lxe_mc/LXeMC/test_run/
+lxe_manual.pdf
