@@ -368,3 +368,35 @@ end
     @test frac_first > 0.95              # >95% vetoed at first interaction
     @test maximum(n_int_vetoed) <= 3     # never needs more than ~2-3 steps
 end
+
+
+# =====================================================================
+# Test 17: Source flux generation
+# =====================================================================
+@testset "Source flux" begin
+    decays = load_decays()
+    by_name = Dict(v.name => v for v in DET.volumes)
+    source = by_name["ICV_barrel"]
+    rng = MersenneTwister(42)
+    N = 10000
+
+    # Bi-214: single gamma, no companion veto
+    ft_bi = generate_source_flux(N, source, decays["Bi214"], DET, CFG, rng)
+    @test ft_bi.N_generated == N
+    @test ft_bi.N_vetoed == 0                      # no companions → no veto
+    @test ft_bi.N_surviving > 0
+    # ICV barrel is thin Ti (0.9 cm): most gammas exit unscattered
+    @test survival_fraction(ft_bi) > 0.5
+    # Flux table dimensions
+    @test size(ft_bi.counts) == (25, 10)
+    @test sum(ft_bi.counts) == ft_bi.N_surviving
+
+    # Tl-208: companion gamma causes veto
+    rng2 = MersenneTwister(42)
+    ft_tl = generate_source_flux(N, source, decays["Tl208"], DET, CFG, rng2)
+    @test ft_tl.N_generated == N
+    @test ft_tl.N_vetoed > N * 0.5                 # majority vetoed by companion
+    @test ft_tl.N_surviving > 0
+    @test ft_tl.N_surviving < ft_tl.N_vetoed       # more vetoed than surviving
+    @test sum(ft_tl.counts) == ft_tl.N_surviving
+end
