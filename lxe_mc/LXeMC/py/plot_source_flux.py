@@ -129,24 +129,32 @@ def main():
     ax.set_title("dP/d(cos θ)")
     ax.set_xlim(0, 1)
 
-    # Panel 3: 2D heatmap (log color)
+    # Panel 3: 2D heatmap (log color), peak bin excluded
     ax = axs[1, 0]
     n_u = counts_2d.shape[1]
     u_edges = np.linspace(0, 1, n_u + 1)
     E_edges = np.zeros(len(E_centers) + 1)
     E_edges[:-1] = E_centers - dE / 2
     E_edges[-1] = E_centers[-1] + dE / 2
-    # Avoid log(0): set zeros to NaN for display
-    plot_data = counts_2d.astype(float)
+    # Exclude peak bin (last bin for Tl-208, bin containing the line for Bi-214)
+    # Find peak bin: the one with highest total probability
+    row_sums = counts_2d.sum(axis=1)
+    peak_idx = np.argmax(row_sums)
+    plot_data = counts_2d.astype(float).copy()
+    plot_data[peak_idx, :] = 0.0  # zero out peak bin
     plot_data[plot_data == 0] = np.nan
-    vmin = max(1, np.nanmin(plot_data)) if np.any(~np.isnan(plot_data)) else 1
-    vmax = np.nanmax(plot_data) if np.any(~np.isnan(plot_data)) else 10
-    im = ax.pcolormesh(u_edges, E_edges, plot_data, shading="flat",
-                       cmap="hot", norm=LogNorm(vmin=vmin, vmax=vmax))
+    if np.any(~np.isnan(plot_data)):
+        vmin = np.nanmin(plot_data)
+        vmax = np.nanmax(plot_data)
+        im = ax.pcolormesh(u_edges, E_edges, plot_data, shading="flat",
+                           cmap="hot", norm=LogNorm(vmin=vmin, vmax=vmax))
+        fig.colorbar(im, ax=ax, label="prob/decay/bin")
+    else:
+        ax.text(0.5, 0.5, "no off-peak data", ha="center", va="center",
+                transform=ax.transAxes)
     ax.set_xlabel("cos θ")
     ax.set_ylabel("E [MeV]")
-    ax.set_title("flux (E, cos θ) [log]")
-    fig.colorbar(im, ax=ax, label="counts")
+    ax.set_title("off-peak flux (peak bin excluded) [log]")
 
     # Panel 4: Event fractions + peak/off-peak (horizontal bar)
     ax = axs[1, 1]
