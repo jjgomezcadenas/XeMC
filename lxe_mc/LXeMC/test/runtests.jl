@@ -385,8 +385,9 @@ end
     @test ft_bi.N_generated == N
     @test ft_bi.N_vetoed == 0                      # no companions → no veto
     @test ft_bi.N_surviving > 0
-    # ICV barrel is thin Ti (0.9 cm): most gammas exit unscattered
-    @test survival_fraction(ft_bi) > 0.5
+    # ~38% survive (forward + in energy window); ~41% backward
+    @test 0.25 < survival_fraction(ft_bi) < 0.50
+    @test ft_bi.N_backward > N * 0.3               # ~40% go backward
     # Flux table dimensions
     @test size(ft_bi.counts) == (25, 10)
     @test sum(ft_bi.counts) == ft_bi.N_surviving

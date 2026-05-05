@@ -175,46 +175,47 @@ end
 # =====================================================================
 
 """
-    cos_theta_to_lxe(pos, dir, source_vol, det) -> Float64
+    cos_theta_to_lxe(pos_exit, dir, source_vol) -> Float64
 
-Compute cos θ of gamma direction relative to the inward normal of the
-source surface facing the LXe. For a cylindrical shell, the inward
-normal is -r_hat. For a disk, it's ∓ẑ depending on orientation.
+Cosine of angle between gamma direction and the inward normal of the
+source surface at the exit point. Positive = toward LXe (inward),
+negative = away from LXe (backward).
 
-Returns value in [-1, 1]; only gammas with cos θ > 0 are directed
-toward the LXe.
+- **CylShell** (barrel): inward normal is -r_hat at the exit position.
+  cos θ = -(dx·dir_x + dy·dir_y) / r (radial inward projection).
+- **Disk** (head): inward normal is -ẑ (if :up) or +ẑ (if :down).
+  cos θ = ∓dir_z.
 """
-function cos_theta_to_lxe(dir::Vector{Float64}, source_vol::PCylShell)::Float64
-    # For a shell, "toward LXe" is radially inward = -r_hat
-    # We approximate: cos θ = -dir · r_hat (where r_hat is radial direction)
-    # This is position-dependent but for thin shells we can ignore z-component
-    # Actually, for the flux we just care about the angle to the inward-facing normal
-    # For a shell barrel, inward normal ≈ -r_hat at the emission point
-    # Since we don't track exact emission point after propagation, use the
-    # exit direction's radial component
-    # Simpler: cos θ wrt z-axis as proxy (cylindrical symmetry)
-    # Actually: for the flux table, u = |cos(angle to detector axis)|
-    # which for barrel sources ≈ angle from the radial direction...
-    #
-    # Simplest physically meaningful definition: u = cos(angle between
-    # gamma direction and the vector from emission point to detector center)
-    # For now: just use the z-component of direction as u (appropriate for
-    # top/bottom sources; for barrel, the relevant angle is radial)
-    #
-    # Better: u = inward radial component for barrels
-    # Just return the magnitude of the radial-inward component
-    abs(dir[3])  # placeholder — will refine per geometry
+function cos_theta_to_lxe(pos::Vector{Float64}, dir::Vector{Float64},
+                          source_vol::PCylShell)::Float64
+    cx = source_vol.logical.position[1]
+    cy = source_vol.logical.position[2]
+    dx = pos[1] - cx
+    dy = pos[2] - cy
+    r = sqrt(dx^2 + dy^2)
+    r < 1e-10 && return 0.0
+    # Inward radial component of direction (negative r_hat · dir)
+    -(dx * dir[1] + dy * dir[2]) / r
 end
 
-function cos_theta_to_lxe(dir::Vector{Float64}, source_vol::PDisk)::Float64
-    # For a disk, inward normal is -z (if :up) or +z (if :down)
+function cos_theta_to_lxe(pos::Vector{Float64}, dir::Vector{Float64},
+                          source_vol::PDisk)::Float64
     orient = source_vol.logical.orientation
+    # Inward = toward the LXe: -z for :up heads, +z for :down heads
     orient === :up ? -dir[3] : dir[3]
 end
 
-# General fallback: use |cos θ| to z-axis
-function cos_theta_to_lxe(dir::Vector{Float64}, source_vol::PhysicalVolume)::Float64
-    abs(dir[3])
+# General fallback (solid cylinder sources)
+function cos_theta_to_lxe(pos::Vector{Float64}, dir::Vector{Float64},
+                          source_vol::PhysicalVolume)::Float64
+    # Assume LXe is inward radially (same as shell logic)
+    cx = source_vol.logical.position[1]
+    cy = source_vol.logical.position[2]
+    dx = pos[1] - cx
+    dy = pos[2] - cy
+    r = sqrt(dx^2 + dy^2)
+    r < 1e-10 && return abs(dir[3])
+    -(dx * dir[1] + dy * dir[2]) / r
 end
 
 
@@ -308,7 +309,7 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
             continue
         elseif length(visible) == 1
             # Single visible gamma — check if in energy window
-            E_g, _, dir_g = visible[1]
+            E_g, pos_g, dir_g = visible[1]
             if E_g < E_min
                 n_low_energy += 1
                 continue
@@ -318,7 +319,7 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
                 continue
             end
             # Compute u = cos θ and bin
-            u = cos_theta_to_lxe(dir_g, source_vol)
+            u = cos_theta_to_lxe(pos_g, dir_g, source_vol)
             if u <= 0.0
                 n_backward += 1
                 continue
@@ -360,14 +361,14 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
 
             # Not vetoed: take highest-energy gamma
             idx_max = argmax([g[1] for g in visible])
-            E_g, _, dir_g = visible[idx_max]
+            E_g, pos_g, dir_g = visible[idx_max]
 
             if E_g < E_min || E_g > E_max
                 n_low_energy += 1
                 continue
             end
 
-            u = cos_theta_to_lxe(dir_g, source_vol)
+            u = cos_theta_to_lxe(pos_g, dir_g, source_vol)
             if u <= 0.0
                 n_backward += 1
                 continue
