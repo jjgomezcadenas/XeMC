@@ -25,7 +25,7 @@ ss = is_single_site(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
 - `config.jl`: `SimConfig` — transport parameters
 - `nist_data.jl`: XCOM/ESTAR CSV loaders, log-log interpolation
 - `materials.jl`: `Material` — material properties + physics methods
-- `geometry.jl`: `Cyl`/`LCyl`/`PCyl`/`RCyl`/`Detector` hierarchy
+- `geometry.jl`: `Cyl`/`LCyl`/`PCyl`/`Detector` hierarchy
 - `physics_utils.jl`: bremsstrahlung differential cross section
 - `sampling.jl`: MC samplers for all interaction channels
 - `tracking.jl`: particle transport, event simulation, clustering
@@ -68,7 +68,6 @@ export volume, volume_inner, surface_area, surface_area_inner, surface_area_oute
 export R_outer, depth, is_flat
 export LCyl, LCylShell, LBox, LDisk, is_inside
 export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
-export RCyl, RCylShell, RDisk, activity_U238, activity_Th232, gamma_flux
 export Detector, active_volume, fiducial_volume, find_volume, load_detector
 export distance_to_entry, distance_to_exit, next_volume
 

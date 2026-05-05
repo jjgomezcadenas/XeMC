@@ -6,8 +6,7 @@ Follows a Geant4-inspired hierarchy:
 1. **Geometric solids** (`Cyl`, `CylShell`, `Box`): dimensions only.
 2. **Logical volumes** (`LCyl`, `LCylShell`, `LBox`): solid + placement (position in MARS).
 3. **Physical volumes** (`PCyl`, `PCylShell`, `PBox`): logical volume + material.
-4. **Radioactive volumes** (`RCyl`, `RCylShell`): physical volume + specific activities.
-5. **Detector**: MARS (mother volume, Vacuum) + list of physical volumes.
+4. **Detector**: MARS (mother volume, Vacuum) + list of physical volumes.
 
 All coordinates are in the MARS (Mother Absolute Reference System) frame.
 Orientation is z-axis aligned for all volumes (rotation deferred).
@@ -368,76 +367,6 @@ mass(pd::PDisk) = pd.material.density * volume(pd.logical.solid)
 
 """True if `pos` is inside the disk shell."""
 is_inside(pd::PDisk, pos::Vector{Float64}) = is_inside(pd.logical, pos)
-
-
-# =====================================================================
-# Radioactive volumes
-# =====================================================================
-
-"""
-    RCyl
-
-Radioactive solid cylinder. Wraps a `PCyl` with specific activities
-for U-238 chain (Bi-214, 2.448 MeV) and Th-232 chain (Tl-208, 2.615 MeV).
-Activities in Bq/kg.
-"""
-struct RCyl
-    phys::PCyl
-    A_U238::Float64     # Bq/kg
-    A_Th232::Float64    # Bq/kg
-end
-
-"""Total U-238 activity [Bq]."""
-activity_U238(rc::RCyl) = rc.A_U238 * mass(rc.phys) / 1000.0
-
-"""Total Th-232 activity [Bq]."""
-activity_Th232(rc::RCyl) = rc.A_Th232 * mass(rc.phys) / 1000.0
-
-"""Gamma flux (Bi-214, Tl-208) [gammas/sec]. One gamma per decay assumed."""
-gamma_flux(rc::RCyl) = (activity_U238(rc), activity_Th232(rc))
-
-
-"""
-    RCylShell
-
-Radioactive cylindrical shell. Wraps a `PCylShell` with specific activities.
-Typical use: contaminated cryostat wall, field cage ring, PTFE reflector.
-"""
-struct RCylShell
-    phys::PCylShell
-    A_U238::Float64     # Bq/kg
-    A_Th232::Float64    # Bq/kg
-end
-
-"""Total U-238 activity [Bq]."""
-activity_U238(rcs::RCylShell) = rcs.A_U238 * mass(rcs.phys) / 1000.0
-
-"""Total Th-232 activity [Bq]."""
-activity_Th232(rcs::RCylShell) = rcs.A_Th232 * mass(rcs.phys) / 1000.0
-
-"""Gamma flux (Bi-214, Tl-208) [gammas/sec]."""
-gamma_flux(rcs::RCylShell) = (activity_U238(rcs), activity_Th232(rcs))
-
-
-"""
-    RDisk
-
-Radioactive disk (end cap). Wraps a `PDisk` with specific activities.
-"""
-struct RDisk
-    phys::PDisk
-    A_U238::Float64
-    A_Th232::Float64
-end
-
-"""Total U-238 activity [Bq]."""
-activity_U238(rd::RDisk) = rd.A_U238 * mass(rd.phys) / 1000.0
-
-"""Total Th-232 activity [Bq]."""
-activity_Th232(rd::RDisk) = rd.A_Th232 * mass(rd.phys) / 1000.0
-
-"""Gamma flux (Bi-214, Tl-208) [gammas/sec]."""
-gamma_flux(rd::RDisk) = (activity_U238(rd), activity_Th232(rd))
 
 
 # =====================================================================
