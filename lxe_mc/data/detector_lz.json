@@ -77,7 +77,9 @@
             "wall_thickness_cm": 0.7,
             "half_height_cm": 106.25,
             "position_cm": [0.0, 0.0, 53.58],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
         {
             "_doc": "OCV top head: 2:1 ellipsoidal, R=91.5, t=9mm, equator at z=+159.83",
@@ -88,7 +90,9 @@
             "aspect_ratio": 2.0,
             "orientation": "up",
             "position_cm": [0.0, 0.0, 159.83],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
         {
             "_doc": "OCV bottom head: 2:1 ellipsoidal, R=91.5, t=15mm, equator at z=-52.67",
@@ -99,7 +103,9 @@
             "aspect_ratio": 2.0,
             "orientation": "down",
             "position_cm": [0.0, 0.0, -52.67],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
 
         {
@@ -110,7 +116,9 @@
             "wall_thickness_cm": 0.9,
             "half_height_cm": 94.915,
             "position_cm": [0.0, 0.0, 53.585],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
         {
             "_doc": "ICV top head: 2:1 ellipsoidal, R=83.0, t=8mm, equator at z=+148.5",
@@ -121,7 +129,9 @@
             "aspect_ratio": 2.0,
             "orientation": "up",
             "position_cm": [0.0, 0.0, 148.5],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
         {
             "_doc": "ICV bottom head: 3:1 ellipsoidal, R=83.0, t=12mm, equator at z=-41.33",
@@ -132,7 +142,9 @@
             "aspect_ratio": 3.0,
             "orientation": "down",
             "position_cm": [0.0, 0.0, -41.33],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
 
         {
@@ -143,7 +155,9 @@
             "wall_thickness_cm": 4.0,
             "half_height_cm": 2.5,
             "position_cm": [0.0, 0.0, 176.5],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
         {
             "_doc": "OCV upper body flange pair: R=[92.2, 105.0], z=[97, 103]",
@@ -153,7 +167,9 @@
             "wall_thickness_cm": 12.8,
             "half_height_cm": 3.0,
             "position_cm": [0.0, 0.0, 100.0],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
         {
             "_doc": "OCV lower body flange pair: R=[92.2, 105.0], z=[-13, -7]",
@@ -163,7 +179,9 @@
             "wall_thickness_cm": 12.8,
             "half_height_cm": 3.0,
             "position_cm": [0.0, 0.0, -10.0],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
         {
             "_doc": "OCV bottom support flange: R=[92.2, 92.8], z=[-42, -34]",
@@ -173,7 +191,9 @@
             "wall_thickness_cm": 0.6,
             "half_height_cm": 4.0,
             "position_cm": [0.0, 0.0, -38.0],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         },
         {
             "_doc": "ICV main flange pair: R=[83.0, 90.5], z=[127, 133]",
@@ -183,7 +203,9 @@
             "wall_thickness_cm": 7.5,
             "half_height_cm": 3.0,
             "position_cm": [0.0, 0.0, 130.0],
-            "material": "Ti"
+            "material": "Ti",
+            "A_Bi214_mBq_per_kg": 0.08,
+            "A_Tl208_mBq_per_kg": 0.22
         }
     ]
 }
