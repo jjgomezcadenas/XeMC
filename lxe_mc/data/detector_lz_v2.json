@@ -182,17 +182,31 @@
             "approximation": "exact"
         },
         {
-            "_doc": "Bottom dome region, modeled as a cylinder inside the ICV bottom head.",
-            "name": "Dome",
+            "_doc": "Bottom dome cylindrical section inside the ICV barrel.",
+            "name": "DomeBarrel",
             "shape": "cylinder",
             "radius_cm": 82.1,
-            "half_height_cm": 27.625,
-            "position_cm": [0.0, 0.0, -41.375],
+            "half_height_cm": 13.79,
+            "position_cm": [0.0, 0.0, -27.54],
             "material": "LXe",
             "parent": "ICV_LXe_interior",
             "tag": "passive_lxe",
-            "role": "bottom_dome_region",
-            "approximation": "cylindrical_proxy"
+            "role": "bottom_dome_barrel",
+            "approximation": "exact"
+        },
+        {
+            "_doc": "Bottom dome filled cap inside the ICV bottom head.",
+            "name": "DomeBottomCap",
+            "shape": "cap",
+            "radius_cm": 82.1,
+            "aspect_ratio": 3.0,
+            "orientation": "down",
+            "position_cm": [0.0, 0.0, -41.33],
+            "material": "LXe",
+            "parent": "ICV_LXe_interior",
+            "tag": "passive_lxe",
+            "role": "bottom_dome_cap",
+            "approximation": "exact"
         },
 
         {

@@ -107,7 +107,7 @@ end
 # =====================================================================
 @testset "Detector geometry V2" begin
     @test DET2.name == "LZ"
-    @test length(DET2.nodes) == 25  # world + 24 volumes
+    @test length(DET2.nodes) == 26  # world + 25 volumes
 
     root = root_node(DET2)
     @test root.lv.name == "MARS"
@@ -134,6 +134,13 @@ end
     @test skin.parent_id == icv_lxe.id
     @test skin.lv.tag == TAG_SKIN
 
+    dome_barrel = node_by_name(DET2, "DomeBarrel")
+    dome_cap = node_by_name(DET2, "DomeBottomCap")
+    @test dome_barrel.parent_id == icv_lxe.id
+    @test dome_cap.parent_id == icv_lxe.id
+    @test dome_barrel.lv.tag == TAG_PASSIVE_LXE
+    @test dome_cap.lv.tag == TAG_PASSIVE_LXE
+
     fctg = node_by_name(DET2, "FCTG")
     @test fctg.lv.approximation == "mass_equivalent_slab"
     @test fctg.placement.position_cm[3] ≈ 146.379
@@ -145,7 +152,13 @@ end
     child_names = sort([child.lv.name for child in child_nodes(DET2, "LXeTPC")])
     @test child_names == ["FV"]
 
+    @test validate_detector_v2(DET2)
     @test occursin("DetectorV2", detector_summary(DET2))
+    dump = tree_dump(DET2)
+    @test occursin("- MARS", dump)
+    @test occursin("  - OCV_void", dump)
+    @test occursin("    - ICV_LXe_interior", dump)
+    @test occursin("      - LXeTPC", dump)
 end
 
 

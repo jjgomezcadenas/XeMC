@@ -75,6 +75,7 @@ export RegionTag, PlacementV2, LogicalVolumeV2, DetectorNode, DetectorV2
 export TAG_WORLD, TAG_VACUUM, TAG_STRUCTURAL, TAG_TPC_ACTIVE
 export TAG_FV, TAG_SKIN, TAG_PASSIVE_LXE
 export load_detector_v2, root_node, node_by_name, child_nodes, detector_summary
+export validate_detector_v2, tree_dump, sibling_overlaps
 
 # --- Sampling ---
 export sample_distance, sample_process
