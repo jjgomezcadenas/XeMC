@@ -54,7 +54,7 @@ end
 # =====================================================================
 @testset "Detector geometry" begin
     @test DET.name == "LZ"
-    @test length(DET.volumes) == 11  # TPC + FC + Skin + RFR + Dome + 3 OCV + 3 ICV (FV separate)
+    @test length(DET.volumes) == 16  # TPC + FC + Skin + RFR + Dome + 3 OCV + 3 ICV + 5 flanges (FV separate)
     @test VOL.name == "LXeTPC"
 
     # TPC: centered at z=72.8 (cathode at z=0, drift upward)

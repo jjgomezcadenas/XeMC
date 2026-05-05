@@ -133,6 +133,57 @@
             "orientation": "down",
             "position_cm": [0.0, 0.0, -41.33],
             "material": "Ti"
+        },
+
+        {
+            "_doc": "OCV top reinforcing ring: R=[92.2, 96.2], z=[174, 179]",
+            "name": "OCV_top_ring",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 92.2,
+            "wall_thickness_cm": 4.0,
+            "half_height_cm": 2.5,
+            "position_cm": [0.0, 0.0, 176.5],
+            "material": "Ti"
+        },
+        {
+            "_doc": "OCV upper body flange pair: R=[92.2, 105.0], z=[97, 103]",
+            "name": "OCV_upper_flange",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 92.2,
+            "wall_thickness_cm": 12.8,
+            "half_height_cm": 3.0,
+            "position_cm": [0.0, 0.0, 100.0],
+            "material": "Ti"
+        },
+        {
+            "_doc": "OCV lower body flange pair: R=[92.2, 105.0], z=[-13, -7]",
+            "name": "OCV_lower_flange",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 92.2,
+            "wall_thickness_cm": 12.8,
+            "half_height_cm": 3.0,
+            "position_cm": [0.0, 0.0, -10.0],
+            "material": "Ti"
+        },
+        {
+            "_doc": "OCV bottom support flange: R=[92.2, 92.8], z=[-42, -34]",
+            "name": "OCV_bottom_flange",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 92.2,
+            "wall_thickness_cm": 0.6,
+            "half_height_cm": 4.0,
+            "position_cm": [0.0, 0.0, -38.0],
+            "material": "Ti"
+        },
+        {
+            "_doc": "ICV main flange pair: R=[83.0, 90.5], z=[127, 133]",
+            "name": "ICV_main_flange",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 83.0,
+            "wall_thickness_cm": 7.5,
+            "half_height_cm": 3.0,
+            "position_cm": [0.0, 0.0, 130.0],
+            "material": "Ti"
         }
     ]
 }
