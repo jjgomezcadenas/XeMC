@@ -89,7 +89,7 @@ export cluster_deposits_in_z, is_single_site
 export DecayGamma, DecayScheme, GammaEmission
 export load_decays, sample_decay, sample_isotropic_direction
 export FluxTable, spectrum_E, spectrum_u, E_centers, u_centers, survival_fraction
-export peak_bin_count, off_peak_count
+export peak_bin_fraction, off_peak_fraction
 export propagate_in_source, random_position_in_volume, generate_source_flux
 
 # --- Convenience paths ---

@@ -121,14 +121,12 @@ function main()
     push!(lines, @sprintf("  Backward:        %d (%.1f%%)", ft.N_backward, 100*ft.N_backward/N))
     push!(lines, "-" ^ 60)
     E_line = scheme.gammas[1].E_MeV
-    n_peak = peak_bin_count(ft, E_line)
-    n_off  = off_peak_count(ft, E_line)
-    push!(lines, @sprintf("  Peak bin (%.3f MeV): %d (%.2f%% of generated)", E_line, n_peak, 100*n_peak/N))
-    push!(lines, @sprintf("  Off-peak (in window): %d (%.2f%% of generated)", n_off, 100*n_off/N))
-    if ft.N_surviving > 0
-        push!(lines, @sprintf("  Peak/surviving:       %.1f%%", 100*n_peak/ft.N_surviving))
-        push!(lines, @sprintf("  Off-peak/surviving:   %.1f%%", 100*n_off/ft.N_surviving))
-    end
+    f_peak = peak_bin_fraction(ft, E_line)
+    f_off  = off_peak_fraction(ft, E_line)
+    f_surv = survival_fraction(ft)
+    push!(lines, @sprintf("  Peak bin (%.3f MeV): %.4e per decay (%.1f%% of surviving)", E_line, f_peak, f_surv > 0 ? 100*f_peak/f_surv : 0))
+    push!(lines, @sprintf("  Off-peak (in window): %.4e per decay (%.1f%% of surviving)", f_off, f_surv > 0 ? 100*f_off/f_surv : 0))
+    push!(lines, @sprintf("  Total survival prob:  %.4e per decay", f_surv))
     push!(lines, "-" ^ 60)
     push!(lines, @sprintf("  E range:         [%.3f, %.3f] MeV (%d bins)", ft.E_min, ft.E_max, ft.n_E))
     push!(lines, @sprintf("  cos θ range:     [0, 1] (%d bins)", ft.n_u))
@@ -154,29 +152,29 @@ function main()
         for i in 1:ft.n_E
             @printf(io, "%.4f", E_c[i])
             for j in 1:ft.n_u
-                @printf(io, ",%d", ft.counts[i, j])
+                @printf(io, ",%.6e", ft.pdf[i, j])
             end
             println(io)
         end
     end
 
-    # Write dN/dE
+    # Write dP/dE (marginal energy probability)
     open(joinpath(outdir, "spectrum_E.csv"), "w") do io
-        println(io, "E_MeV,counts")
+        println(io, "E_MeV,prob_per_decay")
         E_c = E_centers(ft)
         sp = spectrum_E(ft)
         for i in 1:ft.n_E
-            @printf(io, "%.4f,%d\n", E_c[i], sp[i])
+            @printf(io, "%.4f,%.6e\n", E_c[i], sp[i])
         end
     end
 
-    # Write dN/du
+    # Write dP/du (marginal angular probability)
     open(joinpath(outdir, "spectrum_u.csv"), "w") do io
-        println(io, "cos_theta,counts")
+        println(io, "cos_theta,prob_per_decay")
         u_c = u_centers(ft)
         sp = spectrum_u(ft)
         for i in 1:ft.n_u
-            @printf(io, "%.2f,%d\n", u_c[i], sp[i])
+            @printf(io, "%.2f,%.6e\n", u_c[i], sp[i])
         end
     end
 

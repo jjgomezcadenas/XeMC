@@ -389,12 +389,12 @@ end
     @test 0.25 < survival_fraction(ft_bi) < 0.50
     @test ft_bi.N_backward > N * 0.3               # ~50% go backward
     # Peak bin: most surviving Bi-214 are unscattered (2.448 in bin 8)
-    n_pk = peak_bin_count(ft_bi, 2.448)
-    n_off = off_peak_count(ft_bi, 2.448)
-    @test n_pk > n_off                             # Bi-214: peak dominates (thin source)
+    f_pk = peak_bin_fraction(ft_bi, 2.448)
+    f_off = off_peak_fraction(ft_bi, 2.448)
+    @test f_pk > f_off                             # Bi-214: peak dominates (thin source)
     # Flux table dimensions
-    @test size(ft_bi.counts) == (25, 10)
-    @test sum(ft_bi.counts) == ft_bi.N_surviving
+    @test size(ft_bi.pdf) == (25, 10)
+    @test sum(ft_bi.pdf) ≈ ft_bi.N_surviving / ft_bi.N_generated  rtol=1e-10
 
     # Tl-208: companion gamma causes veto
     rng2 = MersenneTwister(42)
@@ -403,11 +403,11 @@ end
     @test ft_tl.N_vetoed > N * 0.15                 # ~25% vetoed (both gammas inward + visible)
     @test ft_tl.N_surviving > 0
     @test ft_tl.N_backward > N * 0.15              # ~26% backward (no gamma toward LXe)
-    @test sum(ft_tl.counts) == ft_tl.N_surviving
+    @test sum(ft_tl.pdf) ≈ ft_tl.N_surviving / ft_tl.N_generated  rtol=1e-10
     # Tl-208: peak (2.615) should be large (most exit unscattered from thin Ti)
     # but off-peak (scattered) is the dangerous background
-    n_pk_tl = peak_bin_count(ft_tl, 2.615)
-    n_off_tl = off_peak_count(ft_tl, 2.615)
-    @test n_pk_tl > 0
-    @test n_off_tl > 0
+    f_pk_tl = peak_bin_fraction(ft_tl, 2.615)
+    f_off_tl = off_peak_fraction(ft_tl, 2.615)
+    @test f_pk_tl > 0.0
+    @test f_off_tl > 0.0
 end

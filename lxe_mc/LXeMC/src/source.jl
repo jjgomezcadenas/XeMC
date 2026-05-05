@@ -34,7 +34,7 @@ struct FluxTable
     dE::Float64             # bin width [MeV]
     n_E::Int                # number of E bins
     n_u::Int                # number of cos θ bins
-    counts::Matrix{Int}     # n_E × n_u bin counts
+    pdf::Matrix{Float64}    # n_E × n_u, probability per decay per bin
     N_generated::Int        # total decays generated
     N_surviving::Int        # gammas passing all cuts (binned)
     N_vetoed::Int           # events killed by multi-gamma veto
@@ -45,11 +45,11 @@ struct FluxTable
 end
 
 
-"""Marginal energy spectrum dN/dE (sum over u bins)."""
-spectrum_E(ft::FluxTable) = vec(sum(ft.counts, dims=2))
+"""Marginal energy probability dP/dE (sum over u bins)."""
+spectrum_E(ft::FluxTable) = vec(sum(ft.pdf, dims=2))
 
-"""Marginal angular distribution dN/du (sum over E bins)."""
-spectrum_u(ft::FluxTable) = vec(sum(ft.counts, dims=1))
+"""Marginal angular probability dP/du (sum over E bins)."""
+spectrum_u(ft::FluxTable) = vec(sum(ft.pdf, dims=1))
 
 """Energy bin centers [MeV]."""
 E_centers(ft::FluxTable) = [ft.E_min + (i - 0.5) * ft.dE for i in 1:ft.n_E]
@@ -57,29 +57,28 @@ E_centers(ft::FluxTable) = [ft.E_min + (i - 0.5) * ft.dE for i in 1:ft.n_E]
 """cos θ bin centers."""
 u_centers(ft::FluxTable) = [(i - 0.5) / ft.n_u for i in 1:ft.n_u]
 
-"""Survival fraction (gammas out / decays generated)."""
-survival_fraction(ft::FluxTable) = ft.N_surviving / ft.N_generated
+"""Total survival probability (sum of pdf = N_surviving / N_generated)."""
+survival_fraction(ft::FluxTable) = sum(ft.pdf)
 
 
 """
-    peak_bin_count(ft::FluxTable, E_line::Float64) -> Int
+    peak_bin_fraction(ft::FluxTable, E_line::Float64) -> Float64
 
-Count of gammas in the bin containing `E_line` (the unscattered peak).
+Probability per decay of a gamma in the peak bin (unscattered line).
 """
-function peak_bin_count(ft::FluxTable, E_line::Float64)::Int
+function peak_bin_fraction(ft::FluxTable, E_line::Float64)::Float64
     i = clamp(floor(Int, (E_line - ft.E_min) / ft.dE) + 1, 1, ft.n_E)
-    sum(ft.counts[i, :])
+    sum(ft.pdf[i, :])
 end
 
 
 """
-    off_peak_count(ft::FluxTable, E_line::Float64) -> Int
+    off_peak_fraction(ft::FluxTable, E_line::Float64) -> Float64
 
-Count of gammas in the energy window but NOT in the peak bin.
-These are the Compton-scattered gammas (dangerous for Tl-208).
+Probability per decay of a gamma in the window but NOT in the peak bin.
 """
-function off_peak_count(ft::FluxTable, E_line::Float64)::Int
-    ft.N_surviving - peak_bin_count(ft, E_line)
+function off_peak_fraction(ft::FluxTable, E_line::Float64)::Float64
+    survival_fraction(ft) - peak_bin_fraction(ft, E_line)
 end
 
 
@@ -403,7 +402,10 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
         end
     end
 
-    FluxTable(E_min, E_max, dE, n_E, n_u, counts,
+    # Normalize: probability per decay per bin
+    pdf = counts ./ N
+
+    FluxTable(E_min, E_max, dE, n_E, n_u, pdf,
               N, n_surviving, n_vetoed, n_low_energy, n_absorbed,
               n_invisible, n_backward)
 end

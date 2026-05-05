@@ -56,13 +56,13 @@ def parse_summary(path):
                 if m:
                     info["backward"] = int(m.group(1))
             elif "Peak bin" in line:
-                m = re.search(r"(\d+)", line.split("):")[1])
+                m = re.search(r"([\d.]+e[+-]?\d+)", line)
                 if m:
-                    info["peak"] = int(m.group(1))
+                    info["peak_frac"] = float(m.group(1))
             elif "Off-peak" in line:
-                m = re.search(r"(\d+)", line.split("):")[1])
+                m = re.search(r"([\d.]+e[+-]?\d+)", line)
                 if m:
-                    info["off_peak"] = int(m.group(1))
+                    info["off_peak_frac"] = float(m.group(1))
             elif "Source:" in line and "generated" not in line.lower():
                 info["source"] = line.split(":")[-1].strip()
             elif "Decay:" in line:
@@ -113,9 +113,9 @@ def main():
     N_vals = spec_E[:, 1]
     ax.bar(E_vals, N_vals, width=dE * 0.9, color="C0", edgecolor="C0")
     ax.set_xlabel("E [MeV]")
-    ax.set_ylabel("counts")
+    ax.set_ylabel("prob / decay / bin")
     ax.set_yscale("log")
-    ax.set_title("dN/dE")
+    ax.set_title("dP/dE")
     ax.set_xlim(E_vals[0] - dE, E_vals[-1] + dE)
 
     # Panel 2: dN/du
@@ -125,8 +125,8 @@ def main():
     du = u_vals[1] - u_vals[0] if len(u_vals) > 1 else 0.1
     ax.bar(u_vals, N_u, width=du * 0.9, color="C1", edgecolor="C1")
     ax.set_xlabel("cos θ")
-    ax.set_ylabel("counts")
-    ax.set_title("dN/d(cos θ)")
+    ax.set_ylabel("prob / decay / bin")
+    ax.set_title("dP/d(cos θ)")
     ax.set_xlim(0, 1)
 
     # Panel 3: 2D heatmap (log color)
@@ -159,15 +159,16 @@ def main():
         "backward",
         "absorbed/invisible",
     ]
-    values = [
-        info.get("peak", 0),
-        info.get("off_peak", 0),
-        info.get("vetoed", 0),
-        info.get("low_energy", 0),
-        info.get("backward", 0),
-        info.get("absorbed", 0) + info.get("invisible", 0),
+    # Fractions: peak/off-peak are probabilities per decay (already fractional)
+    # Others are integer counts → divide by N_gen
+    fracs = [
+        100.0 * info.get("peak_frac", 0),
+        100.0 * info.get("off_peak_frac", 0),
+        100.0 * info.get("vetoed", 0) / N_gen,
+        100.0 * info.get("low_energy", 0) / N_gen,
+        100.0 * info.get("backward", 0) / N_gen,
+        100.0 * (info.get("absorbed", 0) + info.get("invisible", 0)) / N_gen,
     ]
-    fracs = [100.0 * v / N_gen for v in values]
     colors = ["C2", "C0", "C3", "C5", "C8", "C7"]
     bars = ax.barh(categories, fracs, color=colors, edgecolor="k", linewidth=0.5)
     ax.set_xlabel("fraction of generated [%]")
