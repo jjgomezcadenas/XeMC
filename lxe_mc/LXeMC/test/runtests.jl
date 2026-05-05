@@ -6,6 +6,7 @@ using Statistics
 const CFG  = default_config()
 const MATS = load_materials(CFG)
 const DET  = load_detector(default_detector_path(), MATS)
+const DET2 = load_detector_v2(default_detector_v2_path(), MATS)
 const VOL  = active_volume(DET)
 const MAT  = VOL.material
 # TPC center position (cathode at z=0, TPC spans [0, 145.6])
@@ -54,7 +55,7 @@ end
 # =====================================================================
 @testset "Detector geometry" begin
     @test DET.name == "LZ"
-    @test length(DET.volumes) == 16  # TPC + FC + Skin + RFR + Dome + 3 OCV + 3 ICV + 5 flanges (FV separate)
+    @test length(DET.volumes) == 21  # legacy geometry plus 5 added field-cage/grid-holder proxy volumes (FV separate)
     @test VOL.name == "LXeTPC"
 
     # TPC: centered at z=72.8 (cathode at z=0, drift upward)
@@ -98,6 +99,53 @@ end
     @test is_inside(VOL, fv.logical.position)    # FV center is inside TPC
     m_fv = mass(fv) / 1e6                        # tonnes
     @test 0.9 < m_fv < 1.1                       # ~1 tonne fiducial
+end
+
+
+# =====================================================================
+# Test 3a: Detector geometry V2
+# =====================================================================
+@testset "Detector geometry V2" begin
+    @test DET2.name == "LZ"
+    @test length(DET2.nodes) == 25  # world + 24 volumes
+
+    root = root_node(DET2)
+    @test root.lv.name == "MARS"
+    @test root.lv.tag == TAG_WORLD
+    @test root.parent_id == 0
+
+    ocv_void = node_by_name(DET2, "OCV_void")
+    @test ocv_void.parent_id == root.id
+    @test ocv_void.lv.tag == TAG_VACUUM
+    @test ocv_void.lv.role == "cryostat_cavity"
+
+    icv_lxe = node_by_name(DET2, "ICV_LXe_interior")
+    @test icv_lxe.parent_id == ocv_void.id
+    @test icv_lxe.lv.tag == TAG_PASSIVE_LXE
+
+    tpc = node_by_name(DET2, "LXeTPC")
+    fv = node_by_name(DET2, "FV")
+    @test tpc.parent_id == icv_lxe.id
+    @test tpc.lv.tag == TAG_TPC_ACTIVE
+    @test fv.parent_id == tpc.id
+    @test fv.lv.tag == TAG_FV
+
+    skin = node_by_name(DET2, "Skin")
+    @test skin.parent_id == icv_lxe.id
+    @test skin.lv.tag == TAG_SKIN
+
+    fctg = node_by_name(DET2, "FCTG")
+    @test fctg.lv.approximation == "mass_equivalent_slab"
+    @test fctg.placement.position_cm[3] ≈ 146.379
+
+    ocv_barrel = node_by_name(DET2, "OCV_barrel")
+    @test get(ocv_barrel.lv.activity, "Bi214_mBq_per_kg", 0.0) ≈ 0.08
+    @test get(ocv_barrel.lv.activity, "Tl208_mBq_per_kg", 0.0) ≈ 0.22
+
+    child_names = sort([child.lv.name for child in child_nodes(DET2, "LXeTPC")])
+    @test child_names == ["FV"]
+
+    @test occursin("DetectorV2", detector_summary(DET2))
 end
 
 

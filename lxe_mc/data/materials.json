@@ -56,5 +56,14 @@
         "tracking": false,
         "full_tracking": false,
         "xcom": "xcom_fe.csv"
+    },
+
+    "SS": {
+        "density": 7.99,
+        "components": {"Fe": 0.70, "Cr": 0.18, "Ni": 0.10, "Mo": 0.02},
+        "active": false,
+        "tracking": false,
+        "full_tracking": false,
+        "xcom": "xcom_fe.csv"
     }
 }

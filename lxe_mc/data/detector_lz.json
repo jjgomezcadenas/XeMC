@@ -41,65 +41,55 @@
             "material": "PTFE"
         },
         {
-      "_doc": "Field-cage Ti rings: R=[74.3, 74.577], z=[-13.75, 145.6], center z=65.925;
-  t=0.277 cm back-derived from 93.0 kg / (ρ_Ti × 2π × R × H)",
-      "name": "FCRN",
-      "shape": "cylinder_shell",
-      "R_inner_cm": 74.3,
-      "wall_thickness_cm": 0.277,
-      "half_height_cm": 79.675,
-      "position_cm": [0.0, 0.0, 65.925],
-      "material": "Ti"
-  },
-  {
-      "_doc": "Field-cage resistors (SS proxy): R≈74.3, z=[-13.75, 145.6], center z=65.925;
-   t≈1e-4 cm back-derived from 60 g — essentially zero, may need to be widened in
-  downstream geometry",
-      "name": "FCRS",
-      "shape": "cylinder_shell",
-      "R_inner_cm": 74.3,
-      "wall_thickness_cm": 0.000102,
-      "half_height_cm": 79.675,
-      "position_cm": [0.0, 0.0, 65.925],
-      "material": "SS"
-  },
-  {
-      "_doc": "TPC sensors (SS proxy): R=[74.3, 74.309], z=[-13.75, 145.6], center
-  z=65.925; t=0.0085 cm back-derived from 5.02 kg",
-      "name": "FCSE",
-      "shape": "cylinder_shell",
-      "R_inner_cm": 74.3,
-      "wall_thickness_cm": 0.00851,
-      "half_height_cm": 79.675,
-      "position_cm": [0.0, 0.0, 65.925],
-      "material": "SS"
-  },
-  {
-      "_doc": "Top grid holders (anode+gate collapsed, SS): R=[72.8, 80.3], z=[145.6,
-  147.158], center z=146.379; H=1.558 cm back-derived from 44.55 kg / (ρ_SS × π ×
-  (R_out²−R_in²)). Slab opens UPWARD into the gas/anode region; LXe-facing face is at
-  z=145.6 (the gate plane).",
-      "name": "FCTG",
-      "shape": "cylinder_shell",
-      "R_inner_cm": 72.8,
-      "wall_thickness_cm": 7.5,
-      "half_height_cm": 0.779,
-      "position_cm": [0.0, 0.0, 146.379],
-      "material": "SS"
-  },
-  {
-      "_doc": "Cathode grid holder only (SS): R=[72.8, 80.3], z=[-0.779, 0.0], center
-  z=-0.3895; H=0.779 cm back-derived from 22.275 kg. Slab opens DOWNWARD into the RFR;
-  LXe-facing face is at z=0 (cathode plane). Bottom-shield grid is dropped from the
-  model.",
-      "name": "FCBG",
-      "shape": "cylinder_shell",
-      "R_inner_cm": 72.8,
-      "wall_thickness_cm": 7.5,
-      "half_height_cm": 0.3895,
-      "position_cm": [0.0, 0.0, -0.3895],
-      "material": "SS"
-  },
+            "_doc": "Field-cage Ti rings: R=[74.3, 74.577], z=[-13.75, 145.6], center z=65.925; t=0.277 cm back-derived from 93.0 kg / (rho_Ti x 2pi x R x H)",
+            "name": "FCRN",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 0.277,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "Ti"
+        },
+        {
+            "_doc": "Field-cage resistors (SS proxy): R~74.3, z=[-13.75, 145.6], center z=65.925; t~1e-4 cm back-derived from 60 g; essentially zero and may need widening in downstream geometry",
+            "name": "FCRS",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 0.000102,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "SS"
+        },
+        {
+            "_doc": "TPC sensors (SS proxy): R=[74.3, 74.309], z=[-13.75, 145.6], center z=65.925; t=0.0085 cm back-derived from 5.02 kg",
+            "name": "FCSE",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 0.00851,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "SS"
+        },
+        {
+            "_doc": "Top grid holders (anode+gate collapsed, SS): R=[72.8, 80.3], z=[145.6, 147.158], center z=146.379; H=1.558 cm back-derived from 44.55 kg / (rho_SS x pi x (R_out^2-R_in^2)). Slab opens upward into the gas/anode region; LXe-facing face is at z=145.6",
+            "name": "FCTG",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 7.5,
+            "half_height_cm": 0.779,
+            "position_cm": [0.0, 0.0, 146.379],
+            "material": "SS"
+        },
+        {
+            "_doc": "Cathode grid holder only (SS): R=[72.8, 80.3], z=[-0.779, 0.0], center z=-0.3895; H=0.779 cm back-derived from 22.275 kg. Slab opens downward into the RFR; LXe-facing face is at z=0. Bottom-shield grid is dropped from the model",
+            "name": "FCBG",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 7.5,
+            "half_height_cm": 0.3895,
+            "position_cm": [0.0, 0.0, -0.3895],
+            "material": "SS"
+        },
         {
             "_doc": "LXe skin (veto): R=[74.3, 82.1], z=[-13.75, 145.6], center z=65.925",
             "name": "Skin",
