@@ -120,6 +120,16 @@ function main()
     push!(lines, @sprintf("  Invisible:       %d (%.1f%%)", ft.N_invisible, 100*ft.N_invisible/N))
     push!(lines, @sprintf("  Backward:        %d (%.1f%%)", ft.N_backward, 100*ft.N_backward/N))
     push!(lines, "-" ^ 60)
+    E_line = scheme.gammas[1].E_MeV
+    n_peak = peak_bin_count(ft, E_line)
+    n_off  = off_peak_count(ft, E_line)
+    push!(lines, @sprintf("  Peak bin (%.3f MeV): %d (%.2f%% of generated)", E_line, n_peak, 100*n_peak/N))
+    push!(lines, @sprintf("  Off-peak (in window): %d (%.2f%% of generated)", n_off, 100*n_off/N))
+    if ft.N_surviving > 0
+        push!(lines, @sprintf("  Peak/surviving:       %.1f%%", 100*n_peak/ft.N_surviving))
+        push!(lines, @sprintf("  Off-peak/surviving:   %.1f%%", 100*n_off/ft.N_surviving))
+    end
+    push!(lines, "-" ^ 60)
     push!(lines, @sprintf("  E range:         [%.3f, %.3f] MeV (%d bins)", ft.E_min, ft.E_max, ft.n_E))
     push!(lines, @sprintf("  cos θ range:     [0, 1] (%d bins)", ft.n_u))
     push!(lines, @sprintf("  Wall time:       %.2f s", t))

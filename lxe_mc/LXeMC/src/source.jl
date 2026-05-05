@@ -61,6 +61,28 @@ u_centers(ft::FluxTable) = [(i - 0.5) / ft.n_u for i in 1:ft.n_u]
 survival_fraction(ft::FluxTable) = ft.N_surviving / ft.N_generated
 
 
+"""
+    peak_bin_count(ft::FluxTable, E_line::Float64) -> Int
+
+Count of gammas in the bin containing `E_line` (the unscattered peak).
+"""
+function peak_bin_count(ft::FluxTable, E_line::Float64)::Int
+    i = clamp(floor(Int, (E_line - ft.E_min) / ft.dE) + 1, 1, ft.n_E)
+    sum(ft.counts[i, :])
+end
+
+
+"""
+    off_peak_count(ft::FluxTable, E_line::Float64) -> Int
+
+Count of gammas in the energy window but NOT in the peak bin.
+These are the Compton-scattered gammas (dangerous for Tl-208).
+"""
+function off_peak_count(ft::FluxTable, E_line::Float64)::Int
+    ft.N_surviving - peak_bin_count(ft, E_line)
+end
+
+
 # =====================================================================
 # Source propagation
 # =====================================================================

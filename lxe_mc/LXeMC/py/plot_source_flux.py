@@ -55,6 +55,14 @@ def parse_summary(path):
                 m = re.search(r"(\d+)", line.split("Backward:")[-1])
                 if m:
                     info["backward"] = int(m.group(1))
+            elif "Peak bin" in line:
+                m = re.search(r"(\d+)", line.split("):")[1])
+                if m:
+                    info["peak"] = int(m.group(1))
+            elif "Off-peak" in line:
+                m = re.search(r"(\d+)", line.split("):")[1])
+                if m:
+                    info["off_peak"] = int(m.group(1))
             elif "Source:" in line and "generated" not in line.lower():
                 info["source"] = line.split(":")[-1].strip()
             elif "Decay:" in line:
@@ -140,28 +148,35 @@ def main():
     ax.set_title("flux (E, cos θ) [log]")
     fig.colorbar(im, ax=ax, label="counts")
 
-    # Panel 4: Event fractions (horizontal bar)
+    # Panel 4: Event fractions + peak/off-peak (horizontal bar)
     ax = axs[1, 1]
     N_gen = info.get("generated", 1)
-    categories = ["surviving", "vetoed (companion)", "low energy", "absorbed", "invisible", "backward"]
+    categories = [
+        "peak (unscattered)",
+        "off-peak (scattered)",
+        "vetoed (companion)",
+        "low energy",
+        "backward",
+        "absorbed/invisible",
+    ]
     values = [
-        info.get("surviving", 0),
+        info.get("peak", 0),
+        info.get("off_peak", 0),
         info.get("vetoed", 0),
         info.get("low_energy", 0),
-        info.get("absorbed", 0),
-        info.get("invisible", 0),
         info.get("backward", 0),
+        info.get("absorbed", 0) + info.get("invisible", 0),
     ]
     fracs = [100.0 * v / N_gen for v in values]
-    colors = ["C2", "C3", "C5", "C4", "C7", "C8"]
+    colors = ["C2", "C0", "C3", "C5", "C8", "C7"]
     bars = ax.barh(categories, fracs, color=colors, edgecolor="k", linewidth=0.5)
-    ax.set_xlabel("fraction [%]")
+    ax.set_xlabel("fraction of generated [%]")
     ax.set_title("event fate")
-    ax.set_xlim(0, max(fracs) * 1.15 if max(fracs) > 0 else 100)
+    ax.set_xlim(0, max(fracs) * 1.2 if max(fracs) > 0 else 100)
     for bar, frac in zip(bars, fracs):
-        if frac > 0.5:
-            ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2,
-                    f"{frac:.1f}%", va="center", fontsize=9)
+        if frac > 0.3:
+            ax.text(bar.get_width() + 0.3, bar.get_y() + bar.get_height()/2,
+                    f"{frac:.1f}%", va="center", fontsize=8)
 
     fig.suptitle(title, fontsize=13)
     fig.tight_layout()

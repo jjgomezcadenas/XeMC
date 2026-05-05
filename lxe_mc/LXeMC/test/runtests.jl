@@ -385,9 +385,13 @@ end
     @test ft_bi.N_generated == N
     @test ft_bi.N_vetoed == 0                      # no companions → no veto
     @test ft_bi.N_surviving > 0
-    # ~38% survive (forward + in energy window); ~41% backward
+    # ~38% survive (forward + in energy window); ~51% backward
     @test 0.25 < survival_fraction(ft_bi) < 0.50
-    @test ft_bi.N_backward > N * 0.3               # ~40% go backward
+    @test ft_bi.N_backward > N * 0.3               # ~50% go backward
+    # Peak bin: most surviving Bi-214 are unscattered (2.448 in bin 8)
+    n_pk = peak_bin_count(ft_bi, 2.448)
+    n_off = off_peak_count(ft_bi, 2.448)
+    @test n_pk > n_off                             # Bi-214: peak dominates (thin source)
     # Flux table dimensions
     @test size(ft_bi.counts) == (25, 10)
     @test sum(ft_bi.counts) == ft_bi.N_surviving
@@ -400,4 +404,10 @@ end
     @test ft_tl.N_surviving > 0
     @test ft_tl.N_backward > N * 0.15              # ~26% backward (no gamma toward LXe)
     @test sum(ft_tl.counts) == ft_tl.N_surviving
+    # Tl-208: peak (2.615) should be large (most exit unscattered from thin Ti)
+    # but off-peak (scattered) is the dangerous background
+    n_pk_tl = peak_bin_count(ft_tl, 2.615)
+    n_off_tl = off_peak_count(ft_tl, 2.615)
+    @test n_pk_tl > 0
+    @test n_off_tl > 0
 end
