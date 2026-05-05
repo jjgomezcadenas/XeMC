@@ -396,8 +396,8 @@ end
     rng2 = MersenneTwister(42)
     ft_tl = generate_source_flux(N, source, decays["Tl208"], DET, CFG, rng2)
     @test ft_tl.N_generated == N
-    @test ft_tl.N_vetoed > N * 0.5                 # majority vetoed by companion
+    @test ft_tl.N_vetoed > N * 0.15                 # ~25% vetoed (both gammas inward + visible)
     @test ft_tl.N_surviving > 0
-    @test ft_tl.N_surviving < ft_tl.N_vetoed       # more vetoed than surviving
+    @test ft_tl.N_backward > N * 0.15              # ~26% backward (no gamma toward LXe)
     @test sum(ft_tl.counts) == ft_tl.N_surviving
 end

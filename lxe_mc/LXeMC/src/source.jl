@@ -282,11 +282,14 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
         # Generate decay event
         emissions = sample_decay(scheme, rng)
 
+        # All gammas from one decay originate at the same point
+        origin = random_position_in_volume(source_vol, rng)
+
         # Propagate each gamma through source
         exited_gammas = Vector{Tuple{Float64,Vector{Float64},Vector{Float64}}}()  # (E, pos, dir)
 
         for em in emissions
-            pos = random_position_in_volume(source_vol, rng)
+            pos = copy(origin)
             status, E_out, pos_out, dir_out = propagate_in_source(
                 em.E_MeV, pos, em.direction, source_vol, cfg, rng)
 
@@ -301,8 +304,16 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
             continue
         end
 
-        # Filter: only gammas above veto threshold are "visible"
-        visible = filter(g -> g[1] > veto_E, exited_gammas)
+        # Filter: only gammas directed toward LXe (u > 0) AND above veto threshold
+        toward_lxe = filter(g -> cos_theta_to_lxe(g[2], g[3], source_vol) > 0.0,
+                            exited_gammas)
+
+        if isempty(toward_lxe)
+            n_backward += 1
+            continue
+        end
+
+        visible = filter(g -> g[1] > veto_E, toward_lxe)
 
         if length(visible) == 0
             n_invisible += 1
@@ -310,20 +321,12 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
         elseif length(visible) == 1
             # Single visible gamma — check if in energy window
             E_g, pos_g, dir_g = visible[1]
-            if E_g < E_min
+            if E_g < E_min || E_g > E_max
                 n_low_energy += 1
                 continue
             end
-            if E_g > E_max
-                n_low_energy += 1
-                continue
-            end
-            # Compute u = cos θ and bin
+            # Direction already filtered (u > 0 guaranteed)
             u = cos_theta_to_lxe(pos_g, dir_g, source_vol)
-            if u <= 0.0
-                n_backward += 1
-                continue
-            end
 
             i_E = clamp(floor(Int, (E_g - E_min) / dE) + 1, 1, n_E)
             i_u = clamp(floor(Int, u * n_u) + 1, 1, n_u)
@@ -368,11 +371,8 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
                 continue
             end
 
+            # Direction already filtered (u > 0 guaranteed)
             u = cos_theta_to_lxe(pos_g, dir_g, source_vol)
-            if u <= 0.0
-                n_backward += 1
-                continue
-            end
 
             i_E = clamp(floor(Int, (E_g - E_min) / dE) + 1, 1, n_E)
             i_u = clamp(floor(Int, u * n_u) + 1, 1, n_u)
