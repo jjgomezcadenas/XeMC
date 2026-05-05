@@ -47,15 +47,19 @@ def parse_summary(path):
                 m = re.search(r"(\d+)", line.split("Low energy:")[-1])
                 if m:
                     info["low_energy"] = int(m.group(1))
+            elif "Invisible:" in line:
+                m = re.search(r"(\d+)", line.split("Invisible:")[-1])
+                if m:
+                    info["invisible"] = int(m.group(1))
+            elif "Backward:" in line:
+                m = re.search(r"(\d+)", line.split("Backward:")[-1])
+                if m:
+                    info["backward"] = int(m.group(1))
             elif "Source:" in line and "generated" not in line.lower():
                 info["source"] = line.split(":")[-1].strip()
             elif "Decay:" in line:
                 info["decay"] = line.split(":")[-1].strip()
-    # "other" = generated - (surviving + vetoed + low_energy)
-    # Note: absorbed counts per-gamma, not per-event, so we don't include it
-    accounted = info.get("surviving", 0) + info.get("vetoed", 0) + \
-                info.get("low_energy", 0)
-    info["other"] = max(0, info.get("generated", 0) - accounted)
+    # All counters are now per-event
     return info
 
 
@@ -139,15 +143,17 @@ def main():
     # Panel 4: Event fractions (horizontal bar)
     ax = axs[1, 1]
     N_gen = info.get("generated", 1)
-    categories = ["surviving", "vetoed (companion)", "low energy", "other (absorbed/backward)"]
+    categories = ["surviving", "vetoed (companion)", "low energy", "absorbed", "invisible", "backward"]
     values = [
         info.get("surviving", 0),
         info.get("vetoed", 0),
         info.get("low_energy", 0),
-        info.get("other", 0),
+        info.get("absorbed", 0),
+        info.get("invisible", 0),
+        info.get("backward", 0),
     ]
     fracs = [100.0 * v / N_gen for v in values]
-    colors = ["C2", "C3", "C5", "C7"]
+    colors = ["C2", "C3", "C5", "C4", "C7", "C8"]
     bars = ax.barh(categories, fracs, color=colors, edgecolor="k", linewidth=0.5)
     ax.set_xlabel("fraction [%]")
     ax.set_title("event fate")

@@ -36,10 +36,12 @@ struct FluxTable
     n_u::Int                # number of cos θ bins
     counts::Matrix{Int}     # n_E × n_u bin counts
     N_generated::Int        # total decays generated
-    N_surviving::Int        # total gammas passing all cuts
+    N_surviving::Int        # gammas passing all cuts (binned)
     N_vetoed::Int           # events killed by multi-gamma veto
-    N_low_energy::Int       # gammas rejected for E < E_min
-    N_absorbed::Int         # gammas absorbed in source
+    N_low_energy::Int       # gammas outside energy window
+    N_absorbed::Int         # events where all gammas absorbed in source
+    N_invisible::Int        # events where exited gammas all below veto_E
+    N_backward::Int         # events where surviving gamma directed away from LXe
 end
 
 
@@ -266,6 +268,8 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
     n_vetoed = 0
     n_low_energy = 0
     n_absorbed = 0
+    n_invisible = 0   # exited but all gammas below veto_E (invisible to detector)
+    n_backward = 0    # directed away from LXe (u <= 0)
 
     progress_step = max(1, N ÷ 10)
 
@@ -287,18 +291,20 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
 
             if status === :exited
                 push!(exited_gammas, (E_out, pos_out, dir_out))
-            else
-                n_absorbed += 1
             end
         end
 
-        # No gammas exited
-        isempty(exited_gammas) && continue
+        # No gammas exited → event absorbed in source
+        if isempty(exited_gammas)
+            n_absorbed += 1
+            continue
+        end
 
         # Filter: only gammas above veto threshold are "visible"
         visible = filter(g -> g[1] > veto_E, exited_gammas)
 
         if length(visible) == 0
+            n_invisible += 1
             continue
         elseif length(visible) == 1
             # Single visible gamma — check if in energy window
@@ -313,7 +319,10 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
             end
             # Compute u = cos θ and bin
             u = cos_theta_to_lxe(dir_g, source_vol)
-            u <= 0.0 && continue  # going away from detector
+            if u <= 0.0
+                n_backward += 1
+                continue
+            end
 
             i_E = clamp(floor(Int, (E_g - E_min) / dE) + 1, 1, n_E)
             i_u = clamp(floor(Int, u * n_u) + 1, 1, n_u)
@@ -359,7 +368,10 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
             end
 
             u = cos_theta_to_lxe(dir_g, source_vol)
-            u <= 0.0 && continue
+            if u <= 0.0
+                n_backward += 1
+                continue
+            end
 
             i_E = clamp(floor(Int, (E_g - E_min) / dE) + 1, 1, n_E)
             i_u = clamp(floor(Int, u * n_u) + 1, 1, n_u)
@@ -369,5 +381,6 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
     end
 
     FluxTable(E_min, E_max, dE, n_E, n_u, counts,
-              N, n_surviving, n_vetoed, n_low_energy, n_absorbed)
+              N, n_surviving, n_vetoed, n_low_energy, n_absorbed,
+              n_invisible, n_backward)
 end
