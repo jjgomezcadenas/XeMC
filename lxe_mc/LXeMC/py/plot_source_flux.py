@@ -69,6 +69,7 @@ def main():
     ax.bar(E_vals, N_vals, width=dE * 0.9, color="C0", edgecolor="C0")
     ax.set_xlabel("E [MeV]")
     ax.set_ylabel("counts")
+    ax.set_yscale("log")
     ax.set_title("dN/dE")
     ax.set_xlim(E_vals[0] - dE, E_vals[-1] + dE)
 
