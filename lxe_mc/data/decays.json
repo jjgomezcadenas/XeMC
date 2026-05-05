@@ -1,0 +1,26 @@
+{
+    "_doc": "Radioactive decay data for background gamma sources. BRs are per decay of the parent chain isotope (late chain secular equilibrium).",
+
+    "Bi214": {
+        "_doc": "Bi-214 from U-238 late chain. Single gamma, no companions.",
+        "parent_chain": "U238",
+        "BR_from_chain": 0.015,
+        "gammas": [
+            {"E_MeV": 2.448, "BR": 1.0}
+        ]
+    },
+
+    "Tl208": {
+        "_doc": "Tl-208 from Th-232 late chain. Main gamma always accompanied by at least one companion (from Tl-208 decay scheme). BR_from_chain = BR(Bi-212 -> Tl-208) x BR(Tl-208 -> 2.615 gamma).",
+        "parent_chain": "Th232",
+        "BR_from_chain": 0.003,
+        "gammas": [
+            {"E_MeV": 2.615, "BR": 1.0, "role": "main"}
+        ],
+        "companions": [
+            {"E_MeV": 0.583, "BR": 0.85, "role": "companion"},
+            {"E_MeV": 0.511, "BR": 0.23, "role": "companion"},
+            {"E_MeV": 0.861, "BR": 0.12, "role": "companion"}
+        ]
+    }
+}

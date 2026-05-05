@@ -43,6 +43,7 @@ include("materials.jl")
 include("geometry.jl")
 include("sampling.jl")
 include("tracking.jl")
+include("decays.jl")
 
 # --- Config ---
 export SimConfig, load_config, default_config
@@ -82,6 +83,10 @@ export transport_photon!, transport_lepton!
 export simulate_event, simulate_event_photon_only
 export PropagationResult, propagate_to_fiducial
 export cluster_deposits_in_z, is_single_site
+
+# --- Decays ---
+export DecayGamma, DecayScheme, GammaEmission
+export load_decays, sample_decay, sample_isotropic_direction
 
 # --- Convenience paths ---
 """Path to the default detector JSON (LZ)."""
