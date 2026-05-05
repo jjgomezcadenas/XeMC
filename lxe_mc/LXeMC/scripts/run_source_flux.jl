@@ -101,7 +101,9 @@ function main()
     @printf("  Output:     %s\n", outdir)
     println("-" ^ 60)
 
-    t = @elapsed ft = generate_source_flux(N, source, scheme, det, cfg, rng)
+    show_progress(i, n) = @printf("  ... %d/%d (%.0f%%)\n", i, n, 100.0*i/n)
+    t = @elapsed ft = generate_source_flux(N, source, scheme, det, cfg, rng;
+                                            progress=show_progress)
 
     # Summary
     lines = String[]

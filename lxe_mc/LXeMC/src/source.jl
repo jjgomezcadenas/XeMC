@@ -254,7 +254,8 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
                               E_min::Float64=2.370, E_max::Float64=2.620,
                               n_E::Int=25, n_u::Int=10,
                               veto_E::Float64=0.100,
-                              veto_dz::Float64=0.30)::FluxTable
+                              veto_dz::Float64=0.30,
+                              progress::Union{Function,Nothing}=nothing)::FluxTable
 
     vol_active = active_volume(det)
     mat_lxe = vol_active.material
@@ -266,7 +267,13 @@ function generate_source_flux(N::Int, source_vol::PhysicalVolume,
     n_low_energy = 0
     n_absorbed = 0
 
-    for _ in 1:N
+    progress_step = max(1, N ÷ 10)
+
+    for evt in 1:N
+        if progress !== nothing && evt % progress_step == 0
+            progress(evt, N)
+        end
+
         # Generate decay event
         emissions = sample_decay(scheme, rng)
 
