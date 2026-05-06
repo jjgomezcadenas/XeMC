@@ -1,0 +1,421 @@
+{
+    "_doc": "LZ source geometry, schema v1. This file is independent from the runtime tracking geometry. It contains source objects used by the source-flux generator. transport_source controls source-side propagation only: KN = simplified photon transport in the source object, transparent = source carrier only with no self-shielding or scattering. Transparent virtual sources are typically filled with Vacuum on purpose.",
+
+    "name": "LZ_source_geometry",
+    "version": 1,
+    "units": "cm",
+
+    "sources": [
+        {
+            "_doc": "Outer cryostat titanium barrel source.",
+            "name": "OCV_barrel",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 90.8,
+            "wall_thickness_cm": 0.7,
+            "half_height_cm": 106.25,
+            "position_cm": [0.0, 0.0, 53.58],
+            "material": "Ti",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 0.0,
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "Outer cryostat titanium top head source.",
+            "name": "OCV_top",
+            "shape": "disk",
+            "radius_cm": 91.5,
+            "wall_thickness_cm": 0.9,
+            "aspect_ratio": 2.0,
+            "orientation": "up",
+            "position_cm": [0.0, 0.0, 159.83],
+            "material": "Ti",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 0.0,
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "Outer cryostat titanium bottom head source.",
+            "name": "OCV_bottom",
+            "shape": "disk",
+            "radius_cm": 91.5,
+            "wall_thickness_cm": 1.5,
+            "aspect_ratio": 2.0,
+            "orientation": "down",
+            "position_cm": [0.0, 0.0, -52.67],
+            "material": "Ti",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 0.0,
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "MLI cryostat insulation source on the ICV outer wall. Virtual transparent shell carrying source activity only.",
+            "name": "MLI",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 83.0,
+            "wall_thickness_cm": 1.0,
+            "half_height_cm": 94.92,
+            "position_cm": [0.0, 0.0, 53.585],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 13.8,
+            "approximation": "mass_equivalent_shell",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Inner cryostat titanium barrel source.",
+            "name": "ICV_barrel",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 82.1,
+            "wall_thickness_cm": 0.9,
+            "half_height_cm": 94.915,
+            "position_cm": [0.0, 0.0, 53.585],
+            "material": "Ti",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 0.0,
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "Inner cryostat titanium top head source.",
+            "name": "ICV_top",
+            "shape": "disk",
+            "radius_cm": 83.0,
+            "wall_thickness_cm": 0.8,
+            "aspect_ratio": 2.0,
+            "orientation": "up",
+            "position_cm": [0.0, 0.0, 148.5],
+            "material": "Ti",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 0.0,
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "Inner cryostat titanium bottom head source.",
+            "name": "ICV_bottom",
+            "shape": "disk",
+            "radius_cm": 83.0,
+            "wall_thickness_cm": 1.2,
+            "aspect_ratio": 3.0,
+            "orientation": "down",
+            "position_cm": [0.0, 0.0, -41.33],
+            "material": "Ti",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 0.0,
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": 0.08,
+                "Tl208_mBq_per_kg": 0.22
+            }
+        },
+        {
+            "_doc": "TPC PTFE walls source. Real PTFE source and KN source-side transport. Tracking-consistent z extent from cathode to gate.",
+            "name": "FC_PTFE",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 1.5,
+            "half_height_cm": 72.8,
+            "position_cm": [0.0, 0.0, 72.8],
+            "material": "PTFE",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 0.0,
+            "approximation": "exact",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Field-cage titanium rings source. Real internal Ti source and KN source-side transport. Tracking-consistent z extent from cathode to gate.",
+            "name": "FC_rings",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 74.3,
+            "wall_thickness_cm": 0.277,
+            "half_height_cm": 72.8,
+            "position_cm": [0.0, 0.0, 72.8],
+            "material": "Ti",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 0.0,
+            "approximation": "mass_equivalent_shell",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Field-cage resistors source. Virtual transparent shell carrying source activity only.",
+            "name": "FC_resistors",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.7,
+            "wall_thickness_cm": 0.1,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 0.06,
+            "approximation": "mass_equivalent_shell",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "TPC sensors source. Virtual transparent shell carrying source activity only.",
+            "name": "FC_sensors",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.6,
+            "wall_thickness_cm": 0.1,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 5.02,
+            "approximation": "mass_equivalent_shell",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Top grid holders source. Stainless-steel source object in the gas dome with KN source-side transport.",
+            "name": "FC_topgrid",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 7.5,
+            "half_height_cm": 0.779,
+            "position_cm": [0.0, 0.0, 146.379],
+            "material": "SS",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 44.55,
+            "approximation": "mass_equivalent_slab",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Cathode grid holder source. Stainless-steel source object below the cathode with KN source-side transport.",
+            "name": "FC_botgrid",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 7.5,
+            "half_height_cm": 0.3895,
+            "position_cm": [0.0, 0.0, -0.3895],
+            "material": "SS",
+            "source_class": "shell_source",
+            "transport_source": "KN",
+            "equivalent_mass_kg": 22.275,
+            "approximation": "mass_equivalent_slab",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Top PMT array. Virtual transparent disk source carrier for the lumped PMT mass.",
+            "name": "PMT_TOP_PMTs",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 0.179,
+            "position_cm": [0.0, 0.0, 152.779],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 47.07,
+            "approximation": "mass_equivalent_disk",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Top PMT bases. Virtual transparent disk source carrier.",
+            "name": "PMT_TOP_bases",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 0.0055,
+            "position_cm": [0.0, 0.0, 152.605],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 1.434,
+            "approximation": "mass_equivalent_disk",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Top PMT support structure. Virtual transparent disk source carrier for the lumped support mass.",
+            "name": "PMT_TOP_structure",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 0.553,
+            "position_cm": [0.0, 0.0, 153.153],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 83.0,
+            "approximation": "mass_equivalent_disk",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Bottom PMT array. Virtual transparent disk source carrier for the lumped PMT mass.",
+            "name": "PMT_BOT_PMTs",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 0.170,
+            "position_cm": [0.0, 0.0, -15.920],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 44.83,
+            "approximation": "mass_equivalent_disk",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Bottom PMT bases. Virtual transparent disk source carrier.",
+            "name": "PMT_BOT_bases",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 0.005,
+            "position_cm": [0.0, 0.0, -15.755],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 1.366,
+            "approximation": "mass_equivalent_disk",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Bottom PMT support structure. Virtual transparent disk source carrier for the lumped support mass.",
+            "name": "PMT_BOT_structure",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 0.553,
+            "position_cm": [0.0, 0.0, -16.303],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 83.0,
+            "approximation": "mass_equivalent_disk",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Bottom dome PMTs. Virtual transparent disk source carrier for the lumped PMT mass.",
+            "name": "PMT_BOT_R8778_dome",
+            "shape": "cylinder",
+            "radius_cm": 72.8,
+            "half_height_cm": 0.0045,
+            "position_cm": [0.0, 0.0, -15.7545],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 1.18,
+            "approximation": "mass_equivalent_disk",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "TPC PMT cables. Virtual transparent cylindrical shell source carrier.",
+            "name": "PMT_BARREL_cables",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 81.2,
+            "wall_thickness_cm": 0.150,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 88.7,
+            "approximation": "mass_equivalent_shell",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Side-skin PMTs and bases. Virtual transparent cylindrical shell source carrier.",
+            "name": "PMT_BARREL_R8520",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 81.4,
+            "wall_thickness_cm": 0.01034,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 6.10,
+            "approximation": "mass_equivalent_shell",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        },
+        {
+            "_doc": "Lower-ring PMTs. Virtual transparent cylindrical shell source carrier.",
+            "name": "PMT_BARREL_R8778_lower",
+            "shape": "cylinder_shell",
+            "R_inner_cm": 81.4,
+            "wall_thickness_cm": 0.00222,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 1.31,
+            "approximation": "mass_equivalent_shell",
+            "activity": {
+                "Bi214_mBq_per_kg": null,
+                "Tl208_mBq_per_kg": null
+            }
+        }
+    ]
+}

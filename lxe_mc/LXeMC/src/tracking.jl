@@ -16,6 +16,9 @@ checking uses the volume's `is_inside` method.
 
 using Random
 
+const TRANSPORT_BOUNDARY_TOL_CM = 1e-5
+const TRANSPORT_BOUNDARY_PUSH_CM = 1e-4
+
 
 # =====================================================================
 # Track and stack
@@ -568,6 +571,35 @@ function veto_threshold(region::Symbol, cfg::SimConfig)::Float64
 end
 
 
+function _resolve_boundary_volume(det::Detector,
+                                  pos::Vector{Float64},
+                                  dir::Vector{Float64};
+                                  tol_cm::Float64=TRANSPORT_BOUNDARY_TOL_CM,
+                                  push_cm::Float64=TRANSPORT_BOUNDARY_PUSH_CM)::Union{PhysicalVolume,Nothing}
+    vol = find_volume(det, pos)
+
+    if vol === nothing
+        if !is_inside(det.mars, pos)
+            return nothing
+        end
+        next_vol, t_next = next_volume(pos, dir, det)
+        if next_vol !== nothing && t_next <= tol_cm
+            pos .= pos .+ dir .* push_cm
+            return find_volume(det, pos)
+        end
+        return nothing
+    end
+
+    t_exit = distance_to_exit(pos, dir, vol.logical)
+    if t_exit <= tol_cm
+        pos .= pos .+ dir .* push_cm
+        return find_volume(det, pos)
+    end
+
+    vol
+end
+
+
 """
     propagate_to_lxe(E_MeV, position, direction, det, cfg, rng)
         -> PropagationResult
@@ -600,7 +632,7 @@ function propagate_to_lxe(E_MeV::Float64,
 
     while E >= cfg.Egamma_cut
         # Where are we?
-        vol = find_volume(det, pos)
+        vol = _resolve_boundary_volume(det, pos, dir)
 
         if vol === nothing
             # In vacuum (MARS, between vessels): propagate to next volume
@@ -612,7 +644,7 @@ function propagate_to_lxe(E_MeV::Float64,
                 return PropagationResult(:lost, E, pos, dir, n_int)
             end
             # Advance to just inside the next volume
-            pos .= pos .+ dir .* (t_next + 0.001)
+            pos .= pos .+ dir .* (t_next + TRANSPORT_BOUNDARY_PUSH_CM)
             continue
         end
 
@@ -622,7 +654,7 @@ function propagate_to_lxe(E_MeV::Float64,
         if mat.density <= 0.0
             # Advance through this vacuum volume
             t_exit = distance_to_exit(pos, dir, vol.logical)
-            pos .= pos .+ dir .* (t_exit + 0.001)
+            pos .= pos .+ dir .* (t_exit + TRANSPORT_BOUNDARY_PUSH_CM)
             continue
         end
 
@@ -647,6 +679,7 @@ function propagate_to_lxe(E_MeV::Float64,
 
             # Left this LXe volume?
             if !is_inside(vol, pos)
+                _resolve_boundary_volume(det, pos, dir)
                 # Re-check where we are now
                 continue
             end
@@ -684,7 +717,7 @@ function propagate_to_lxe(E_MeV::Float64,
             if mat.xcom === nothing
                 # No cross section data: treat as transparent
                 t_exit = distance_to_exit(pos, dir, vol.logical)
-                pos .= pos .+ dir .* (t_exit + 0.001)
+                pos .= pos .+ dir .* (t_exit + TRANSPORT_BOUNDARY_PUSH_CM)
                 continue
             end
 
@@ -697,6 +730,7 @@ function propagate_to_lxe(E_MeV::Float64,
 
             # Left this volume? (passed through without interacting)
             if !is_inside(vol, pos)
+                _resolve_boundary_volume(det, pos, dir)
                 continue
             end
 

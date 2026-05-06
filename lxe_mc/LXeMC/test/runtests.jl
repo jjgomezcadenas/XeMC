@@ -1,5 +1,6 @@
 using Test
 using LXeMC
+using JSON
 using Random
 using Statistics
 
@@ -7,8 +8,10 @@ const CFG  = default_config()
 const MATS = load_materials(CFG)
 const DET  = load_detector(default_detector_path(), MATS)
 const DET2 = load_detector_v2(default_detector_v2_path(), MATS)
+const SOURCE_GEOM = JSON.parsefile(normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json")))
 const VOL  = active_volume(DET)
 const MAT  = VOL.material
+const GEOM_TOL = 0.1
 # TPC center position (cathode at z=0, TPC spans [0, 145.6])
 const TPC_CENTER = (0.0, 0.0, VOL.logical.position[3])
 
@@ -107,47 +110,42 @@ end
 # =====================================================================
 @testset "Detector geometry V2" begin
     @test DET2.name == "LZ"
-    @test length(DET2.nodes) == 26  # world + 25 volumes
+    @test length(DET2.nodes) == 9  # world + 8 runtime tracking volumes
 
     root = root_node(DET2)
     @test root.lv.name == "MARS"
     @test root.lv.tag == TAG_WORLD
     @test root.parent_id == 0
 
-    ocv_void = node_by_name(DET2, "OCV_void")
-    @test ocv_void.parent_id == root.id
-    @test ocv_void.lv.tag == TAG_VACUUM
-    @test ocv_void.lv.role == "cryostat_cavity"
+    lz = node_by_name(DET2, "LZ_detector")
+    @test lz.parent_id == root.id
+    @test lz.lv.tag == TAG_VACUUM
+    @test lz.lv.role == "tracking_envelope"
 
-    icv_lxe = node_by_name(DET2, "ICV_LXe_interior")
-    @test icv_lxe.parent_id == ocv_void.id
-    @test icv_lxe.lv.tag == TAG_PASSIVE_LXE
+    air = node_by_name(DET2, "AirDome")
+    lxe = node_by_name(DET2, "LXe_det")
+    @test air.parent_id == lz.id
+    @test lxe.parent_id == lz.id
+    @test air.lv.role == "gas_dome"
+    @test lxe.lv.tag == TAG_PASSIVE_LXE
 
     tpc = node_by_name(DET2, "LXeTPC")
     fv = node_by_name(DET2, "FV")
-    @test tpc.parent_id == icv_lxe.id
+    @test tpc.parent_id == lxe.id
     @test tpc.lv.tag == TAG_TPC_ACTIVE
     @test fv.parent_id == tpc.id
     @test fv.lv.tag == TAG_FV
 
     skin = node_by_name(DET2, "Skin")
-    @test skin.parent_id == icv_lxe.id
+    @test skin.parent_id == lxe.id
     @test skin.lv.tag == TAG_SKIN
 
-    dome_barrel = node_by_name(DET2, "DomeBarrel")
-    dome_cap = node_by_name(DET2, "DomeBottomCap")
-    @test dome_barrel.parent_id == icv_lxe.id
-    @test dome_cap.parent_id == icv_lxe.id
-    @test dome_barrel.lv.tag == TAG_PASSIVE_LXE
-    @test dome_cap.lv.tag == TAG_PASSIVE_LXE
-
-    fctg = node_by_name(DET2, "FCTG")
-    @test fctg.lv.approximation == "mass_equivalent_slab"
-    @test fctg.placement.position_cm[3] ≈ 146.379
-
-    ocv_barrel = node_by_name(DET2, "OCV_barrel")
-    @test get(ocv_barrel.lv.activity, "Bi214_mBq_per_kg", 0.0) ≈ 0.08
-    @test get(ocv_barrel.lv.activity, "Tl208_mBq_per_kg", 0.0) ≈ 0.22
+    fc_ptfe = node_by_name(DET2, "FC_PTFE")
+    fc_rings = node_by_name(DET2, "FC_rings")
+    @test fc_ptfe.parent_id == lxe.id
+    @test fc_rings.parent_id == skin.id
+    @test is_structural(fc_ptfe)
+    @test is_structural(fc_rings)
 
     child_names = sort([child.lv.name for child in child_nodes(DET2, "LXeTPC")])
     @test child_names == ["FV"]
@@ -156,8 +154,8 @@ end
     @test occursin("DetectorV2", detector_summary(DET2))
     dump = tree_dump(DET2)
     @test occursin("- MARS", dump)
-    @test occursin("  - OCV_void", dump)
-    @test occursin("    - ICV_LXe_interior", dump)
+    @test occursin("  - LZ_detector", dump)
+    @test occursin("    - LXe_det", dump)
     @test occursin("      - LXeTPC", dump)
 
     @test is_fv(fv)
@@ -165,31 +163,115 @@ end
     @test is_active_lxe(tpc)
     @test is_veto_lxe(tpc)
     @test is_veto_lxe(skin)
-    @test !is_veto_lxe(dome_barrel)
-    @test is_passive_lxe(dome_barrel)
-    @test is_passive_lxe(icv_lxe)
+    @test !is_veto_lxe(lxe)
+    @test is_passive_lxe(lxe)
     @test is_vacuum(root)
-    @test is_vacuum(ocv_void)
-    @test is_structural(ocv_barrel)
+    @test is_vacuum(lz)
+    @test is_vacuum(air)
+    @test is_structural(fc_ptfe)
+    @test is_sensitive(tpc)
+    @test is_sensitive(fv)
+    @test is_sensitive(skin)
+    @test !is_sensitive(lz)
+    @test !is_sensitive(air)
+    @test !is_sensitive(lxe)
+    @test !is_sensitive(fc_ptfe)
+    @test !is_sensitive(fc_rings)
+    @test !is_fv_target(tpc)
+    @test is_fv_target(fv)
+    @test !is_fv_target(skin)
+    @test tpc.lv.ecut_keV ≈ 10.0 atol=GEOM_TOL
+    @test tpc.lv.dz_mm ≈ 3.0 atol=GEOM_TOL
+    @test fv.lv.ecut_keV ≈ 10.0 atol=GEOM_TOL
+    @test fv.lv.dz_mm ≈ 3.0 atol=GEOM_TOL
+    @test skin.lv.ecut_keV ≈ 100.0 atol=GEOM_TOL
+    @test skin.lv.dz_mm ≈ 3.0 atol=GEOM_TOL
 
     @test veto_threshold(fv, CFG) == 0.0
     @test veto_threshold(tpc, CFG) == CFG.veto_TPC
     @test veto_threshold(skin, CFG) == CFG.veto_skin
-    @test veto_threshold(dome_barrel, CFG) == Inf
+    @test veto_threshold(lxe, CFG) == Inf
     @test veto_threshold(TAG_TPC_ACTIVE, CFG) == CFG.veto_TPC
     @test veto_threshold(TAG_SKIN, CFG) == CFG.veto_skin
 
     @test find_node_v2(DET2, (0.0, 0.0, 61.0)).lv.name == "FV"
     @test find_node_v2(DET2, (0.0, 0.0, 120.0)).lv.name == "LXeTPC"
     @test find_node_v2(DET2, (78.0, 0.0, 100.0)).lv.name == "Skin"
-    @test find_node_v2(DET2, (0.0, 0.0, -6.0)).lv.name == "RFR"
-    @test find_node_v2(DET2, (0.0, 0.0, -28.0)).lv.name == "DomeBarrel"
-    @test find_node_v2(DET2, (0.0, 0.0, -55.0)).lv.name == "DomeBottomCap"
-    @test find_node_v2(DET2, (82.5, 0.0, 100.0)).lv.name == "ICV_barrel"
-    @test find_node_v2(DET2, (86.0, 0.0, 100.0)).lv.name == "OCV_void"
-    @test find_node_v2(DET2, (91.0, 0.0, 100.0)).lv.name == "OCV_barrel"
+    @test find_node_v2(DET2, (0.0, 0.0, -20.0)).lv.name == "LXe_det"
+    @test find_node_v2(DET2, (0.0, 0.0, -55.0)).lv.name == "LXe_det"
+    @test find_node_v2(DET2, (73.55, 0.0, 100.0)).lv.name == "FC_PTFE"
+    @test find_node_v2(DET2, (74.45, 0.0, 100.0)).lv.name == "FC_rings"
+    @test find_node_v2(DET2, (0.0, 0.0, 160.0)).lv.name == "AirDome"
+    @test find_node_v2(DET2, (79.0, 0.0, 100.0)).lv.name == "Skin"
+    @test find_node_v2(DET2, (83.0, 0.0, 100.0)).lv.name == "MARS"
     @test find_node_v2(DET2, (110.0, 0.0, 0.0)).lv.name == "MARS"
     @test find_node_v2(DET2, (200.0, 0.0, 0.0)) === nothing
+end
+
+@testset "Source geometry schema" begin
+    @test SOURCE_GEOM["name"] == "LZ_source_geometry"
+    @test SOURCE_GEOM["version"] == 1
+    sources = SOURCE_GEOM["sources"]
+    @test !isempty(sources)
+
+    names = [String(s["name"]) for s in sources]
+    @test length(unique(names)) == length(names)
+
+    required = ["name", "shape", "material", "source_class", "transport_source", "approximation", "equivalent_mass_kg"]
+    for s in sources
+        for key in required
+            @test haskey(s, key)
+        end
+    end
+
+    by_name = Dict(String(s["name"]) => s for s in sources)
+    @test haskey(by_name, "OCV_barrel")
+    @test haskey(by_name, "ICV_barrel")
+    @test haskey(by_name, "FC_PTFE")
+    @test haskey(by_name, "FC_rings")
+    @test haskey(by_name, "FC_resistors")
+    @test haskey(by_name, "FC_sensors")
+    @test haskey(by_name, "FC_topgrid")
+    @test haskey(by_name, "FC_botgrid")
+
+    for s in sources
+        if s["transport_source"] == "transparent"
+            @test s["material"] == "Vacuum"
+            @test Float64(s["equivalent_mass_kg"]) > 0.0
+        elseif s["transport_source"] == "KN"
+            @test Float64(s["equivalent_mass_kg"]) >= 0.0
+        else
+            @test false
+        end
+    end
+end
+
+@testset "Tracking/source consistency" begin
+    sources = Dict(String(s["name"]) => s for s in SOURCE_GEOM["sources"])
+    shared = ["FC_PTFE", "FC_rings"]
+
+    for name in shared
+        t = node_by_name(DET2, name)
+        s = sources[name]
+        @test lowercase(String(s["shape"])) == begin
+            solid = t.lv.solid
+            solid isa CylShell ? "cylinder_shell" :
+            solid isa Cyl ? "cylinder" :
+            solid isa Disk ? "disk" : ""
+        end
+        @test t.placement.position_cm[3] ≈ Float64(s["position_cm"][3]) atol=GEOM_TOL
+        if t.lv.solid isa CylShell
+            @test t.lv.solid.R_inner_cm ≈ Float64(s["R_inner_cm"]) atol=GEOM_TOL
+            @test t.lv.solid.wall_thickness_cm ≈ Float64(s["wall_thickness_cm"]) atol=GEOM_TOL
+            @test t.lv.solid.half_height_cm ≈ Float64(s["half_height_cm"]) atol=GEOM_TOL
+        end
+    end
+
+    source_only = ["MLI", "OCV_barrel", "ICV_barrel", "FC_sensors", "FC_topgrid", "FC_botgrid", "PMT_TOP_PMTs"]
+    for name in source_only
+        @test haskey(sources, name)
+        @test !haskey(DET2.name_to_id, name)
+    end
 end
 
 
@@ -253,7 +335,7 @@ end
     # DomedContainer: coaxial barrel plus two filled caps
     dc = DomedContainer(50.0, 20.0, Cap(50.0, 2.0), Cap(50.0, 3.0))
     @test volume(dc) ≈ (40.0 * π * 50.0^2 + (2.0 / 3.0) * π * 50.0^2 * 25.0 + (2.0 / 3.0) * π * 50.0^2 * (50.0 / 3.0))
-    dc_lv = LogicalVolumeV2("dc", dc, MATS["Vacuum"], TAG_VACUUM, "container", "exact", Dict{String,Float64}())
+    dc_lv = LogicalVolumeV2("dc", dc, MATS["Vacuum"], TAG_VACUUM, "container", false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
     dc_node = DetectorNode(1, 0, Int[], dc_lv, PlacementV2([0.0, 0.0, 0.0], :none))
     @test is_inside(dc_node, [0.0, 0.0, 0.0])        # barrel center
     @test is_inside(dc_node, [0.0, 0.0, 30.0])       # inside top cap
@@ -261,12 +343,23 @@ end
     @test !is_inside(dc_node, [0.0, 0.0, 50.0])      # above top cap
     @test !is_inside(dc_node, [60.0, 0.0, 0.0])      # outside radius
 
+    # CappedCylinder: optional top/bottom caps
+    cc = CappedCylinder(50.0, 20.0; bottom_cap=Cap(50.0, 3.0))
+    @test volume(cc) ≈ (40.0 * π * 50.0^2 + (2.0 / 3.0) * π * 50.0^2 * (50.0 / 3.0))
+    cc_lv = LogicalVolumeV2("cc", cc, MATS["LXe"], TAG_PASSIVE_LXE, "container", false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
+    cc_node = DetectorNode(1, 0, Int[], cc_lv, PlacementV2([0.0, 0.0, 0.0], :none))
+    @test is_inside(cc_node, [0.0, 0.0, 0.0])        # barrel center
+    @test is_inside(cc_node, [0.0, 0.0, -30.0])      # inside bottom cap
+    @test !is_inside(cc_node, [0.0, 0.0, 30.0])      # no top cap
+    @test !is_inside(cc_node, [60.0, 0.0, 0.0])      # outside radius
+
     # Validation
     @test_throws ErrorException Cyl(-1.0, 5.0)
     @test_throws ErrorException CylShell(10.0, -1.0, 5.0)
     @test_throws ErrorException Box(0.0, 5.0, 5.0)
     @test_throws ErrorException Disk(-1.0, 1.0, 2.0)
     @test_throws ErrorException DomedContainer(50.0, 10.0, Cap(40.0, 2.0), Cap(50.0, 3.0))
+    @test_throws ErrorException CappedCylinder(50.0, 10.0; top_cap=Cap(40.0, 2.0))
 end
 
 

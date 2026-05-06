@@ -1,0 +1,125 @@
+{
+  "_doc": "Candidate future detector volumes not yet integrated into detector_lz_v2.json. These are kept as reference for later hierarchy work (ICV_void, LXe container, PMT placement, insulation source modelling). The entries below intentionally preserve the original source block and are not guaranteed to match the active V2 schema yet.",
+  "volumes": [
+    {
+      "_doc": "TPC Teflon walls (FCPT): R=[72.8, 73.947], z=[-13.75, 145.6], center z=65.925; t=1.147 cm back-derived from 184 kg / (rho_PTFE x 2pi x R x H). Real LZ panels are 5 mm thick; the smearing here is to keep the slab self-shielding integral correct at the same total mass.",
+      "name": "FCPT",
+      "shape": "cylinder_shell",
+      "R_inner_cm": 72.8,
+      "wall_thickness_cm": 1.147,
+      "half_height_cm": 79.675,
+      "position_cm": [0.0, 0.0, 65.925],
+      "material": "PTFE"
+    },
+    {
+      "_doc": "MLI cryostat insulation: thin blanket on ICV body outer wall, mass=13.8 kg. R_inner=83.0 (= ICV outer), z follows ICV body extent z=[-41.33, 148.5]. Treated as zero-thickness PSurface in the MC; here drawn as 1 cm shell (rho_eff ~0.14 g/cm^3 - MLI blanket bulk density). Adjust thickness to taste; the mass is the only physically anchored quantity.",
+      "name": "MLI",
+      "shape": "cylinder_shell",
+      "R_inner_cm": 83.0,
+      "wall_thickness_cm": 1.0,
+      "half_height_cm": 94.92,
+      "position_cm": [0.0, 0.0, 53.585],
+      "material": "MLI"
+    },
+    {
+      "_doc": "Top PMT array - R11410 PMTs (253 of them, lumped): R in [0, 72.8], z in [152.6, 152.957] (above gate, in gas), center z=152.779. t=0.357 cm back-derived from 47.07 kg / (rho_SS x pi R^2).",
+      "name": "PMT_TOP_PMTs",
+      "shape": "cylinder",
+      "R_cm": 72.8,
+      "half_height_cm": 0.179,
+      "position_cm": [0.0, 0.0, 152.779],
+      "material": "SS"
+    },
+    {
+      "_doc": "Top PMT bases (Kapton PCB + electronics for 253 PMTs): R in [0, 72.8], z in [152.6, 152.611], t=0.011 cm from 1.434 kg.",
+      "name": "PMT_TOP_bases",
+      "shape": "cylinder",
+      "R_cm": 72.8,
+      "half_height_cm": 0.0055,
+      "position_cm": [0.0, 0.0, 152.605],
+      "material": "SS"
+    },
+    {
+      "_doc": "Top PMT support structure (Ti, 50% of 166 kg total): R in [0, 72.8], z in [152.6, 153.706], center z=153.153, t=1.106 cm back-derived from 83 kg / (rho_Ti x pi R^2).",
+      "name": "PMT_TOP_structure",
+      "shape": "cylinder",
+      "R_cm": 72.8,
+      "half_height_cm": 0.553,
+      "position_cm": [0.0, 0.0, 153.153],
+      "material": "Ti"
+    },
+    {
+      "_doc": "Bottom PMT array - R11410 PMTs (241 of them, lumped): R in [0, 72.8], z in [-16.090, -15.75] (below RFR, in dome LXe), center z=-15.920. t=0.340 cm from 44.83 kg.",
+      "name": "PMT_BOT_PMTs",
+      "shape": "cylinder",
+      "R_cm": 72.8,
+      "half_height_cm": 0.170,
+      "position_cm": [0.0, 0.0, -15.920],
+      "material": "SS"
+    },
+    {
+      "_doc": "Bottom PMT bases: R in [0, 72.8], z in [-15.760, -15.75], t=0.010 cm from 1.366 kg.",
+      "name": "PMT_BOT_bases",
+      "shape": "cylinder",
+      "R_cm": 72.8,
+      "half_height_cm": 0.005,
+      "position_cm": [0.0, 0.0, -15.755],
+      "material": "SS"
+    },
+    {
+      "_doc": "Bottom PMT support structure (Ti, 50% of 166 kg): R in [0, 72.8], z in [-16.856, -15.75], center z=-16.303, t=1.106 cm.",
+      "name": "PMT_BOT_structure",
+      "shape": "cylinder",
+      "R_cm": 72.8,
+      "half_height_cm": 0.553,
+      "position_cm": [0.0, 0.0, -16.303],
+      "material": "Ti"
+    },
+    {
+      "_doc": "R8778 dome PMTs (18 PMTs, lumped at TPC inner R=72.8 - true position R=81.4 simplified): R in [0, 72.8], z in [-15.759, -15.75], t=0.009 cm from 1.18 kg.",
+      "name": "PMT_BOT_R8778_dome",
+      "shape": "cylinder",
+      "R_cm": 72.8,
+      "half_height_cm": 0.0045,
+      "position_cm": [0.0, 0.0, -15.7545],
+      "material": "SS"
+    },
+    {
+      "_doc": "TPC PMT cables: cylindrical shell at R=74.3 (FC outer), z=[-13.75, 145.6], center z=65.925, t=0.150 cm back-derived from 88.7 kg / (rho_SS x 2pi x R x H).",
+      "name": "PMT_BARREL_cables",
+      "shape": "cylinder_shell",
+      "R_inner_cm": 74.3,
+      "wall_thickness_cm": 0.150,
+      "half_height_cm": 79.675,
+      "position_cm": [0.0, 0.0, 65.925],
+      "material": "SS"
+    },
+    {
+      "_doc": "R8520 side-skin PMTs+bases (93 PMTs lumped): cylindrical shell at R=74.3, t=0.0103 cm from 6.10 kg.",
+      "name": "PMT_BARREL_R8520",
+      "shape": "cylinder_shell",
+      "R_inner_cm": 74.3,
+      "wall_thickness_cm": 0.01034,
+      "half_height_cm": 79.675,
+      "position_cm": [0.0, 0.0, 65.925],
+      "material": "SS"
+    },
+    {
+      "_doc": "R8778 lower-ring PMTs (20 PMTs lumped at FC outer R=74.3 - true position R=81.4 simplified): cylindrical shell, t=0.00222 cm from 1.31 kg.",
+      "name": "PMT_BARREL_R8778_lower",
+      "shape": "cylinder_shell",
+      "R_inner_cm": 74.3,
+      "wall_thickness_cm": 0.00222,
+      "half_height_cm": 79.675,
+      "position_cm": [0.0, 0.0, 65.925],
+      "material": "SS"
+    }
+  ],
+  "notes": [
+    "shape: PMT TOP/BOT components use 'cylinder' (a thin filled disc-like volume), not 'cylinder_shell', because the source is a flat-disc PSurfaceDisc that fills the full circle r in [0, R]. The thicknesses are back-derived from mass to give the same rho x V -> mass invariant, but in the actual MC these are zero-thickness surface sources with no self-shielding.",
+    "MLI thickness is a free parameter. The MC treats it as a zero-thickness PSurface, so the only physical anchor is the 13.8 kg mass and the attachment to the ICV body outer wall (R = 83.0).",
+    "PMT_TOP_PMTs and PMT_TOP_bases overlap radially with PMT_TOP_structure but occupy different z-bands.",
+    "PMT_BOT_R8778_dome and PMT_BARREL_R8778_lower use simplified positions (R = 72.8 / 74.3 instead of the actual R = 81.4 cm at the ICV inner wall).",
+    "Activity numbers are not included here. They should be sourced later from the relevant assay tables."
+  ]
+}

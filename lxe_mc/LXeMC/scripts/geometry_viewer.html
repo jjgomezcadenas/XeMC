@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LXeMC Geometry Viewer</title>
+  <style>
+    :root {
+      --bg: #f5f4ef;
+      --panel: #fffdf8;
+      --ink: #1e1d1a;
+      --muted: #6d675d;
+      --line: #d7d0c4;
+      --active: #4f6db8;
+      --veto: #4ea8a1;
+      --passive: #b8c7f0;
+      --struct: #444444;
+      --vac: #f2efe7;
+      --source-kn: #b96f2f;
+      --source-transparent: #8e9aa8;
+      --source-shell: #6f5aa5;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f8f7f2 0%, #efebe3 100%);
+    }
+    header {
+      padding: 18px 22px 10px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      line-height: 1.1;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .controls {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .controls input[type="checkbox"] {
+      transform: translateY(1px);
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 16px;
+      padding: 16px;
+    }
+    .panels {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .panel, .meta {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(52, 45, 33, 0.06);
+    }
+    .panel {
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .panel-header h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .panel-header span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .canvas-wrap {
+      padding: 10px;
+      background:
+        linear-gradient(0deg, rgba(0,0,0,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.025) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: white;
+      border-radius: 10px;
+    }
+    .meta {
+      padding: 14px 16px;
+      min-height: 200px;
+    }
+    .meta h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .meta .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .meta dl {
+      margin: 10px 0 0;
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 8px 10px;
+      font-size: 13px;
+    }
+    .meta dt {
+      color: var(--muted);
+    }
+    .meta dd {
+      margin: 0;
+      font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+      word-break: break-word;
+    }
+    .legend {
+      margin-top: 14px;
+      display: grid;
+      gap: 7px;
+      font-size: 13px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.18);
+      flex: none;
+    }
+    .shape {
+      cursor: pointer;
+      transition: opacity 120ms ease, stroke-width 120ms ease;
+    }
+    .shape:hover {
+      opacity: 0.82;
+    }
+    .shape.selected {
+      stroke-width: 2.5px !important;
+      filter: drop-shadow(0 0 5px rgba(0,0,0,0.18));
+    }
+    .axis {
+      stroke: rgba(0,0,0,0.25);
+      stroke-dasharray: 4 4;
+      stroke-width: 1;
+    }
+    .extent {
+      fill: var(--muted);
+      font-size: 10px;
+    }
+    @media (max-width: 1200px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 900px) {
+      .panels { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LXeMC Geometry Viewer</h1>
+    <div class="subtitle">R-z cross-section viewer for tracking and source geometry.</div>
+    <div class="controls">
+      <label><input id="legend-source-toggle" type="checkbox">Source legend</label>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="panels">
+      <section class="panel" id="tracking-panel">
+        <div class="panel-header">
+          <h2>Tracking Geometry</h2>
+          <span id="tracking-summary"></span>
+        </div>
+        <div class="canvas-wrap">
+          <svg id="tracking-svg" viewBox="0 0 700 900" aria-label="Tracking geometry"></svg>
+        </div>
+      </section>
+
+      <section class="panel" id="source-panel">
+        <div class="panel-header">
+          <h2>Source Geometry</h2>
+          <span id="source-summary"></span>
+        </div>
+        <div class="canvas-wrap">
+          <svg id="source-svg" viewBox="0 0 700 900" aria-label="Source geometry"></svg>
+        </div>
+      </section>
+    </div>
+
+    <aside class="meta">
+      <h3 id="meta-title">Selection</h3>
+      <div class="hint" id="meta-hint">Click a volume to inspect its metadata.</div>
+      <dl id="meta-dl"></dl>
+
+      <div class="legend">
+        <div id="legend-content"></div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const cacheBust = `?v=${Date.now()}`;
+    const trackingPath = `../../data/detector_lz_v2.json${cacheBust}`;
+    const sourcePath = `../../data/source_geometry_lz_v1.json${cacheBust}`;
+    const pad = 28;
+    const width = 700;
+    const height = 900;
+    const centerX = width / 2;
+    let selectedEl = null;
+
+    function svgEl(tag, attrs = {}) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      return el;
+    }
+
+    function trackingStyle(v) {
+      if (v.tag === "fv") return { fill: "#5c73cc", stroke: "#29365f" };
+      if (v.tag === "tpc_active") return { fill: "#c7d2f5", stroke: "#44579f" };
+      if (v.tag === "skin") return { fill: "#c9ece7", stroke: "#2f7c76" };
+      if (v.tag === "passive_lxe") return { fill: "#e2e8fb", stroke: "#7b89bd" };
+      if (v.tag === "structural") return { fill: "#7b7266", stroke: "#2b2824" };
+      return { fill: "#f4efe4", stroke: "#8a8175" };
+    }
+
+    function sourceStyle(v) {
+      const palette = {
+        OCV_barrel: ["#d37a45", "#7b3f17"],
+        OCV_top: ["#d37a45", "#7b3f17"],
+        OCV_bottom: ["#d37a45", "#7b3f17"],
+        ICV_barrel: ["#e4a46d", "#8a5b24"],
+        ICV_top: ["#e4a46d", "#8a5b24"],
+        ICV_bottom: ["#e4a46d", "#8a5b24"],
+        MLI: ["#d8dde4", "#7f8791"],
+        FC_PTFE: ["#d4c7a2", "#74674a"],
+        FC_rings: ["#9b8bd1", "#57437c"],
+        FC_resistors: ["#c9ced8", "#707786"],
+        FC_sensors: ["#b8c0cf", "#616978"],
+        FC_topgrid: ["#c9584f", "#7c241d"],
+        FC_botgrid: ["#b84d45", "#6e201b"],
+        PMT_TOP_PMTs: ["#8ea8c8", "#415d80"],
+        PMT_TOP_bases: ["#aac1db", "#4b6788"],
+        PMT_TOP_structure: ["#7089a7", "#364b65"],
+        PMT_BOT_PMTs: ["#88b58d", "#3d6a43"],
+        PMT_BOT_bases: ["#a1cca6", "#537b57"],
+        PMT_BOT_structure: ["#6ea175", "#35563a"],
+        PMT_BOT_R8778_dome: ["#9bd3b1", "#46785b"],
+        PMT_BARREL_cables: ["#d0a6cb", "#7d4e79"],
+        PMT_BARREL_R8520: ["#bc90c0", "#6e4a74"],
+        PMT_BARREL_R8778_lower: ["#a87db0", "#614566"]
+      };
+      const [fill, stroke] = palette[v.name] || (v.transport_source === "KN" ? ["#e7c2a3", "#8a4d1c"] : ["#dfe4ea", "#6d7781"]);
+      const style = { fill, stroke };
+      if (v.transport_source === "transparent") style.dash = "5 4";
+      return style;
+    }
+
+    function parseShapeBounds(v) {
+      const z0 = v.position_cm?.[2] ?? 0;
+      if (v.shape === "cylinder") {
+        return { r: v.radius_cm, zmin: z0 - v.half_height_cm, zmax: z0 + v.half_height_cm };
+      }
+      if (v.shape === "cylinder_shell") {
+        return { r: v.R_inner_cm + v.wall_thickness_cm, zmin: z0 - v.half_height_cm, zmax: z0 + v.half_height_cm };
+      }
+      if (v.shape === "disk") {
+        const d = v.radius_cm / v.aspect_ratio;
+        if (v.orientation === "down") {
+          return { r: v.radius_cm, zmin: z0 - (d + v.wall_thickness_cm), zmax: z0 };
+        }
+        return { r: v.radius_cm, zmin: z0, zmax: z0 + d + v.wall_thickness_cm };
+      }
+      if (v.shape === "cap") {
+        const d = v.radius_cm / v.aspect_ratio;
+        if (v.orientation === "down") {
+          return { r: v.radius_cm, zmin: z0 - d, zmax: z0 };
+        }
+        return { r: v.radius_cm, zmin: z0, zmax: z0 + d };
+      }
+      if (v.shape === "domed_container") {
+        const dt = v.radius_cm / v.top_aspect_ratio;
+        const db = v.radius_cm / v.bottom_aspect_ratio;
+        return {
+          r: v.radius_cm,
+          zmin: z0 - v.barrel_half_height_cm - db,
+          zmax: z0 + v.barrel_half_height_cm + dt
+        };
+      }
+      if (v.shape === "capped_cylinder") {
+        const dt = v.top_aspect_ratio ? v.radius_cm / v.top_aspect_ratio : 0;
+        const db = v.bottom_aspect_ratio ? v.radius_cm / v.bottom_aspect_ratio : 0;
+        return {
+          r: v.radius_cm,
+          zmin: z0 - v.barrel_half_height_cm - db,
+          zmax: z0 + v.barrel_half_height_cm + dt
+        };
+      }
+      return { r: 1, zmin: -1, zmax: 1 };
+    }
+
+    function computeExtents(volumes) {
+      let rmax = 1;
+      let zmin = Infinity;
+      let zmax = -Infinity;
+      for (const v of volumes) {
+        const b = parseShapeBounds(v);
+        rmax = Math.max(rmax, b.r);
+        zmin = Math.min(zmin, b.zmin);
+        zmax = Math.max(zmax, b.zmax);
+      }
+      return { rmax, zmin, zmax };
+    }
+
+    function makeProjector(extents, mirror) {
+      const usableW = width - 2 * pad;
+      const usableH = height - 2 * pad;
+      const xr = mirror ? extents.rmax * 2 : extents.rmax;
+      const zr = extents.zmax - extents.zmin;
+      const scale = Math.min(usableW / xr, usableH / zr);
+      const x = r => mirror ? centerX + r * scale : pad + r * scale;
+      const y = z => height - pad - (z - extents.zmin) * scale;
+      return { x, y, scale };
+    }
+
+    function setMeta(title, pairs, hint = "") {
+      document.getElementById("meta-title").textContent = title;
+      document.getElementById("meta-hint").textContent = hint;
+      const dl = document.getElementById("meta-dl");
+      dl.innerHTML = "";
+      for (const [k, v] of pairs) {
+        const dt = document.createElement("dt");
+        const dd = document.createElement("dd");
+        dt.textContent = k;
+        dd.textContent = v;
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+      }
+    }
+
+    function selectShape(el, v, flavor) {
+      if (selectedEl) selectedEl.classList.remove("selected");
+      selectedEl = el;
+      selectedEl.classList.add("selected");
+      const pairs = Object.entries(v)
+        .filter(([k]) => k !== "_doc")
+        .map(([k, val]) => [k, typeof val === "object" ? JSON.stringify(val) : String(val)]);
+      setMeta(`${flavor}: ${v.name}`, pairs, v._doc || "");
+    }
+
+    function addSourceLabel(svg, text, x, y) {
+      const t = svgEl("text", { x, y, class: "label source-label" });
+      t.textContent = text;
+      svg.appendChild(t);
+    }
+
+    function addAxis(svg, proj) {
+      svg.appendChild(svgEl("line", {
+        x1: centerX, y1: pad / 2, x2: centerX, y2: height - pad / 2, class: "axis"
+      }));
+    }
+
+    function drawCylinder(svg, v, proj, style, flavor) {
+      const z0 = v.position_cm[2];
+      let halfHeight = v.half_height_cm;
+      if (flavor === "source" && v.transport_source === "transparent") halfHeight = Math.max(halfHeight, 0.5);
+      const z1 = z0 - halfHeight;
+      const z2 = z0 + halfHeight;
+      const rx = v.radius_cm * proj.scale;
+      const y1 = proj.y(z2);
+      const y2 = proj.y(z1);
+      svg.appendChild(svgEl("rect", {
+        x: centerX - rx, y: y1, width: 2 * rx, height: y2 - y1,
+        fill: style.fill, stroke: style.stroke, "stroke-width": 1.3, class: "shape"
+      }));
+    }
+
+    function drawCylinderShell(svg, v, proj, style, flavor) {
+      const z0 = v.position_cm[2];
+      let halfHeight = v.half_height_cm;
+      let wall = v.wall_thickness_cm;
+      if (flavor === "source") {
+        halfHeight = Math.max(halfHeight, 0.5);
+        wall = Math.max(wall, v.transport_source === "transparent" ? 1.0 : 0.5);
+      } else if (flavor === "tracking" && ["FC_PTFE", "FC_rings"].includes(v.name)) {
+        wall = Math.max(wall, 0.8);
+      }
+      const z1 = z0 - halfHeight;
+      const z2 = z0 + halfHeight;
+      const ri = v.R_inner_cm * proj.scale;
+      const ro = (v.R_inner_cm + wall) * proj.scale;
+      const y1 = proj.y(z2);
+      const y2 = proj.y(z1);
+      const dash = style.dash || "";
+      const attrs = {
+        fill: style.fill, stroke: style.stroke, "stroke-width": 1.2, class: "shape"
+      };
+      if (dash) attrs["stroke-dasharray"] = dash;
+      svg.appendChild(svgEl("rect", { ...attrs, x: centerX - ro, y: y1, width: ro - ri, height: y2 - y1 }));
+      svg.appendChild(svgEl("rect", { ...attrs, x: centerX + ri, y: y1, width: ro - ri, height: y2 - y1 }));
+    }
+
+    function halfEllipsePath(cx, zEq, rx, rz, up) {
+      const yEq = zEq;
+      const sweep = up ? 1 : 0;
+      return [
+        `M ${cx - rx} ${yEq}`,
+        `A ${rx} ${rz} 0 0 ${sweep} ${cx + rx} ${yEq}`,
+        `L ${cx - rx} ${yEq}`,
+        "Z"
+      ].join(" ");
+    }
+
+    function halfEllipseShellPath(cx, zEqOuter, zEqInner, rx, rzOuter, rzInner, up) {
+      const outerSweep = up ? 1 : 0;
+      const innerSweep = up ? 0 : 1;
+      return [
+        `M ${cx - rx} ${zEqOuter}`,
+        `A ${rx} ${rzOuter} 0 0 ${outerSweep} ${cx + rx} ${zEqOuter}`,
+        `L ${cx + rx} ${zEqInner}`,
+        `A ${rx} ${rzInner} 0 0 ${innerSweep} ${cx - rx} ${zEqInner}`,
+        "Z"
+      ].join(" ");
+    }
+
+    function drawDisk(svg, v, proj, style, flavor) {
+      const z0 = v.position_cm[2];
+      const rx = v.radius_cm * proj.scale;
+      const rz = (v.radius_cm / v.aspect_ratio) * proj.scale;
+      let thickness = v.wall_thickness_cm;
+      if (flavor === "source") thickness = Math.max(thickness, v.transport_source === "transparent" ? 1.0 : 0.5);
+      const t = thickness * proj.scale;
+      const up = v.orientation !== "down";
+      const yEq = proj.y(z0);
+      const dash = style.dash || "";
+      if (!isFinite(v.aspect_ratio)) {
+        const y1 = up ? yEq - t : yEq;
+        const y2 = up ? yEq : yEq + t;
+        const rect = svgEl("rect", {
+          x: centerX - rx, y: y1, width: 2 * rx, height: y2 - y1,
+          fill: style.fill, stroke: style.stroke, "stroke-width": 1.2, class: "shape"
+        });
+        if (dash) rect.setAttribute("stroke-dasharray", dash);
+        svg.appendChild(rect);
+        return;
+      }
+      const yEqInner = up ? yEq + t : yEq - t;
+      const rzInner = Math.max(rz - t, 1.0);
+      const shell = svgEl("path", {
+        d: halfEllipseShellPath(centerX, yEq, yEqInner, rx, rz, rzInner, up),
+        fill: style.fill, stroke: style.stroke, "stroke-width": 1.2, class: "shape"
+      });
+      if (dash) shell.setAttribute("stroke-dasharray", dash);
+      svg.appendChild(shell);
+    }
+
+    function drawCap(svg, centerX0, zEq, rx, rz, style, up) {
+      const attrs = { d: halfEllipsePath(centerX0, zEq, rx, rz, up), fill: style.fill, stroke: style.stroke, "stroke-width": 1.2, class: "shape" };
+      if (style.dash) attrs["stroke-dasharray"] = style.dash;
+      svg.appendChild(svgEl("path", attrs));
+    }
+
+    function drawDomedContainer(svg, v, proj, style) {
+      const cx = centerX;
+      const z0 = v.position_cm[2];
+      const H = v.barrel_half_height_cm;
+      const z1 = proj.y(z0 + H);
+      const z2 = proj.y(z0 - H);
+      const rx = v.radius_cm * proj.scale;
+      const dash = style.dash || "";
+      const rectAttrs = { x: cx - rx, y: z1, width: 2 * rx, height: z2 - z1, fill: style.fill, stroke: style.stroke, "stroke-width": 1.2, class: "shape" };
+      if (dash) rectAttrs["stroke-dasharray"] = dash;
+      svg.appendChild(svgEl("rect", rectAttrs));
+      drawCap(svg, cx, z1, rx, (v.radius_cm / v.top_aspect_ratio) * proj.scale, style, true);
+      drawCap(svg, cx, z2, rx, (v.radius_cm / v.bottom_aspect_ratio) * proj.scale, style, false);
+    }
+
+    function drawCappedCylinder(svg, v, proj, style) {
+      const cx = centerX;
+      const z0 = v.position_cm[2];
+      const H = v.barrel_half_height_cm;
+      const z1 = proj.y(z0 + H);
+      const z2 = proj.y(z0 - H);
+      const rx = v.radius_cm * proj.scale;
+      const dash = style.dash || "";
+      const rectAttrs = { x: cx - rx, y: z1, width: 2 * rx, height: z2 - z1, fill: style.fill, stroke: style.stroke, "stroke-width": 1.2, class: "shape" };
+      if (dash) rectAttrs["stroke-dasharray"] = dash;
+      svg.appendChild(svgEl("rect", rectAttrs));
+      if (v.top_aspect_ratio) drawCap(svg, cx, z1, rx, (v.radius_cm / v.top_aspect_ratio) * proj.scale, style, true);
+      if (v.bottom_aspect_ratio) drawCap(svg, cx, z2, rx, (v.radius_cm / v.bottom_aspect_ratio) * proj.scale, style, false);
+    }
+
+    function drawVolume(svg, v, proj, style, flavor) {
+      const before = svg.childNodes.length;
+      if (v.shape === "cylinder") drawCylinder(svg, v, proj, style, flavor);
+      else if (v.shape === "cylinder_shell") drawCylinderShell(svg, v, proj, style, flavor);
+      else if (v.shape === "disk") drawDisk(svg, v, proj, style, flavor);
+      else if (v.shape === "cap") drawCap(svg, centerX, proj.y(v.position_cm[2]), v.radius_cm * proj.scale, (v.radius_cm / v.aspect_ratio) * proj.scale, style, v.orientation !== "down");
+      else if (v.shape === "domed_container") drawDomedContainer(svg, v, proj, style);
+      else if (v.shape === "capped_cylinder") drawCappedCylinder(svg, v, proj, style);
+      const added = Array.from(svg.childNodes).slice(before);
+      for (const el of added) el.addEventListener("click", () => selectShape(el, v, flavor));
+      return added;
+    }
+
+    function renderSourceLegend(volumes) {
+      const host = document.getElementById("legend-content");
+      host.innerHTML = "";
+      const title = document.createElement("div");
+      title.textContent = "Source objects";
+      title.style.fontWeight = "700";
+      title.style.marginBottom = "4px";
+      host.appendChild(title);
+      for (const v of volumes) {
+        const style = sourceStyle(v);
+        const row = document.createElement("div");
+        row.className = "legend-item";
+        const sw = document.createElement("span");
+        sw.className = "swatch";
+        sw.style.background = style.fill;
+        sw.style.borderColor = style.stroke;
+        sw.style.borderStyle = style.dash ? "dashed" : "solid";
+        const tx = document.createElement("span");
+        tx.textContent = v.name;
+        row.appendChild(sw);
+        row.appendChild(tx);
+        host.appendChild(row);
+      }
+    }
+
+    function renderTrackingLegend() {
+      const host = document.getElementById("legend-content");
+      host.innerHTML = "";
+      const title = document.createElement("div");
+      title.textContent = "Tracking volumes";
+      title.style.fontWeight = "700";
+      title.style.marginBottom = "4px";
+      host.appendChild(title);
+      const volumes = [
+        { name: "AirDome", style: { fill: "#f4efe4", stroke: "#8a8175" } },
+        { name: "LXe_det", style: { fill: "#e2e8fb", stroke: "#7b89bd" } },
+        { name: "LXeTPC", style: { fill: "#c7d2f5", stroke: "#44579f" } },
+        { name: "FV", style: { fill: "#5c73cc", stroke: "#29365f" } },
+        { name: "Field Cage", style: { fill: "#7b7266", stroke: "#2b2824" } },
+        { name: "Skin", style: { fill: "#c9ece7", stroke: "#2f7c76" } }
+      ];
+      for (const {name, style} of volumes) {
+        const row = document.createElement("div");
+        row.className = "legend-item";
+        const sw = document.createElement("span");
+        sw.className = "swatch";
+        sw.style.background = style.fill;
+        sw.style.borderColor = style.stroke;
+        const tx = document.createElement("span");
+        tx.textContent = name;
+        row.appendChild(sw);
+        row.appendChild(tx);
+        host.appendChild(row);
+      }
+    }
+
+    function updateLegend(trackingVolumes, sourceVolumes) {
+      const showSource = document.getElementById("legend-source-toggle").checked;
+      if (showSource) renderSourceLegend(sourceVolumes);
+      else renderTrackingLegend();
+    }
+
+    function drawSourceGuide(svg, trackingVolumes, projSource) {
+      const lxe = trackingVolumes.find(v => v.name === "LXe_det");
+      if (!lxe) return;
+      const guide = { fill: "rgba(133, 170, 239, 0.12)", stroke: "#7b9fdd" };
+      drawVolume(svg, lxe, projSource, guide, "guide");
+    }
+
+    function render(svgId, summaryId, volumes, flavor, trackingGuide = null) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = "";
+      const extents = computeExtents(volumes);
+      const proj = makeProjector(extents, true);
+      addAxis(svg, proj);
+      if (flavor === "source" && trackingGuide) drawSourceGuide(svg, trackingGuide, proj);
+      const ordered = [...volumes].sort((a, b) => {
+        const pa = (a.shape.includes("shell") || a.shape === "disk") ? 1 : 0;
+        const pb = (b.shape.includes("shell") || b.shape === "disk") ? 1 : 0;
+        return pa - pb;
+      }).filter(v => !(flavor === "tracking" && v.name === "LZ_detector"));
+      for (const v of ordered) {
+        drawVolume(svg, v, proj, flavor === "tracking" ? trackingStyle(v) : sourceStyle(v), flavor);
+      }
+      document.getElementById(summaryId).textContent =
+        `${volumes.length} volumes, z=[${extents.zmin.toFixed(1)}, ${extents.zmax.toFixed(1)}] cm`;
+    }
+
+    async function load() {
+      const [tracking, source] = await Promise.all([
+        fetch(trackingPath).then(r => r.json()),
+        fetch(sourcePath).then(r => r.json())
+      ]);
+      window._trackingVolumes = tracking.volumes;
+      window._sourceVolumes = source.sources;
+
+      const redraw = () => {
+        render("tracking-svg", "tracking-summary", tracking.volumes, "tracking");
+        render("source-svg", "source-summary", source.sources, "source", tracking.volumes);
+        updateLegend(tracking.volumes, source.sources);
+      };
+
+      document.getElementById("legend-source-toggle").addEventListener("change", redraw);
+
+      redraw();
+      setMeta("Selection", [], "Click a volume to inspect its metadata.");
+    }
+
+    load().catch(err => {
+      setMeta("Load error", [["message", String(err)]], "The viewer could not load the JSON files. Serve this HTML through a local web server.");
+    });
+  </script>
+</body>
+</html>
