@@ -79,7 +79,7 @@ export load_detector_v2, root_node, node_by_name, child_nodes, detector_summary
 export validate_detector_v2, tree_dump, sibling_overlaps
 export region_tag, is_fv, is_active_lxe, is_veto_lxe, is_passive_lxe
 export is_structural, is_vacuum, is_sensitive, is_fv_target, ecut_keV, dz_mm
-export find_node_v2, classify_runtime_v2
+export find_node_v2, classify_runtime_v2, geometric_prefilter_v2
 
 # --- Sampling ---
 export sample_distance, sample_process
@@ -97,8 +97,8 @@ export classify_lxe_region, veto_threshold
 export cluster_deposits_in_z, is_single_site
 
 # --- Decays ---
-export DecayGamma, DecayScheme, GammaEmission
-export load_decays, sample_decay, sample_isotropic_direction
+export DecayGamma, DecayScheme, GammaEmission, SampledGamma
+export load_decays, sample_decay, sample_event, sample_isotropic_direction
 export FluxTable, spectrum_E, spectrum_u, E_centers, u_centers, survival_fraction
 export peak_bin_fraction, off_peak_fraction
 export propagate_in_source, random_position_in_volume, generate_source_flux

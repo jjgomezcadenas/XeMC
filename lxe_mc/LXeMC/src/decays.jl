@@ -100,6 +100,13 @@ struct GammaEmission
 end
 
 
+struct SampledGamma
+    E_MeV::Float64
+    position::Vector{Float64}
+    direction::Vector{Float64}
+end
+
+
 """
     sample_isotropic_direction(rng) -> Vector{Float64}
 
@@ -141,4 +148,20 @@ function sample_decay(scheme::DecayScheme, rng::AbstractRNG)::Vector{GammaEmissi
     end
 
     emissions
+end
+
+
+function sample_event(isotope, source; calib::Bool=false, rng::AbstractRNG=Random.default_rng())::Vector{SampledGamma}
+    calib || error("sample_event(...; calib=false) is not implemented yet")
+
+    multiplicity = rand(rng, 0:2)
+    gammas = SampledGamma[]
+    for _ in 1:multiplicity
+        push!(gammas, SampledGamma(
+            2.615,
+            Float64[0.0, 0.0, 160.0],
+            sample_isotropic_direction(rng)
+        ))
+    end
+    gammas
 end

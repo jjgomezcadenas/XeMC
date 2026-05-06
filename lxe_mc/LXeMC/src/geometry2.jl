@@ -149,6 +149,25 @@ function classify_runtime_v2(det::DetectorV2, pos::NTuple{3,<:Real})
 end
 
 
+function _line_reaches_fv(det::DetectorV2, gamma; step_cm::Float64=0.5, max_cm::Float64=400.0)::Bool
+    pos = copy(gamma.position)
+    dir = gamma.direction
+    nsteps = floor(Int, max_cm / step_cm)
+    for _ in 0:nsteps
+        cls = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
+        cls !== nothing && cls.fv_target && return true
+        pos .+= dir .* step_cm
+    end
+    false
+end
+
+
+function geometric_prefilter_v2(det::DetectorV2, gammas)::Bool
+    isempty(gammas) && return false
+    any(g -> _line_reaches_fv(det, g), gammas)
+end
+
+
 function veto_threshold(tag::RegionTag, cfg::SimConfig)::Float64
     tag == TAG_TPC_ACTIVE && return cfg.veto_TPC
     tag == TAG_SKIN && return cfg.veto_skin

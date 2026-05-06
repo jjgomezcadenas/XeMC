@@ -329,6 +329,43 @@ end
     @test !c.sensitive
 end
 
+@testset "V2 sampler and geometric prefilter" begin
+    for i in 1:50
+        ev = sample_event("Tl208", "calib"; calib=true, rng=MersenneTwister(1234 + i))
+        @test length(ev) in (0, 1, 2)
+        for g in ev
+            @test g.E_MeV ≈ 2.615 atol=GEOM_TOL
+            @test length(g.position) == 3
+            @test length(g.direction) == 3
+        end
+    end
+
+    empty_ev = SampledGamma[]
+    @test !geometric_prefilter_v2(DET2, empty_ev)
+
+    hit_fv = [
+        SampledGamma(2.615, Float64[0.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+    ]
+    @test geometric_prefilter_v2(DET2, hit_fv)
+
+    miss_fv = [
+        SampledGamma(2.615, Float64[100.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+    ]
+    @test !geometric_prefilter_v2(DET2, miss_fv)
+
+    two_gammas_one_hits = [
+        SampledGamma(2.615, Float64[100.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]),
+        SampledGamma(2.615, Float64[0.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+    ]
+    @test geometric_prefilter_v2(DET2, two_gammas_one_hits)
+
+    two_gammas_miss = [
+        SampledGamma(2.615, Float64[100.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]),
+        SampledGamma(2.615, Float64[-100.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+    ]
+    @test !geometric_prefilter_v2(DET2, two_gammas_miss)
+end
+
 
 # =====================================================================
 # Test 3b: Geometric solids and CylShell
