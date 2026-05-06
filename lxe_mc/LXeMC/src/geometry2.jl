@@ -130,6 +130,24 @@ is_sensitive(node::DetectorNode)::Bool = node.lv.sensitive
 
 is_fv_target(node::DetectorNode)::Bool = node.lv.fv_target
 
+ecut_keV(node::DetectorNode)::Float64 = node.lv.ecut_keV
+
+dz_mm(node::DetectorNode)::Float64 = node.lv.dz_mm
+
+
+function classify_runtime_v2(det::DetectorV2, pos::NTuple{3,<:Real})
+    node = find_node_v2(det, pos)
+    node === nothing && return nothing
+    (
+        node = node,
+        name = node.lv.name,
+        sensitive = is_sensitive(node),
+        ecut_keV = ecut_keV(node),
+        dz_mm = dz_mm(node),
+        fv_target = is_fv_target(node)
+    )
+end
+
 
 function veto_threshold(tag::RegionTag, cfg::SimConfig)::Float64
     tag == TAG_TPC_ACTIVE && return cfg.veto_TPC

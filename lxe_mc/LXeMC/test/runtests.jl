@@ -274,6 +274,61 @@ end
     end
 end
 
+@testset "Runtime classification V2" begin
+    c = classify_runtime_v2(DET2, (0.0, 0.0, 61.0))
+    @test c !== nothing
+    @test c.name == "FV"
+    @test c.sensitive
+    @test c.ecut_keV ≈ 10.0 atol=GEOM_TOL
+    @test c.dz_mm ≈ 3.0 atol=GEOM_TOL
+    @test c.fv_target
+
+    c = classify_runtime_v2(DET2, (60.0, 0.0, 120.0))
+    @test c !== nothing
+    @test c.name == "LXeTPC"
+    @test c.sensitive
+    @test c.ecut_keV ≈ 10.0 atol=GEOM_TOL
+    @test c.dz_mm ≈ 3.0 atol=GEOM_TOL
+    @test !c.fv_target
+
+    c = classify_runtime_v2(DET2, (78.0, 0.0, 100.0))
+    @test c !== nothing
+    @test c.name == "Skin"
+    @test c.sensitive
+    @test c.ecut_keV ≈ 100.0 atol=GEOM_TOL
+    @test c.dz_mm ≈ 3.0 atol=GEOM_TOL
+    @test !c.fv_target
+
+    c = classify_runtime_v2(DET2, (0.0, 0.0, -20.0))
+    @test c !== nothing
+    @test c.name == "LXe_det"
+    @test !c.sensitive
+    @test c.ecut_keV ≈ 0.0 atol=GEOM_TOL
+    @test c.dz_mm ≈ 0.0 atol=GEOM_TOL
+    @test !c.fv_target
+
+    c = classify_runtime_v2(DET2, (0.0, 0.0, 160.0))
+    @test c !== nothing
+    @test c.name == "AirDome"
+    @test !c.sensitive
+    @test !c.fv_target
+
+    c = classify_runtime_v2(DET2, (73.55, 0.0, 100.0))
+    @test c !== nothing
+    @test c.name == "FC_PTFE"
+    @test !c.sensitive
+
+    c = classify_runtime_v2(DET2, (74.45, 0.0, 100.0))
+    @test c !== nothing
+    @test c.name == "FC_rings"
+    @test !c.sensitive
+
+    c = classify_runtime_v2(DET2, (110.0, 0.0, 0.0))
+    @test c !== nothing
+    @test c.name == "MARS"
+    @test !c.sensitive
+end
+
 
 # =====================================================================
 # Test 3b: Geometric solids and CylShell

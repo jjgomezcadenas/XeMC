@@ -78,7 +78,8 @@ export TAG_FV, TAG_SKIN, TAG_PASSIVE_LXE
 export load_detector_v2, root_node, node_by_name, child_nodes, detector_summary
 export validate_detector_v2, tree_dump, sibling_overlaps
 export region_tag, is_fv, is_active_lxe, is_veto_lxe, is_passive_lxe
-export is_structural, is_vacuum, is_sensitive, is_fv_target, find_node_v2
+export is_structural, is_vacuum, is_sensitive, is_fv_target, ecut_keV, dz_mm
+export find_node_v2, classify_runtime_v2
 
 # --- Sampling ---
 export sample_distance, sample_process
