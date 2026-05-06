@@ -6,9 +6,31 @@ This note records the event-level logic that should be kept separate from the ge
 
 The important concepts are:
 
+- source geometry vs tracking geometry
 - mother/daughter material precedence
 - sensitive volumes
 - `FV` as a special fast-prefilter target
+
+## Source geometry vs tracking geometry
+
+The event-level fast logic assumes a reduced tracking geometry.
+
+Radioactive source objects such as:
+
+- Ti cryostat shells
+- flanges
+- MLI
+- later PMT source objects
+
+are primarily part of source geometry, not necessarily part of the runtime tracking tree.
+
+Their effect should enter through the source-flux stage.
+
+The tracking geometry should then start from the detector cavities and internal detector regions relevant for:
+
+- FV reachability
+- sensitive-region hits
+- veto logic
 
 ## Material precedence
 
@@ -119,5 +141,6 @@ Geometry V2 should eventually provide at least:
 - material / region ownership by strict descent
 - a way to identify `FV` as the prefilter target
 - a way to identify sensitive regions and their hit policy
+- a reduced tracking tree that excludes source-only geometry when appropriate
 
 Transport should not need to know the full analysis policy beyond those semantics.

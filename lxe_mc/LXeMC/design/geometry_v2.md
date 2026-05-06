@@ -8,6 +8,7 @@ Geometry V2 introduces:
 - explicit mother/daughter topology
 - explicit simulation semantics via tags
 - explicit modeling status via approximation labels
+- a separation between source geometry and tracking geometry
 
 The current geometry path remains in place during the migration.
 
@@ -71,6 +72,59 @@ This requires one geometric constraint:
 
 This is the key invariant of the V2 tree.
 
+## Source geometry vs tracking geometry
+
+This distinction is essential.
+
+### Source geometry
+
+Source geometry is used to model radioactive components and compute source fluxes.
+
+Examples:
+
+- Ti cryostat barrel and heads
+- flanges
+- MLI
+- later PMT source objects
+
+These objects are relevant because:
+
+- they host radioactivity
+- they may self-shield source gammas before those gammas enter the detector cavity
+
+### Tracking geometry
+
+Tracking geometry is the reduced geometry used after the source-flux stage.
+
+It should include only what is needed for:
+
+- geometric acceptance to `FV`
+- hit formation in sensitive regions
+- veto logic
+
+Therefore, source objects such as Ti cryostat shells do not necessarily belong in the tracking tree if their effect has already been absorbed into the source-flux stage.
+
+This is now the intended philosophy for V2.
+
+### Consequence
+
+The runtime tracking tree should be built from detector cavities and internal detector regions, not automatically from every radioactive shell object.
+
+For current purposes, the desired high-level tracking structure is closer to:
+
+- `LZ_det`
+  - `OCV_void`
+    - `ICV_void`
+      - `LXe_detector`
+        - `LXeTPC`
+        - `Skin`
+        - `RFR`
+        - `Dome`
+        - field-cage structures
+        - later PMTs and internal objects as needed
+
+The Ti shells remain source geometry unless a later transport use case requires them.
+
 ## Materials and containers
 
 Container volumes are allowed.
@@ -88,7 +142,7 @@ Examples:
 
 - `ICV_void` may be vacuum
 - `LXe_detector` registered inside `ICV_void` displaces vacuum with LXe
-- PTFE, Ti, PMTs, grids, etc. registered inside `LXe_detector` displace LXe
+- PTFE, PMTs, grids, etc. registered inside `LXe_detector` displace LXe
 
 So a mother does not need to remain homogeneous after placement. It only defines the default material of space not occupied by daughters.
 
@@ -182,22 +236,23 @@ Examples:
 
 These exist to encode space and topology, not necessarily to represent separate hardware pieces.
 
-## Unions
+## Restricted container solids
 
-A likely next extension is restricted union solids for container volumes.
+The current preferred extension is not a generic union, but a restricted domed container solid.
 
 Examples:
 
-- `OCV = barrel + top cap + bottom cap`
-- `ICV = barrel + top cap + bottom cap`
+- `LZ_det = barrel + top cap + bottom cap`
+- `OCV_void = barrel cavity + top cavity cap + bottom cavity cap`
 - `ICV_void = barrel cavity + top cavity cap + bottom cavity cap`
-- `LXe_detector = cylinder + cap(s)` if needed
+- `LXe_detector = barrel + cap(s)` if needed
 
 This is preferred over proxy cylindrical mothers when the daughters extend into head regions.
 
 The intended scope is narrow:
 
-- unions of a small number of supported analytic primitives
+- one cylinder plus one top cap plus one bottom cap
+- coaxial only
 - not general boolean geometry
 
 ## Runtime representation
@@ -248,6 +303,7 @@ Target design:
 2. Implement `load_detector_v2`.
 3. Add validation and tree inspection utilities.
 4. Add semantic helpers and point location.
-5. Repair mother/daughter containment so strict descent is valid.
-6. Add V2 navigation.
-7. Migrate `propagate_to_lxe` to V2 after comparison with the current path.
+5. Separate source geometry from tracking geometry.
+6. Repair mother/daughter containment in the tracking tree so strict descent is valid.
+7. Add V2 navigation.
+8. Migrate `propagate_to_lxe` to V2 after comparison with the current path.

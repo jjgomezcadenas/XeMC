@@ -6,6 +6,7 @@ Branch: `newGeometry`
 
 Recent commits:
 
+- `2a7bc2f` `Add DomedContainer solid for Geometry V2`
 - `6f789af` `Add Geometry V2 semantic helpers and point location`
 - `b83504a` `Add Geometry V2 validation and figure tooling`
 - `89c3336` `Add Geometry V2 loader and hierarchy types`
@@ -31,6 +32,7 @@ Implemented in [src/geometry2.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXe
 - validation helpers
 - overlap reporting
 - tree dump
+- `DomedContainer`
 
 The V2 path is loaded in [src/LXeMC.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/src/LXeMC.jl).
 
@@ -54,7 +56,20 @@ It also includes helper/container-style regions such as:
 - `OCV_void`
 - `ICV_LXe_interior`
 
-### 3. New solid for filled lower head
+### 3. New container solid
+
+Implemented only in the V2 path:
+
+- `DomedContainer`
+
+This is the preferred restricted mother/container solid for:
+
+- one cylinder
+- one top cap
+- one bottom cap
+- coaxial layouts
+
+### 4. New solid for filled lower head
 
 Implemented only in the V2 path:
 
@@ -65,7 +80,7 @@ The lower passive LXe region was split into:
 - `DomeBarrel`
 - `DomeBottomCap`
 
-### 4. Validation and inspection
+### 5. Validation and inspection
 
 Implemented:
 
@@ -86,13 +101,13 @@ This script can:
 - print overlaps
 - generate LaTeX/TikZ figures
 
-### 5. Official figure source
+### 6. Official figure source
 
 Canonical figure source:
 
 - [design/latex/lz_geometry_v2.tex](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/latex/lz_geometry_v2.tex)
 
-### 6. Tests
+### 7. Tests
 
 Current V2 coverage in:
 
@@ -110,7 +125,18 @@ Run this from:
 
 ## Important current limitations
 
-### 1. V2 is not yet used by transport
+### 1. Source geometry vs tracking geometry is not yet reflected in the JSON
+
+We now want V2 to distinguish:
+
+- source geometry
+- tracking geometry
+
+This has not yet been encoded cleanly in `detector_lz_v2.json`.
+
+In particular, Ti cryostat shells are source objects first, and may not belong in the reduced tracking tree at all.
+
+### 2. V2 is not yet used by transport
 
 The production transport path is still based on the old geometry model in:
 
@@ -125,7 +151,7 @@ In particular:
 
 are still old-path logic.
 
-### 2. Current point location is temporary
+### 3. Current point location is temporary
 
 `find_node_v2` currently uses a global containing-node selection:
 
@@ -138,17 +164,17 @@ This was introduced as a correctness fallback because the current helper/mother 
 
 This is not the intended final design.
 
-### 3. Mother/daughter containment is still inconsistent
+### 4. Mother/daughter containment is still inconsistent
 
-The present V2 file still contains helper/proxy mothers that are not true geometric containers for all children.
+The present V2 file still mixes source-style objects and tracking-style mothers, and also contains helper/proxy mothers that are not true geometric containers for all children.
 
 This must be repaired before implementing final navigation.
 
-### 4. Semantics are only partially migrated
+### 5. Semantics are only partially migrated
 
 The V2 path now has semantic helpers, but the runtime transport/veto path has not yet been switched to use them.
 
-### 5. Geometry figure is a support artifact, not physics validation
+### 6. Geometry figure is a support artifact, not physics validation
 
 The figure is useful for human inspection only. It does not validate transport correctness.
 
@@ -156,7 +182,24 @@ The figure is useful for human inspection only. It does not validate transport c
 
 The next work should correct the geometry model before adding more transport logic.
 
-### Step 1. Repair the geometry hierarchy
+### Step 1. Separate tracking geometry from source geometry
+
+Goal:
+
+- define the reduced runtime tracking tree
+
+Likely actions:
+
+- introduce top-level tracking containers such as:
+  - `LZ_det`
+  - `OCV_void`
+  - `ICV_void`
+  - `LXe_detector`
+- keep Ti shells and other radioactive shells conceptually in source geometry rather than forcing them into the runtime tracking tree
+
+This is now the priority issue.
+
+### Step 2. Repair mother/daughter containment in the tracking tree
 
 Goal:
 
@@ -165,12 +208,10 @@ Goal:
 Likely actions:
 
 - replace proxy cylindrical mothers where they fail containment
-- introduce proper container/cavity regions such as `ICV_void`
-- consider restricted union solids for barrel + head container volumes
+- use `DomedContainer` for barrel + head container volumes
+- reparent LXe and internal detector objects under the reduced tracking-tree mothers
 
-This is now the priority issue.
-
-### Step 2. Restore strict descent-based point location
+### Step 3. Restore strict descent-based point location
 
 Goal:
 
@@ -182,7 +223,7 @@ Target behavior:
 - only test candidate daughters of the current mother
 - return the deepest containing node
 
-### Step 3. Add classification comparison tests
+### Step 4. Add classification comparison tests
 
 Goal:
 
@@ -207,7 +248,7 @@ For each point:
 - record V2 node + tag
 - confirm the new semantic interpretation is what is intended
 
-### Step 4. Add V2 boundary / navigation skeleton
+### Step 5. Add V2 boundary / navigation skeleton
 
 Goal:
 
@@ -221,7 +262,7 @@ Add basic helpers:
 
 Do not try to solve the full optimized navigator at once.
 
-### Step 5. Add event-level FV prefilter logic
+### Step 6. Add event-level FV prefilter logic
 
 Goal:
 
@@ -235,7 +276,7 @@ Event-level rule:
 
 This should happen before full event stack development.
 
-### Step 6. Add `propagate_to_lxe_v2`
+### Step 7. Add `propagate_to_lxe_v2`
 
 Goal:
 
@@ -244,7 +285,7 @@ Goal:
 
 Do this as a parallel function first.
 
-### Step 7. Compare old and new behavior
+### Step 8. Compare old and new behavior
 
 Before retiring old logic, compare:
 
@@ -272,19 +313,21 @@ When resuming work:
    - [src/geometry2.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/src/geometry2.jl)
    - [src/tracking.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/src/tracking.jl)
    - [data/detector_lz_v2.json](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/data/detector_lz_v2.json)
-   - [scripts/inspect_geometry_v2.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/inspect_geometry_v2.jl)
+   - [scripts/draw_geometry.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/draw_geometry.jl)
    - [design/geometry_v2_prefilter.md](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/geometry_v2_prefilter.md)
 3. First target:
-   - repair mother/daughter containment
+   - separate tracking geometry from source geometry
+   - repair mother/daughter containment in the tracking tree
    - then restore strict descent
 4. Then add/adjust tests before transport integration
 
 ## Suggested next commit sequence
 
-1. `Repair Geometry V2 containment hierarchy`
-2. `Restore strict Geometry V2 point location`
-3. `Add Geometry V2 classification comparison tests`
-4. `Add Geometry V2 FV prefilter`
-5. `Add experimental propagate_to_lxe_v2`
+1. `Separate Geometry V2 tracking tree from source geometry`
+2. `Repair Geometry V2 containment hierarchy`
+3. `Restore strict Geometry V2 point location`
+4. `Add Geometry V2 classification comparison tests`
+5. `Add Geometry V2 FV prefilter`
+6. `Add experimental propagate_to_lxe_v2`
 
 This sequence is preferred over one large integration commit.
