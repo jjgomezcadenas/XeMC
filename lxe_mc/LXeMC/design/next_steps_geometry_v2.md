@@ -315,6 +315,7 @@ When resuming work:
    - [data/detector_lz_v2.json](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/data/detector_lz_v2.json)
    - [scripts/draw_geometry.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/draw_geometry.jl)
    - [design/geometry_v2_prefilter.md](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/geometry_v2_prefilter.md)
+   - [design/source_vs_tracking_geometry.md](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/source_vs_tracking_geometry.md)
 3. First target:
    - separate tracking geometry from source geometry
    - repair mother/daughter containment in the tracking tree
