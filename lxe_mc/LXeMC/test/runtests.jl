@@ -159,6 +159,37 @@ end
     @test occursin("  - OCV_void", dump)
     @test occursin("    - ICV_LXe_interior", dump)
     @test occursin("      - LXeTPC", dump)
+
+    @test is_fv(fv)
+    @test is_active_lxe(fv)
+    @test is_active_lxe(tpc)
+    @test is_veto_lxe(tpc)
+    @test is_veto_lxe(skin)
+    @test !is_veto_lxe(dome_barrel)
+    @test is_passive_lxe(dome_barrel)
+    @test is_passive_lxe(icv_lxe)
+    @test is_vacuum(root)
+    @test is_vacuum(ocv_void)
+    @test is_structural(ocv_barrel)
+
+    @test veto_threshold(fv, CFG) == 0.0
+    @test veto_threshold(tpc, CFG) == CFG.veto_TPC
+    @test veto_threshold(skin, CFG) == CFG.veto_skin
+    @test veto_threshold(dome_barrel, CFG) == Inf
+    @test veto_threshold(TAG_TPC_ACTIVE, CFG) == CFG.veto_TPC
+    @test veto_threshold(TAG_SKIN, CFG) == CFG.veto_skin
+
+    @test find_node_v2(DET2, (0.0, 0.0, 61.0)).lv.name == "FV"
+    @test find_node_v2(DET2, (0.0, 0.0, 120.0)).lv.name == "LXeTPC"
+    @test find_node_v2(DET2, (78.0, 0.0, 100.0)).lv.name == "Skin"
+    @test find_node_v2(DET2, (0.0, 0.0, -6.0)).lv.name == "RFR"
+    @test find_node_v2(DET2, (0.0, 0.0, -28.0)).lv.name == "DomeBarrel"
+    @test find_node_v2(DET2, (0.0, 0.0, -55.0)).lv.name == "DomeBottomCap"
+    @test find_node_v2(DET2, (82.5, 0.0, 100.0)).lv.name == "ICV_barrel"
+    @test find_node_v2(DET2, (86.0, 0.0, 100.0)).lv.name == "OCV_void"
+    @test find_node_v2(DET2, (91.0, 0.0, 100.0)).lv.name == "OCV_barrel"
+    @test find_node_v2(DET2, (110.0, 0.0, 0.0)).lv.name == "MARS"
+    @test find_node_v2(DET2, (200.0, 0.0, 0.0)) === nothing
 end
 
 

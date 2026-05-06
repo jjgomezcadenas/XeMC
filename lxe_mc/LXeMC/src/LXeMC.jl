@@ -76,6 +76,8 @@ export TAG_WORLD, TAG_VACUUM, TAG_STRUCTURAL, TAG_TPC_ACTIVE
 export TAG_FV, TAG_SKIN, TAG_PASSIVE_LXE
 export load_detector_v2, root_node, node_by_name, child_nodes, detector_summary
 export validate_detector_v2, tree_dump, sibling_overlaps
+export region_tag, is_fv, is_active_lxe, is_veto_lxe, is_passive_lxe
+export is_structural, is_vacuum, find_node_v2
 
 # --- Sampling ---
 export sample_distance, sample_process

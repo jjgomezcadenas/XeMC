@@ -68,6 +68,33 @@ struct DetectorV2
 end
 
 
+region_tag(node::DetectorNode) = node.lv.tag
+
+is_fv(node::DetectorNode)::Bool = region_tag(node) == TAG_FV
+
+is_active_lxe(node::DetectorNode)::Bool = region_tag(node) in (TAG_TPC_ACTIVE, TAG_FV)
+
+is_veto_lxe(node::DetectorNode)::Bool = region_tag(node) in (TAG_TPC_ACTIVE, TAG_SKIN)
+
+is_passive_lxe(node::DetectorNode)::Bool = region_tag(node) == TAG_PASSIVE_LXE
+
+is_structural(node::DetectorNode)::Bool = region_tag(node) == TAG_STRUCTURAL
+
+is_vacuum(node::DetectorNode)::Bool = region_tag(node) in (TAG_WORLD, TAG_VACUUM)
+
+
+function veto_threshold(tag::RegionTag, cfg::SimConfig)::Float64
+    tag == TAG_TPC_ACTIVE && return cfg.veto_TPC
+    tag == TAG_SKIN && return cfg.veto_skin
+    tag == TAG_FV && return 0.0
+    tag == TAG_PASSIVE_LXE && return Inf
+    Inf
+end
+
+
+veto_threshold(node::DetectorNode, cfg::SimConfig)::Float64 = veto_threshold(region_tag(node), cfg)
+
+
 function _parse_region_tag(raw)::RegionTag
     s = lowercase(String(raw))
     s == "world" && return TAG_WORLD
@@ -178,6 +205,9 @@ function is_inside(node::DetectorNode, pos::Vector{Float64})
     end
     is_inside(_logical_volume(node), pos)
 end
+
+
+is_inside(node::DetectorNode, pos::NTuple{3,<:Real}) = is_inside(node, Float64[pos...])
 
 
 function _sample_points(node::DetectorNode)::Vector{Vector{Float64}}
@@ -309,6 +339,15 @@ function cap_volume(cap::Cap)::Float64
     a = cap.radius_cm
     c = depth(cap)
     2.0 / 3.0 * π * a^2 * c
+end
+
+
+function volume(node::DetectorNode)::Float64
+    solid = node.lv.solid
+    if solid isa Cap
+        return cap_volume(solid)
+    end
+    return volume(solid)
 end
 
 
@@ -449,3 +488,39 @@ function detector_summary(det::DetectorV2)::String
     root = root_node(det)
     "DetectorV2($(det.name)): $(length(det.nodes)) nodes, root=$(root.lv.name)"
 end
+
+
+function _node_depth(det::DetectorV2, node::DetectorNode)::Int
+    depth = 0
+    current = node
+    while current.parent_id != 0
+        depth += 1
+        current = det.nodes[current.parent_id]
+    end
+    depth
+end
+
+
+function find_node_v2(det::DetectorV2, pos::Vector{Float64})::Union{DetectorNode,Nothing}
+    containing = DetectorNode[]
+    for node in det.nodes
+        is_inside(node, pos) && push!(containing, node)
+    end
+    isempty(containing) && return nothing
+
+    max_depth = maximum(_node_depth(det, node) for node in containing)
+    candidates = [node for node in containing if _node_depth(det, node) == max_depth]
+
+    exact = [node for node in candidates if node.lv.approximation == "exact"]
+    candidates = isempty(exact) ? candidates : exact
+
+    if length(candidates) > 1
+        volumes = [volume(node) for node in candidates]
+        candidates = [candidates[sortperm(volumes)[1]]]
+    end
+
+    first(candidates)
+end
+
+
+find_node_v2(det::DetectorV2, pos::NTuple{3,<:Real}) = find_node_v2(det, Float64[pos...])
