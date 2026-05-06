@@ -92,20 +92,19 @@ Implemented:
 
 Official inspection script:
 
-- [scripts/inspect_geometry_v2.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/inspect_geometry_v2.jl)
+- [scripts/geometry_viewer.html](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/geometry_viewer.html)
 
-This script can:
+This viewer can:
 
-- print summary
-- print tree
-- print overlaps
-- generate LaTeX/TikZ figures
+- show tracking and source geometry side by side
+- inspect metadata by clicking on a volume
+- switch the right-side legend between tracking and source color maps
 
-### 6. Official figure source
+### 6. Official geometry inspection
 
-Canonical figure source:
+Canonical inspection path:
 
-- [design/latex/lz_geometry_v2.tex](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/latex/lz_geometry_v2.tex)
+- [scripts/geometry_viewer.html](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/geometry_viewer.html)
 
 ### 7. Tests
 
@@ -313,7 +312,7 @@ When resuming work:
    - [src/geometry2.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/src/geometry2.jl)
    - [src/tracking.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/src/tracking.jl)
    - [data/detector_lz_v2.json](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/data/detector_lz_v2.json)
-   - [scripts/draw_geometry.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/draw_geometry.jl)
+   - [scripts/geometry_viewer.html](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/geometry_viewer.html)
    - [design/geometry_v2_prefilter.md](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/geometry_v2_prefilter.md)
    - [design/source_vs_tracking_geometry.md](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/source_vs_tracking_geometry.md)
 3. First target:
