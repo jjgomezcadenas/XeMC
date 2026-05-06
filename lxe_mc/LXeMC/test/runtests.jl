@@ -250,11 +250,23 @@ end
     @test !is_inside(lde, [0.0, 0.0, 12.0])    # inside inner ellipsoid
     @test !is_inside(lde, [0.0, 0.0, 28.0])    # outside outer ellipsoid
 
+    # DomedContainer: coaxial barrel plus two filled caps
+    dc = DomedContainer(50.0, 20.0, Cap(50.0, 2.0), Cap(50.0, 3.0))
+    @test volume(dc) ≈ (40.0 * π * 50.0^2 + (2.0 / 3.0) * π * 50.0^2 * 25.0 + (2.0 / 3.0) * π * 50.0^2 * (50.0 / 3.0))
+    dc_lv = LogicalVolumeV2("dc", dc, MATS["Vacuum"], TAG_VACUUM, "container", "exact", Dict{String,Float64}())
+    dc_node = DetectorNode(1, 0, Int[], dc_lv, PlacementV2([0.0, 0.0, 0.0], :none))
+    @test is_inside(dc_node, [0.0, 0.0, 0.0])        # barrel center
+    @test is_inside(dc_node, [0.0, 0.0, 30.0])       # inside top cap
+    @test is_inside(dc_node, [0.0, 0.0, -30.0])      # inside bottom cap
+    @test !is_inside(dc_node, [0.0, 0.0, 50.0])      # above top cap
+    @test !is_inside(dc_node, [60.0, 0.0, 0.0])      # outside radius
+
     # Validation
     @test_throws ErrorException Cyl(-1.0, 5.0)
     @test_throws ErrorException CylShell(10.0, -1.0, 5.0)
     @test_throws ErrorException Box(0.0, 5.0, 5.0)
     @test_throws ErrorException Disk(-1.0, 1.0, 2.0)
+    @test_throws ErrorException DomedContainer(50.0, 10.0, Cap(40.0, 2.0), Cap(50.0, 3.0))
 end
 
 

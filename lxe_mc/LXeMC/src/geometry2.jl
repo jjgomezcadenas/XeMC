@@ -34,6 +34,25 @@ end
 depth(c::Cap) = c.radius_cm / c.aspect_ratio
 
 
+struct DomedContainer
+    radius_cm::Float64
+    barrel_half_height_cm::Float64
+    top_cap::Cap
+    bottom_cap::Cap
+
+    function DomedContainer(radius::Real,
+                            barrel_half_height::Real,
+                            top_cap::Cap,
+                            bottom_cap::Cap)
+        radius > 0 || error("DomedContainer: radius must be positive (got $radius)")
+        barrel_half_height >= 0 || error("DomedContainer: barrel_half_height must be non-negative (got $barrel_half_height)")
+        top_cap.radius_cm ≈ Float64(radius) || error("DomedContainer: top cap radius must match container radius")
+        bottom_cap.radius_cm ≈ Float64(radius) || error("DomedContainer: bottom cap radius must match container radius")
+        new(Float64(radius), Float64(barrel_half_height), top_cap, bottom_cap)
+    end
+end
+
+
 struct PlacementV2
     position_cm::Vector{Float64}
     orientation::Symbol
@@ -42,7 +61,7 @@ end
 
 struct LogicalVolumeV2
     name::String
-    solid::Union{Cyl,CylShell,Box,Disk,Cap}
+    solid::Union{Cyl,CylShell,Box,Disk,Cap,DomedContainer}
     material::Material
     tag::RegionTag
     role::String
@@ -138,6 +157,14 @@ function _build_solid_v2(name::String, d)
     elseif shape == "cap"
         return Cap(Float64(d["radius_cm"]),
                    Float64(d["aspect_ratio"]))
+    elseif shape == "domed_container"
+        radius = Float64(d["radius_cm"])
+        return DomedContainer(
+            radius,
+            Float64(d["barrel_half_height_cm"]),
+            Cap(radius, Float64(d["top_aspect_ratio"])),
+            Cap(radius, Float64(d["bottom_aspect_ratio"]))
+        )
     end
     error("Unknown shape '$shape' for volume '$name'")
 end
@@ -173,7 +200,7 @@ function _logical_volume(node::DetectorNode)
         return LBox(solid, pos)
     elseif solid isa Disk
         return LDisk(solid, pos, node.placement.orientation)
-    elseif solid isa Cap
+    elseif solid isa Cap || solid isa DomedContainer
         return nothing
     end
     error("Unsupported solid type for node '$(node.lv.name)'")
@@ -198,10 +225,33 @@ function _is_inside_cap(cap::Cap, placement::PlacementV2, pos::Vector{Float64}):
 end
 
 
+function _is_inside_domed_container(dc::DomedContainer, placement::PlacementV2, pos::Vector{Float64})::Bool
+    dx = pos[1] - placement.position_cm[1]
+    dy = pos[2] - placement.position_cm[2]
+    dz = pos[3] - placement.position_cm[3]
+    r2 = dx^2 + dy^2
+    R = dc.radius_cm
+    r2 > R^2 && return false
+
+    H = dc.barrel_half_height_cm
+    if abs(dz) <= H
+        return true
+    elseif dz > H
+        top_pos = Float64[placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] + H]
+        return _is_inside_cap(dc.top_cap, PlacementV2(top_pos, :up), pos)
+    else
+        bottom_pos = Float64[placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] - H]
+        return _is_inside_cap(dc.bottom_cap, PlacementV2(bottom_pos, :down), pos)
+    end
+end
+
+
 function is_inside(node::DetectorNode, pos::Vector{Float64})
     solid = node.lv.solid
     if solid isa Cap
         return _is_inside_cap(solid, node.placement, pos)
+    elseif solid isa DomedContainer
+        return _is_inside_domed_container(solid, node.placement, pos)
     end
     is_inside(_logical_volume(node), pos)
 end
@@ -279,6 +329,20 @@ function _sample_points(node::DetectorNode)::Vector{Vector{Float64}}
             Float64[cx, cy, z_apex],
             Float64[cx + 0.5 * solid.radius_cm, cy, z_mid]
         ]
+    elseif solid isa DomedContainer
+        H = solid.barrel_half_height_cm
+        dt = depth(solid.top_cap)
+        db = depth(solid.bottom_cap)
+        return [
+            Float64[cx, cy, cz],
+            Float64[cx + 0.5 * solid.radius_cm, cy, cz],
+            Float64[cx, cy, cz + 0.999 * H],
+            Float64[cx, cy, cz - 0.999 * H],
+            Float64[cx, cy, cz + H + 0.5 * dt],
+            Float64[cx, cy, cz - H - 0.5 * db],
+            Float64[cx + 0.5 * solid.radius_cm, cy, cz + H + 0.5 * dt],
+            Float64[cx + 0.5 * solid.radius_cm, cy, cz - H - 0.5 * db]
+        ]
     end
     error("Unsupported solid type for node '$(node.lv.name)'")
 end
@@ -342,10 +406,18 @@ function cap_volume(cap::Cap)::Float64
 end
 
 
+function volume(dc::DomedContainer)::Float64
+    2.0 * dc.barrel_half_height_cm * π * dc.radius_cm^2 +
+    cap_volume(dc.top_cap) + cap_volume(dc.bottom_cap)
+end
+
+
 function volume(node::DetectorNode)::Float64
     solid = node.lv.solid
     if solid isa Cap
         return cap_volume(solid)
+    elseif solid isa DomedContainer
+        return volume(solid)
     end
     return volume(solid)
 end

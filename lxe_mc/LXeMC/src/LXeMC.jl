@@ -72,6 +72,7 @@ export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
 export Detector, active_volume, fiducial_volume, find_volume, load_detector
 export distance_to_entry, distance_to_exit, next_volume
 export RegionTag, PlacementV2, LogicalVolumeV2, DetectorNode, DetectorV2
+export Cap, DomedContainer
 export TAG_WORLD, TAG_VACUUM, TAG_STRUCTURAL, TAG_TPC_ACTIVE
 export TAG_FV, TAG_SKIN, TAG_PASSIVE_LXE
 export load_detector_v2, root_node, node_by_name, child_nodes, detector_summary
