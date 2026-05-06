@@ -5,14 +5,13 @@
 Geometry V2 introduces:
 
 - a new detector JSON schema in `data/detector_lz_v2.json`
-- explicit parent/child topology
+- explicit mother/daughter topology
 - explicit simulation semantics via tags
 - explicit modeling status via approximation labels
 
 The current geometry path remains in place during the migration.
 
-
-## Current Model
+## Current model
 
 Current code in `src/geometry.jl` uses:
 
@@ -28,8 +27,7 @@ Current limitations:
 - region classification from volume names
 - containment not represented explicitly
 
-
-## V2 Schema
+## V2 schema
 
 Top-level fields:
 
@@ -56,19 +54,45 @@ Each entry in `volumes` contains:
 - optional `activity`
 - optional `_doc`
 
+## Mother / daughter rule
 
-## Required Semantics
+`parent` defines registration into a mother volume.
 
-### `parent`
+The intended rule is:
 
-`parent` defines containment.
+- the mother provides default material and default region semantics
+- daughters displace the mother in the space they occupy
+- navigation descends to the deepest containing daughter
+- if no daughter contains the point, the mother owns the point
+
+This requires one geometric constraint:
+
+- every daughter must be strictly contained in its declared mother, within tolerance
+
+This is the key invariant of the V2 tree.
+
+## Materials and containers
+
+Container volumes are allowed.
 
 Examples:
 
-- `FV.parent = LXeTPC`
-- `LXeTPC.parent = ICV_LXe_interior`
-- `ICV_barrel.parent = OCV_void`
-- `OCV_void.parent = MARS`
+- `OCV`
+- `ICV`
+- `ICV_void`
+- `LXe_detector`
+
+These may be filled with vacuum or LXe and then have daughters registered inside them.
+
+Examples:
+
+- `ICV_void` may be vacuum
+- `LXe_detector` registered inside `ICV_void` displaces vacuum with LXe
+- PTFE, Ti, PMTs, grids, etc. registered inside `LXe_detector` displace LXe
+
+So a mother does not need to remain homogeneous after placement. It only defines the default material of space not occupied by daughters.
+
+## Tags and roles
 
 ### `tag`
 
@@ -90,9 +114,9 @@ Current tag set:
 
 Examples:
 
+- `cryostat_cavity`
 - `fiducial_region`
 - `field_cage`
-- `cryostat_barrel`
 - `top_grid_holder`
 - `support_flange`
 
@@ -108,20 +132,75 @@ Current values:
 - `mass_equivalent_slab`
 - `negligible_thickness_proxy`
 
+## Sensitive regions
 
-## Region Nodes
+Material alone does not define analysis behavior.
+
+Important distinction:
+
+- sensitive LXe regions
+- passive LXe regions
+
+Current intended semantics:
+
+- `LXeTPC`: sensitive
+- `Skin`: sensitive
+- passive LXe (`RFR`, `Dome`, etc.): not sensitive
+- `FV`: sensitive and also the special fast-prefilter target region
+
+`FV` is not just another sensitive region. It is the event-level target used by the geometric prefilter.
+
+## Helper regions and fake volumes
+
+Volumes such as:
+
+- `LXeTPC`
+- `FV`
+- `Skin`
+- `RFR`
+- `DomeBarrel`
+- `DomeBottomCap`
+
+may be retained even when they are all LXe-filled, because they encode:
+
+- sensitivity
+- hit policy
+- veto policy
+- FV-target semantics
+
+These are analysis/transport control regions, not merely material partitions.
+
+## Region nodes
 
 V2 allows explicit containment regions that are not part objects.
 
-Current examples:
+Examples:
 
 - `OCV_void`
-- `ICV_LXe_interior`
+- `ICV_void`
+- `LXe_detector`
 
-These exist to encode space and topology.
+These exist to encode space and topology, not necessarily to represent separate hardware pieces.
 
+## Unions
 
-## Runtime Representation
+A likely next extension is restricted union solids for container volumes.
+
+Examples:
+
+- `OCV = barrel + top cap + bottom cap`
+- `ICV = barrel + top cap + bottom cap`
+- `ICV_void = barrel cavity + top cavity cap + bottom cavity cap`
+- `LXe_detector = cylinder + cap(s)` if needed
+
+This is preferred over proxy cylindrical mothers when the daughters extend into head regions.
+
+The intended scope is narrow:
+
+- unions of a small number of supported analytic primitives
+- not general boolean geometry
+
+## Runtime representation
 
 V2 runtime model:
 
@@ -131,7 +210,6 @@ V2 runtime model:
 4. detector container: node set + root
 
 The current detector representation remains available during migration.
-
 
 ## Validation
 
@@ -144,12 +222,32 @@ The V2 loader should validate:
 - obvious sibling overlaps
 - required semantic fields present
 
+Validation should be local:
+
+- child inside mother
+- sibling overlap
+
+Global search should only be a debug fallback, not the design.
+
+## Current caveat
+
+The present V2 file still contains some helper/proxy mothers that are not yet true geometric containers for all children.
+
+Because of that, the current `find_node_v2` implementation includes a temporary global containing-node selection.
+
+This is not the target design.
+
+Target design:
+
+- repair the hierarchy so strict mother-to-daughter descent is valid
+- then remove the global fallback
 
 ## Migration
 
 1. Add V2 structs.
 2. Implement `load_detector_v2`.
 3. Add validation and tree inspection utilities.
-4. Use tags instead of name-based region classification in the V2 path.
-5. Add V2 navigation.
-6. Migrate `propagate_to_lxe` to V2 after comparison with the current path.
+4. Add semantic helpers and point location.
+5. Repair mother/daughter containment so strict descent is valid.
+6. Add V2 navigation.
+7. Migrate `propagate_to_lxe` to V2 after comparison with the current path.

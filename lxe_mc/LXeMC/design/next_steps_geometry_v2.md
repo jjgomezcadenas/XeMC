@@ -6,11 +6,12 @@ Branch: `newGeometry`
 
 Recent commits:
 
+- `6f789af` `Add Geometry V2 semantic helpers and point location`
 - `b83504a` `Add Geometry V2 validation and figure tooling`
 - `89c3336` `Add Geometry V2 loader and hierarchy types`
 - `7c34a55` `Add geometry redesign baseline and LZ schema v2`
 
-The working tree was clean when this note was written.
+The working tree was clean when this note was updated.
 
 ## What is already in place
 
@@ -25,6 +26,8 @@ Implemented in [src/geometry2.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXe
 - `DetectorV2`
 - `load_detector_v2`
 - `node_by_name`, `root_node`, `child_nodes`, `detector_summary`
+- semantic helpers
+- `find_node_v2`
 - validation helpers
 - overlap reporting
 - tree dump
@@ -46,7 +49,7 @@ This file already contains:
 - `role`
 - `approximation`
 
-It also includes explicit containment/helper regions such as:
+It also includes helper/container-style regions such as:
 
 - `OCV_void`
 - `ICV_LXe_interior`
@@ -56,8 +59,6 @@ It also includes explicit containment/helper regions such as:
 Implemented only in the V2 path:
 
 - `Cap`
-
-This was introduced to represent filled LXe inside a head-like region rather than a shell.
 
 The lower passive LXe region was split into:
 
@@ -91,19 +92,13 @@ Canonical figure source:
 
 - [design/latex/lz_geometry_v2.tex](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/latex/lz_geometry_v2.tex)
 
-Important design decision:
-
-- this file is now the wrapper and the official source
-- the old `lz_geometry_v2_png.tex` driver was removed
-- LaTeX byproducts in `design/latex/` are ignored via repo `.gitignore`
-
 ### 6. Tests
 
-Current V2 loader / validation coverage was added in:
+Current V2 coverage in:
 
 - [test/runtests.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/test/runtests.jl)
 
-At the time of implementation, the Julia test suite passed with:
+The Julia test suite passed after the current V2 semantic / point-location changes with:
 
 ```bash
 julia --project=. test/runtests.jl
@@ -130,83 +125,68 @@ In particular:
 
 are still old-path logic.
 
-### 2. Semantics are not yet fully migrated
+### 2. Current point location is temporary
 
-The V2 JSON has `tag`/`role`, but the runtime transport/veto path has not yet been switched to semantic lookup from V2 nodes.
+`find_node_v2` currently uses a global containing-node selection:
 
-### 3. Navigation is not yet implemented for V2
+- collect all containing nodes
+- prefer deepest
+- then prefer exact over proxy at equal depth
+- then prefer the smaller region
 
-What exists now:
+This was introduced as a correctness fallback because the current helper/mother hierarchy is not yet a strict geometric containment tree.
 
-- representation
-- loading
-- validation
-- inspection
+This is not the intended final design.
 
-What does not yet exist:
+### 3. Mother/daughter containment is still inconsistent
 
-- V2 point location for transport
-- V2 boundary stepping
-- V2 neighbor-aware traversal
+The present V2 file still contains helper/proxy mothers that are not true geometric containers for all children.
 
-### 4. Geometry figure is a support artifact, not physics validation
+This must be repaired before implementing final navigation.
+
+### 4. Semantics are only partially migrated
+
+The V2 path now has semantic helpers, but the runtime transport/veto path has not yet been switched to use them.
+
+### 5. Geometry figure is a support artifact, not physics validation
 
 The figure is useful for human inspection only. It does not validate transport correctness.
 
 ## Recommended next implementation steps
 
-The next work should move from representation to runtime use, but in a staged way.
+The next work should correct the geometry model before adding more transport logic.
 
-### Step 1. Add semantic helpers for V2
-
-Goal:
-
-- stop relying on volume names in the new path
-
-Add helpers in `geometry2.jl` or a small companion file if it becomes cleaner:
-
-- `region_tag(node)`
-- `is_fv(node)`
-- `is_active_lxe(node)`
-- `is_veto_lxe(node)`
-- `is_passive_lxe(node)`
-- `is_structural(node)`
-- `is_vacuum(node)`
-
-Also add a helper for policy mapping:
-
-- `veto_threshold(tag, cfg)`
-
-This should mirror the intent currently embedded in `classify_lxe_region` and the veto logic in `tracking.jl`, but without any string-name inspection.
-
-Do not remove the old path yet.
-
-### Step 2. Add V2 point-location primitives
+### Step 1. Repair the geometry hierarchy
 
 Goal:
 
-- determine which V2 node contains a point
+- make declared mothers true geometric containers
 
-Add a new API first, without touching old transport:
+Likely actions:
 
-- `find_node_v2(det, pos)`
-- maybe `find_deepest_node_v2(det, pos; start=root)`
+- replace proxy cylindrical mothers where they fail containment
+- introduce proper container/cavity regions such as `ICV_void`
+- consider restricted union solids for barrel + head container volumes
 
-Expected behavior:
+This is now the priority issue.
 
-- descend the V2 tree from the root
-- at each level, check only candidate children
+### Step 2. Restore strict descent-based point location
+
+Goal:
+
+- remove the temporary global `find_node_v2` fallback
+
+Target behavior:
+
+- descend the containment tree from the root
+- only test candidate daughters of the current mother
 - return the deepest containing node
-
-Initially, correctness matters more than speed.
-
-Once working, add a second version later that accepts a current node hint for stateful navigation.
 
 ### Step 3. Add classification comparison tests
 
 Goal:
 
-- compare old geometry semantics with the new V2 semantics
+- compare old geometry semantics with the repaired V2 semantics
 
 Create representative points in:
 
@@ -227,8 +207,6 @@ For each point:
 - record V2 node + tag
 - confirm the new semantic interpretation is what is intended
 
-This step is critical before trying to use V2 in transport.
-
 ### Step 4. Add V2 boundary / navigation skeleton
 
 Goal:
@@ -243,32 +221,30 @@ Add basic helpers:
 
 Do not try to solve the full optimized navigator at once.
 
-A reasonable first version is:
+### Step 5. Add event-level FV prefilter logic
 
-- correct
-- tree-aware
-- exact for the supported primitives
+Goal:
 
-Speed optimization can come after functional equivalence.
+- separate geometric rejection from later veto/hit decisions
 
-### Step 5. Add `propagate_to_lxe_v2`
+Event-level rule:
+
+- `0` gammas: reject
+- `1` gamma: keep only if it reaches `FV`
+- `2+` gammas: keep only if any gamma reaches `FV`
+
+This should happen before full event stack development.
+
+### Step 6. Add `propagate_to_lxe_v2`
 
 Goal:
 
 - run the same high-level logic as `propagate_to_lxe`, but backed by V2 geometry
+- keep veto / hit logic after the geometric prefilter
 
-Do this as a parallel function first:
+Do this as a parallel function first.
 
-- do not replace `propagate_to_lxe` immediately
-
-Expected behavior:
-
-- identify current material/region from V2 nodes
-- apply veto semantics from `tag`
-- classify FV acceptance from `tag == TAG_FV` or equivalent
-- preserve the external behavior and return style of the existing function as much as possible
-
-### Step 6. Compare old and new behavior
+### Step 7. Compare old and new behavior
 
 Before retiring old logic, compare:
 
@@ -285,7 +261,7 @@ Only once this is stable should the old path be considered for replacement.
 - Do not replace `propagate_to_lxe` in place
 - Do not merge V2 and old geometry into one file yet
 - Do not optimize the navigator before there is a correct baseline
-- Do not use volume-name string parsing in new V2 logic except for temporary test comparisons
+- Do not normalize the temporary global `find_node_v2` fallback into the final design
 
 ## Practical resume notes
 
@@ -297,16 +273,18 @@ When resuming work:
    - [src/tracking.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/src/tracking.jl)
    - [data/detector_lz_v2.json](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/data/detector_lz_v2.json)
    - [scripts/inspect_geometry_v2.jl](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/scripts/inspect_geometry_v2.jl)
+   - [design/geometry_v2_prefilter.md](/Users/jjgomezcadenas/Projects/XeMC/lxe_mc/LXeMC/design/geometry_v2_prefilter.md)
 3. First target:
-   - semantic/tag helpers
-   - V2 point location
-4. Then add tests before transport integration
+   - repair mother/daughter containment
+   - then restore strict descent
+4. Then add/adjust tests before transport integration
 
 ## Suggested next commit sequence
 
-1. `Add Geometry V2 semantic helpers`
-2. `Add Geometry V2 point location`
+1. `Repair Geometry V2 containment hierarchy`
+2. `Restore strict Geometry V2 point location`
 3. `Add Geometry V2 classification comparison tests`
-4. `Add experimental propagate_to_lxe_v2`
+4. `Add Geometry V2 FV prefilter`
+5. `Add experimental propagate_to_lxe_v2`
 
 This sequence is preferred over one large integration commit.
