@@ -26,7 +26,7 @@ ss = is_single_site(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
 - `config.jl`: `SimConfig` — transport parameters
 - `nist_data.jl`: XCOM/ESTAR CSV loaders, log-log interpolation
 - `materials.jl`: `Material` — material properties + physics methods
-- `geometry2.jl`: canonical tracking detector + fast-kernel geometry
+- `geometry.jl`: canonical tracking detector + fast-kernel geometry
 - `physics_utils.jl`: bremsstrahlung differential cross section
 - `sampling.jl`: MC samplers for all interaction channels
 - `tracking.jl`: particle transport, event simulation, clustering
@@ -42,7 +42,7 @@ include("nist_data.jl")
 include("physics_utils.jl")
 include("materials.jl")
 include("geometry_core.jl")
-include("geometry2.jl")
+include("geometry.jl")
 include("sampling.jl")
 include("tracking.jl")
 include("decays.jl")
