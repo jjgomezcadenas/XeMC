@@ -14,7 +14,6 @@ Options:
   --n N          Number of events to process (default: 1000)
   --seed SEED    RNG seed (default: 20260507)
   --calib BOOL   Calibration sampling mode: true or false (default: true)
-  --path NAME    Event-processing path: v2, fastkernel, or fastkernel_fused (default: fastkernel_fused)
   --energy E     Calibration gamma energy in MeV (default: 2.615)
   --x X          Calibration source x in cm (default: 0.0)
   --y Y          Calibration source y in cm (default: 0.0)
@@ -26,7 +25,7 @@ Options:
 
 Examples:
   julia --project=. scripts/test_event_processing.jl
-  julia --project=. scripts/test_event_processing.jl --n 10000 --seed 42 --calib true --path fastkernel_fused --outdir /tmp/event_proc
+  julia --project=. scripts/test_event_processing.jl --n 10000 --seed 42 --calib true --outdir /tmp/event_proc
   julia --project=. scripts/test_event_processing.jl 10000 42
 """)
 end
@@ -44,7 +43,6 @@ function parse_cli(args)
     N = 1000
     seed = 20260507
     calib = true
-    path = "fastkernel_fused"
     energy = 2.615
     x_cm = 0.0
     y_cm = 0.0
@@ -74,11 +72,6 @@ function parse_cli(args)
         elseif arg == "--calib"
             i == length(args) && error("--calib requires true or false")
             calib = parse_bool_arg(args[i + 1])
-            i += 2
-            continue
-        elseif arg == "--path"
-            i == length(args) && error("--path requires a value: v2, fastkernel, or fastkernel_fused")
-            path = lowercase(args[i + 1])
             i += 2
             continue
         elseif arg == "--energy"
@@ -139,15 +132,14 @@ function parse_cli(args)
 
     N > 0 || error("N must be positive")
     seed >= 0 || error("seed must be non-negative")
-    path in ("v2", "fastkernel", "fastkernel_fused") ||
-        error("--path must be one of 'v2', 'fastkernel', or 'fastkernel_fused' (got '$path')")
     energy > 0.0 || error("--energy must be positive")
+    calib || error("Only --calib true is supported in CleanupV3")
     if !calib
         cli_state_requested = energy != 2.615 || x_cm != 0.0 || y_cm != 0.0 || z_cm != 160.0 ||
                               ux != 1.0 || uy != 0.0 || uz != 0.0
         !cli_state_requested || error("With --calib false, do not pass --energy/--x/--y/--z/--ux/--uy/--uz")
     end
-    return N, seed, calib, path, energy, x_cm, y_cm, z_cm, ux, uy, uz, outdir
+    return N, seed, calib, energy, x_cm, y_cm, z_cm, ux, uy, uz, outdir
 end
 
 
@@ -181,13 +173,13 @@ end
 
 
 function main()
-    N, seed, calib, path, energy, x_cm, y_cm, z_cm, ux, uy, uz, outdir = parse_cli(ARGS)
+    N, seed, calib, energy, x_cm, y_cm, z_cm, ux, uy, uz, outdir = parse_cli(ARGS)
 
     cfg = default_config()
     mats = load_materials(cfg)
     det_legacy = load_detector(default_detector_path(), mats)
-    det = load_detector_v2(default_tracking_detector_path(), mats)
-    fk = path in ("fastkernel", "fastkernel_fused") ? compile_fastkernel_geometry(det) : nothing
+    det = load_tracking_detector(default_tracking_detector_path(), mats)
+    fk = compile_fastkernel_geometry(det)
     rng = MersenneTwister(seed)
 
     status_counts = Dict{Symbol,Int}()
@@ -198,41 +190,16 @@ function main()
     t0 = time()
 
     for i in 1:N
-        local result
-        local multiplicity
-        local E1
-        local E2
-        if path == "fastkernel_fused"
-            calib || error("fastkernel_fused currently requires --calib true")
-            fused = process_event_fastkernel_calib(
-                fk, det_legacy, cfg, rng;
-                E_MeV=energy,
-                x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
-                ux=ux, uy=uy, uz=uz,
-            )
-            result = fused.result
-            multiplicity = fused.multiplicity
-            E1 = fused.E1_MeV
-            E2 = fused.E2_MeV
-        else
-            gammas = sample_gammas(
-                "calib";
-                calib=calib,
-                E_MeV=energy,
-                x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
-                ux=ux, uy=uy, uz=uz,
-                rng=rng,
-            )
-            result = if path == "fastkernel"
-                process_event_fastkernel(gammas, fk, det_legacy, cfg, rng)
-            else
-                process_event(gammas, det, cfg, rng)
-            end
-            multiplicity = length(gammas)
-            energies = sort([g.E_MeV for g in gammas]; rev=true)
-            E1 = length(energies) >= 1 ? energies[1] : 0.0
-            E2 = length(energies) >= 2 ? energies[2] : 0.0
-        end
+        fused = process_event_fastkernel_calib(
+            fk, det_legacy, cfg, rng;
+            E_MeV=energy,
+            x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
+            ux=ux, uy=uy, uz=uz,
+        )
+        result = fused.result
+        multiplicity = fused.multiplicity
+        E1 = fused.E1_MeV
+        E2 = fused.E2_MeV
 
         status_counts[result.status] = get(status_counts, result.status, 0) + 1
 
@@ -255,7 +222,7 @@ function main()
 
     elapsed = time() - t0
 
-    println("N = $N, seed = $seed, calib = $calib, path = $path")
+    println("N = $N, seed = $seed, calib = $calib, path = fastkernel_fused")
     if calib
         @printf("Calibration source: E=%.3f MeV, pos=(%.3f, %.3f, %.3f) cm, dir=(%.3f, %.3f, %.3f)\n",
                 energy, x_cm, y_cm, z_cm, ux, uy, uz)
@@ -277,7 +244,7 @@ function main()
             @printf(io, "N = %d\n", N)
             @printf(io, "seed = %d\n", seed)
             @printf(io, "calib = %s\n", string(calib))
-            @printf(io, "path = %s\n", path)
+            @printf(io, "path = fastkernel_fused\n")
             if calib
                 @printf(io, "energy_MeV = %.8f\n", energy)
                 @printf(io, "x_cm = %.8f\n", x_cm)

@@ -1020,6 +1020,20 @@ function load_detector_v2(path::AbstractString,
 end
 
 
+"""
+    load_tracking_detector(path, materials; validate=true) -> DetectorV2
+
+Load the canonical tracking detector geometry. On `CleanupV3`, this
+expects the explicit partitioned tracking schema used by
+`detector_lz_v3.json`.
+"""
+function load_tracking_detector(path::AbstractString,
+                               materials::Dict{String,Material};
+                               validate::Bool=true)::DetectorV2
+    load_detector_v2(path, materials; validate=validate)
+end
+
+
 root_node(det::DetectorV2) = det.nodes[det.root_id]
 
 
@@ -1208,97 +1222,11 @@ function compile_fastkernel_geometry(det::DetectorV2)::FastKernelGeometry
 
     regions = FastKernelRegion[]
     name_to_index = Dict{String,Int}()
-    if haskey(raw_regions, "TopActive")
-        for (idx, name) in enumerate(("LZ_detector", "AirDome", "FC_PTFE", "FC_rings", "FV", "TopActive", "BarrelActive", "BottomActive", "Skin", "LXe_passive"))
-            haskey(raw_regions, name) || error("FastKernelGeometry is missing $name")
-            region = raw_regions[name]
-            _push_fastkernel_region!(regions, name_to_index,
-                _with_fastkernel_identity(idx, name, region.role, region))
-        end
-    else
-        haskey(raw_regions, "LZ_detector") || error("FastKernelGeometry is missing LZ_detector")
-        haskey(raw_regions, "AirDome") || error("FastKernelGeometry is missing AirDome")
-        haskey(raw_regions, "FC_PTFE") || error("FastKernelGeometry is missing FC_PTFE")
-        haskey(raw_regions, "FC_rings") || error("FastKernelGeometry is missing FC_rings")
-        haskey(raw_regions, "LXe_det") || error("FastKernelGeometry is missing LXe_det")
-        haskey(raw_regions, "LXeTPC") || error("FastKernelGeometry is missing LXeTPC")
-        haskey(raw_regions, "FV") || error("FastKernelGeometry is missing FV")
-        haskey(raw_regions, "Skin") || error("FastKernelGeometry is missing Skin")
-
-        det_region_raw = raw_regions["LZ_detector"]
-        air_region_raw = raw_regions["AirDome"]
-        ptfe_region_raw = raw_regions["FC_PTFE"]
-        rings_region_raw = raw_regions["FC_rings"]
-        passive_region_raw = raw_regions["LXe_det"]
-        tpc_region_raw = raw_regions["LXeTPC"]
-        fv_region_raw = raw_regions["FV"]
-        skin_region_raw = raw_regions["Skin"]
-
+    for (idx, name) in enumerate(("LZ_detector", "AirDome", "FC_PTFE", "FC_rings", "FV", "TopActive", "BarrelActive", "BottomActive", "Skin", "LXe_passive"))
+        haskey(raw_regions, name) || error("FastKernelGeometry requires canonical v3 region '$name'")
+        region = raw_regions[name]
         _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(1, "LZ_detector", det_region_raw.role, det_region_raw))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(2, "AirDome", air_region_raw.role, air_region_raw))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(3, "FC_PTFE", ptfe_region_raw.role, ptfe_region_raw))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(4, "FC_rings", rings_region_raw.role, rings_region_raw))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(5, "FV", fv_region_raw.role, fv_region_raw))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(6, "TopActive", "top_active", tpc_region_raw;
-                kind=:cylinder,
-                sensitive=true,
-                ecut_keV=tpc_region_raw.ecut_keV,
-                fv_target=false,
-                rmin_cm=0.0,
-                rmax_cm=tpc_region_raw.rmax_cm,
-                zmin_cm=fv_region_raw.zmax_cm,
-                zmax_cm=tpc_region_raw.zmax_cm,
-                has_top_cap=false,
-                has_bottom_cap=false,
-                top_cap_radius_cm=0.0,
-                top_cap_aspect_ratio=0.0,
-                bottom_cap_radius_cm=0.0,
-                bottom_cap_aspect_ratio=0.0))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(7, "BarrelActive", "barrel_active", tpc_region_raw;
-                kind=:cylinder_shell,
-                sensitive=true,
-                ecut_keV=tpc_region_raw.ecut_keV,
-                fv_target=false,
-                rmin_cm=fv_region_raw.rmax_cm,
-                rmax_cm=tpc_region_raw.rmax_cm,
-                zmin_cm=fv_region_raw.zmin_cm,
-                zmax_cm=fv_region_raw.zmax_cm,
-                has_top_cap=false,
-                has_bottom_cap=false,
-                top_cap_radius_cm=0.0,
-                top_cap_aspect_ratio=0.0,
-                bottom_cap_radius_cm=0.0,
-                bottom_cap_aspect_ratio=0.0))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(8, "BottomActive", "bottom_active", tpc_region_raw;
-                kind=:cylinder,
-                sensitive=true,
-                ecut_keV=tpc_region_raw.ecut_keV,
-                fv_target=false,
-                rmin_cm=0.0,
-                rmax_cm=tpc_region_raw.rmax_cm,
-                zmin_cm=tpc_region_raw.zmin_cm,
-                zmax_cm=fv_region_raw.zmin_cm,
-                has_top_cap=false,
-                has_bottom_cap=false,
-                top_cap_radius_cm=0.0,
-                top_cap_aspect_ratio=0.0,
-                bottom_cap_radius_cm=0.0,
-                bottom_cap_aspect_ratio=0.0))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(9, "Skin", skin_region_raw.role, skin_region_raw))
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(10, "LXe_passive", "lxe_passive", passive_region_raw;
-                sensitive=false,
-                ecut_keV=0.0,
-                fv_target=false))
+            _with_fastkernel_identity(idx, name, region.role, region))
     end
 
     FastKernelGeometry(

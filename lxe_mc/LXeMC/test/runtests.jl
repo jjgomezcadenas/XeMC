@@ -225,177 +225,7 @@ end
     @test find_node_v2(DET2, (110.0, 0.0, 0.0)).lv.name == "MARS"
     @test find_node_v2(DET2, (200.0, 0.0, 0.0)) === nothing
 
-    fk = compile_fastkernel_geometry(DET2)
-    fk_names = sort([r.name for r in fk.regions])
-    @test fk_names == ["AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "Skin", "TopActive"]
-    @test fk.detector_region == fk.name_to_index["LZ_detector"]
-    @test fk.air_region == fk.name_to_index["AirDome"]
-    @test fk.ptfe_region == fk.name_to_index["FC_PTFE"]
-    @test fk.rings_region == fk.name_to_index["FC_rings"]
-    @test fk.fv_region == fk.name_to_index["FV"]
-    @test fk.top_active_region == fk.name_to_index["TopActive"]
-    @test fk.barrel_active_region == fk.name_to_index["BarrelActive"]
-    @test fk.bottom_active_region == fk.name_to_index["BottomActive"]
-    @test fk.skin_region == fk.name_to_index["Skin"]
-    @test fk.passive_region == fk.name_to_index["LXe_passive"]
-
-    air_region = fk.regions[fk.air_region]
-    ptfe_region = fk.regions[fk.ptfe_region]
-    rings_region = fk.regions[fk.rings_region]
-    fv_region = fk.regions[fk.fv_region]
-    top_active_region = fk.regions[fk.top_active_region]
-    barrel_active_region = fk.regions[fk.barrel_active_region]
-    bottom_active_region = fk.regions[fk.bottom_active_region]
-    skin_region = fk.regions[fk.skin_region]
-    passive_region = fk.regions[fk.passive_region]
-    det_region = fk.regions[fk.detector_region]
-
-    @test air_region.material.name == "HPGXe"
-    @test air_region.kind == :cap
-    @test air_region.rmin_cm ≈ 0.0 atol=GEOM_TOL
-    @test air_region.rmax_cm ≈ 82.1 atol=GEOM_TOL
-    @test air_region.zmin_cm ≈ 145.6 atol=GEOM_TOL
-    @test air_region.zmax_cm ≈ (145.6 + 82.1 / 2.0) atol=GEOM_TOL
-    @test air_region.has_top_cap
-    @test !air_region.has_bottom_cap
-    @test !air_region.isXe
-
-    @test ptfe_region.material.name == "PTFE"
-    @test ptfe_region.kind == :cylinder_shell
-    @test ptfe_region.rmin_cm ≈ 72.8 atol=GEOM_TOL
-    @test ptfe_region.rmax_cm ≈ 74.3 atol=GEOM_TOL
-    @test ptfe_region.zmin_cm ≈ 0.0 atol=GEOM_TOL
-    @test ptfe_region.zmax_cm ≈ 145.6 atol=GEOM_TOL
-    @test !ptfe_region.isXe
-
-    @test rings_region.material.name == "Ti"
-    @test rings_region.kind == :cylinder_shell
-    @test rings_region.rmin_cm ≈ 74.3 atol=GEOM_TOL
-    @test rings_region.rmax_cm ≈ 74.577 atol=GEOM_TOL
-    @test rings_region.zmin_cm ≈ 0.0 atol=GEOM_TOL
-    @test rings_region.zmax_cm ≈ 145.6 atol=GEOM_TOL
-    @test !rings_region.isXe
-
-    @test fv_region.kind == :cylinder
-    @test fv_region.isXe
-    @test fv_region.sensitive
-    @test fv_region.fv_target
-    @test fv_region.rmax_cm ≈ 39.0 atol=GEOM_TOL
-    @test fv_region.zmin_cm ≈ 26.0 atol=GEOM_TOL
-    @test fv_region.zmax_cm ≈ 96.0 atol=GEOM_TOL
-
-    @test top_active_region.kind == :cylinder
-    @test top_active_region.isXe
-    @test top_active_region.sensitive
-    @test top_active_region.rmax_cm ≈ 72.8 atol=GEOM_TOL
-    @test top_active_region.zmin_cm ≈ 96.0 atol=GEOM_TOL
-    @test top_active_region.zmax_cm ≈ 145.6 atol=GEOM_TOL
-
-    @test barrel_active_region.kind == :cylinder_shell
-    @test barrel_active_region.isXe
-    @test barrel_active_region.sensitive
-    @test barrel_active_region.rmin_cm ≈ 39.0 atol=GEOM_TOL
-    @test barrel_active_region.rmax_cm ≈ 72.8 atol=GEOM_TOL
-    @test barrel_active_region.zmin_cm ≈ 26.0 atol=GEOM_TOL
-    @test barrel_active_region.zmax_cm ≈ 96.0 atol=GEOM_TOL
-
-    @test bottom_active_region.kind == :cylinder
-    @test bottom_active_region.isXe
-    @test bottom_active_region.sensitive
-    @test bottom_active_region.rmax_cm ≈ 72.8 atol=GEOM_TOL
-    @test bottom_active_region.zmin_cm ≈ 0.0 atol=GEOM_TOL
-    @test bottom_active_region.zmax_cm ≈ 26.0 atol=GEOM_TOL
-
-    @test skin_region.kind == :cylinder_shell
-    @test skin_region.isXe
-    @test skin_region.sensitive
-    @test skin_region.rmin_cm ≈ 74.3 atol=GEOM_TOL
-    @test skin_region.rmax_cm ≈ 82.1 atol=GEOM_TOL
-    @test skin_region.zmin_cm ≈ 0.0 atol=GEOM_TOL
-    @test skin_region.zmax_cm ≈ 145.6 atol=GEOM_TOL
-
-    @test passive_region.kind == :capped_cylinder
-    @test passive_region.isXe
-    @test !passive_region.sensitive
-    @test passive_region.zmin_cm ≈ (-68.69666666666667) atol=GEOM_TOL
-    @test passive_region.zmax_cm ≈ 145.6 atol=GEOM_TOL
-    @test passive_region.has_bottom_cap
-    @test !passive_region.has_top_cap
-
-    @test det_region.kind == :domed_container
-    @test !det_region.isXe
-    @test det_region.has_top_cap
-    @test det_region.has_bottom_cap
-
-    @test classify_fastkernel(fk, (0.0, 0.0, 61.0)).name == "FV"
-    @test classify_fastkernel(fk, (0.0, 0.0, 120.0)).name == "TopActive"
-    @test classify_fastkernel(fk, (60.0, 0.0, 61.0)).name == "BarrelActive"
-    @test classify_fastkernel(fk, (0.0, 0.0, 10.0)).name == "BottomActive"
-    @test classify_fastkernel(fk, (78.0, 0.0, 100.0)).name == "Skin"
-    @test classify_fastkernel(fk, (73.55, 0.0, 100.0)).name == "FC_PTFE"
-    @test classify_fastkernel(fk, (74.45, 0.0, 100.0)).name == "FC_rings"
-    @test classify_fastkernel(fk, (0.0, 0.0, -20.0)).name == "LXe_passive"
-    @test classify_fastkernel(fk, (0.0, 0.0, 160.0)).name == "AirDome"
-    @test classify_fastkernel(fk, (83.0, 0.0, 100.0)) === nothing
-
-    compare_points = [
-        (0.0, 0.0, 61.0),
-        (0.0, 0.0, 120.0),
-        (60.0, 0.0, 61.0),
-        (0.0, 0.0, 10.0),
-        (78.0, 0.0, 100.0),
-        (73.55, 0.0, 100.0),
-        (74.45, 0.0, 100.0),
-        (0.0, 0.0, -20.0),
-        (0.0, 0.0, 160.0),
-    ]
-    coarse_to_v2 = Dict(
-        "FV" => "FV",
-        "TopActive" => "LXeTPC",
-        "BarrelActive" => "LXeTPC",
-        "BottomActive" => "LXeTPC",
-        "Skin" => "Skin",
-        "FC_PTFE" => "FC_PTFE",
-        "FC_rings" => "FC_rings",
-        "LXe_passive" => "LXe_det",
-        "AirDome" => "AirDome",
-    )
-    for p in compare_points
-        fk_name = classify_fastkernel(fk, p).name
-        @test coarse_to_v2[fk_name] == find_node_v2(DET2, p).lv.name
-    end
-
-    @test distance_to_boundary_fastkernel(fv_region, (0.0, 0.0, 61.0), (0.0, 0.0, 1.0)) ≈ 35.0 atol=0.01
-    @test distance_to_boundary_fastkernel(top_active_region, (0.0, 0.0, 120.0), (0.0, 0.0, 1.0)) ≈ 25.6 atol=0.01
-    @test distance_to_boundary_fastkernel(barrel_active_region, (60.0, 0.0, 61.0), (1.0, 0.0, 0.0)) ≈ 12.8 atol=0.01
-    @test distance_to_boundary_fastkernel(bottom_active_region, (0.0, 0.0, 10.0), (0.0, 0.0, -1.0)) ≈ 10.0 atol=0.01
-    @test distance_to_boundary_fastkernel(skin_region, (78.0, 0.0, 100.0), (1.0, 0.0, 0.0)) ≈ 4.1 atol=0.01
-    @test distance_to_boundary_fastkernel(ptfe_region, (73.0, 0.0, 100.0), (-1.0, 0.0, 0.0)) ≈ 0.2 atol=0.01
-    @test distance_to_boundary_fastkernel(rings_region, (74.45, 0.0, 100.0), (1.0, 0.0, 0.0)) ≈ 0.127 atol=0.01
-    @test distance_to_boundary_fastkernel(air_region, (0.0, 0.0, 160.0), (0.0, 0.0, 1.0)) ≈ 26.65 atol=0.02
-    @test distance_to_boundary_fastkernel(passive_region, (0.0, 0.0, -50.0), (0.0, 0.0, -1.0)) ≈ 18.69666666666667 atol=0.02
-
-    boundary_cases = [
-        (fv_region, (0.0, 0.0, 61.0), (0.0, 0.0, 1.0)),
-        (top_active_region, (0.0, 0.0, 120.0), (0.0, 0.0, 1.0)),
-        (barrel_active_region, (60.0, 0.0, 61.0), (1.0, 0.0, 0.0)),
-        (bottom_active_region, (0.0, 0.0, 10.0), (0.0, 0.0, -1.0)),
-        (skin_region, (78.0, 0.0, 100.0), (1.0, 0.0, 0.0)),
-        (ptfe_region, (73.0, 0.0, 100.0), (-1.0, 0.0, 0.0)),
-        (rings_region, (74.45, 0.0, 100.0), (1.0, 0.0, 0.0)),
-        (air_region, (0.0, 0.0, 160.0), (0.0, 0.0, 1.0)),
-        (passive_region, (0.0, 0.0, -50.0), (0.0, 0.0, -1.0)),
-    ]
-    for (region, p, u) in boundary_cases
-        t = distance_to_boundary_fastkernel(region, p, u)
-        pin = (p[1] + u[1] * (t - 1e-4), p[2] + u[2] * (t - 1e-4), p[3] + u[3] * (t - 1e-4))
-        pout = (p[1] + u[1] * (t + 1e-4), p[2] + u[2] * (t + 1e-4), p[3] + u[3] * (t + 1e-4))
-        @test classify_fastkernel(fk, pin).name == region.name
-        if region.name != "LZ_detector"
-            cls_out = classify_fastkernel(fk, pout)
-            @test cls_out === nothing || cls_out.name != region.name
-        end
-    end
+    @test_throws ErrorException compile_fastkernel_geometry(DET2)
 end
 
 @testset "Detector geometry V3" begin
@@ -678,7 +508,7 @@ end
 
 
 @testset "FastKernel first interaction transport" begin
-    fk = compile_fastkernel_geometry(DET2)
+    fk = compile_fastkernel_geometry(DET3)
     coarse_to_v2 = Dict(
         "FV" => "FV",
         "TopActive" => "LXeTPC",
@@ -731,7 +561,7 @@ end
 
 
 @testset "V2 interaction selector" begin
-    fk = compile_fastkernel_geometry(DET2)
+    fk = compile_fastkernel_geometry(DET3)
 
     fv_res = GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV")
     fv_sel = select_interaction(fv_res, DET2)
@@ -796,7 +626,7 @@ end
 
 
 @testset "V2 event processing" begin
-    empty_event = process_event_from_selections(NamedTuple[])
+    empty_event = LXeMC.process_event_from_selections(NamedTuple[])
     @test empty_event.status == :no_fv
     @test empty_event.n_processed == 0
 
@@ -817,46 +647,46 @@ end
         DET2
     )
 
-    one_fv = process_event_from_selections([fv_sel])
+    one_fv = LXeMC.process_event_from_selections([fv_sel])
     @test one_fv.status == :accepted
     @test one_fv.has_fv
     @test one_fv.n_processed == 1
 
-    one_skin = process_event_from_selections([skin_sel])
+    one_skin = LXeMC.process_event_from_selections([skin_sel])
     @test one_skin.status == :vetoed
     @test one_skin.has_skin_veto
     @test one_skin.n_processed == 1
 
-    one_tpc = process_event_from_selections([tpc_sel])
+    one_tpc = LXeMC.process_event_from_selections([tpc_sel])
     @test one_tpc.status == :vetoed
     @test one_tpc.has_tpc_veto
     @test one_tpc.n_processed == 1
 
-    miss_then_fv = process_event_from_selections([other_sel, fv_sel])
+    miss_then_fv = LXeMC.process_event_from_selections([other_sel, fv_sel])
     @test miss_then_fv.status == :accepted
     @test miss_then_fv.has_fv
     @test miss_then_fv.n_processed == 2
 
-    veto_first = process_event_from_selections([skin_sel, fv_sel])
+    veto_first = LXeMC.process_event_from_selections([skin_sel, fv_sel])
     @test veto_first.status == :vetoed
     @test veto_first.n_processed == 1
 
-    fv_then_veto = process_event_from_selections([fv_sel, tpc_sel])
+    fv_then_veto = LXeMC.process_event_from_selections([fv_sel, tpc_sel])
     @test fv_then_veto.status == :vetoed
     @test fv_then_veto.has_fv
     @test fv_then_veto.has_tpc_veto
     @test fv_then_veto.n_processed == 2
 
-    calib_res = process_event(sample_gammas("calib"; calib=true, rng=MersenneTwister(777)),
-                              DET2, CFG, MersenneTwister(778))
+    calib_res = LXeMC.process_event_v2(sample_gammas("calib"; calib=true, rng=MersenneTwister(777)),
+                                       DET2, CFG, MersenneTwister(778))
     @test calib_res.status in (:accepted, :vetoed, :no_fv)
 end
 
 
 @testset "FastKernel event processing" begin
-    fk = compile_fastkernel_geometry(DET2)
+    fk = compile_fastkernel_geometry(DET3)
 
-    empty_fk = process_event_fastkernel(SampledGamma[], fk, DET, CFG, MersenneTwister(1))
+    empty_fk = process_event(SampledGamma[], fk, DET, CFG, MersenneTwister(1))
     @test empty_fk.status == :no_fv
     @test empty_fk.n_processed == 0
 
@@ -895,7 +725,7 @@ end
         rng1 = MersenneTwister(seed)
         rng2 = MersenneTwister(seed)
         gammas = sample_gammas("calib"; calib=true, rng=rng1)
-        vec_res = process_event_fastkernel(gammas, fk, DET, CFG, rng1)
+        vec_res = process_event(gammas, fk, DET, CFG, rng1)
         fused_res = process_event_fastkernel_calib(fk, DET, CFG, rng2)
 
         @test fused_res.result.status == vec_res.status

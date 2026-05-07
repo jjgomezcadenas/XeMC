@@ -895,7 +895,7 @@ function process_event_from_selections(selections)
 end
 
 
-function process_event(gammas, det::DetectorV2, cfg::SimConfig, rng::AbstractRNG)
+function process_event_v2(gammas, det::DetectorV2, cfg::SimConfig, rng::AbstractRNG)
     has_fv = false
     has_tpc_veto = false
     has_skin_veto = false
@@ -921,8 +921,8 @@ function process_event(gammas, det::DetectorV2, cfg::SimConfig, rng::AbstractRNG
 end
 
 
-function process_event_fastkernel(gammas, fk::FastKernelGeometry, det,
-                                  cfg::SimConfig, rng::AbstractRNG)
+function process_event(gammas, fk::FastKernelGeometry, det,
+                       cfg::SimConfig, rng::AbstractRNG)
     has_fv = false
     has_tpc_veto = false
     has_skin_veto = false
@@ -996,7 +996,7 @@ function process_event_fastkernel_calib(fk::FastKernelGeometry, det, cfg::SimCon
     E1 = multiplicity >= 1 ? gammas[1].E_MeV : 0.0
     E2 = multiplicity >= 2 ? gammas[2].E_MeV : 0.0
     FastKernelCalibEventResult(
-        process_event_fastkernel(gammas, fk, det, cfg, rng),
+        process_event(gammas, fk, det, cfg, rng),
         multiplicity,
         E1,
         E2,

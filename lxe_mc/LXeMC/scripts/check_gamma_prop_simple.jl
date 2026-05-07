@@ -248,7 +248,7 @@ function main()
 
     cfg = default_config()
     mats = load_materials(cfg)
-    det = load_detector_v2(default_tracking_detector_path(), mats)
+    det = load_tracking_detector(default_tracking_detector_path(), mats)
     rng = MersenneTwister(seed)
 
     results = GammaPropagationV2Result[]
