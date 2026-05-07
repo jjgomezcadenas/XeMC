@@ -649,7 +649,7 @@ function process_event_fastkernel(gammas, fk::FastKernelGeometry, det::DetectorV
 
     for gamma in gammas
         result = propagate_gamma_fastkernel(gamma, fk, cfg, rng)
-        sel = select_interaction(result, det)
+        sel = select_interaction_fastkernel(result, fk)
         n_processed += 1
         state = _update_event_state(sel)
         has_fv |= state.has_fv

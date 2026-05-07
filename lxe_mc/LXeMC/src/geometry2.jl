@@ -222,6 +222,42 @@ function select_interaction(result, det::DetectorV2)
 end
 
 
+function select_interaction_fastkernel(result, fk::FastKernelGeometry)
+    idx = get(fk.name_to_index, result.region, 0)
+    idx == 0 && return (
+        class = :other,
+        sensitive = false,
+        passes_threshold = false,
+        ecut_keV = 0.0,
+        region = "MARS",
+        interaction_type = result.interaction_type
+    )
+
+    region = fk.regions[idx]
+    class = if region.fv_target
+        :fv
+    elseif region.name == "LXeTPC"
+        :tpc
+    elseif region.name == "Skin"
+        :skin
+    else
+        :other
+    end
+
+    dep_keV = 1000.0 * result.deposit_E_MeV
+    passes_threshold = region.sensitive && dep_keV >= region.ecut_keV
+
+    (
+        class = class,
+        sensitive = region.sensitive,
+        passes_threshold = passes_threshold,
+        ecut_keV = region.ecut_keV,
+        region = region.name,
+        interaction_type = result.interaction_type
+    )
+end
+
+
 function _same_runtime_node(a, b)::Bool
     a === nothing && return b === nothing
     b === nothing && return false

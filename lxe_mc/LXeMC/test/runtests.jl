@@ -582,42 +582,56 @@ end
 
 
 @testset "V2 interaction selector" begin
+    fk = compile_fastkernel_geometry(DET2)
+
     fv_res = GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV")
     fv_sel = select_interaction(fv_res, DET2)
+    fv_fk_sel = select_interaction_fastkernel(fv_res, fk)
     @test fv_sel.class == :fv
     @test fv_sel.sensitive
     @test fv_sel.passes_threshold
     @test fv_sel.region == "FV"
+    @test fv_fk_sel == fv_sel
 
     tpc_hi = GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[60.0, 0.0, 120.0], "LXeTPC")
     tpc_hi_sel = select_interaction(tpc_hi, DET2)
+    tpc_hi_fk_sel = select_interaction_fastkernel(tpc_hi, fk)
     @test tpc_hi_sel.class == :tpc
     @test tpc_hi_sel.sensitive
     @test tpc_hi_sel.passes_threshold
+    @test tpc_hi_fk_sel == tpc_hi_sel
 
     tpc_lo = GammaPropagationV2Result(:interacted, :compton, 0.005, Float64[60.0, 0.0, 120.0], "LXeTPC")
     tpc_lo_sel = select_interaction(tpc_lo, DET2)
+    tpc_lo_fk_sel = select_interaction_fastkernel(tpc_lo, fk)
     @test tpc_lo_sel.class == :tpc
     @test tpc_lo_sel.sensitive
     @test !tpc_lo_sel.passes_threshold
+    @test tpc_lo_fk_sel == tpc_lo_sel
 
     skin_hi = GammaPropagationV2Result(:interacted, :compton, 0.200, Float64[78.0, 0.0, 100.0], "Skin")
     skin_hi_sel = select_interaction(skin_hi, DET2)
+    skin_hi_fk_sel = select_interaction_fastkernel(skin_hi, fk)
     @test skin_hi_sel.class == :skin
     @test skin_hi_sel.sensitive
     @test skin_hi_sel.passes_threshold
+    @test skin_hi_fk_sel == skin_hi_sel
 
     skin_lo = GammaPropagationV2Result(:interacted, :compton, 0.050, Float64[78.0, 0.0, 100.0], "Skin")
     skin_lo_sel = select_interaction(skin_lo, DET2)
+    skin_lo_fk_sel = select_interaction_fastkernel(skin_lo, fk)
     @test skin_lo_sel.class == :skin
     @test skin_lo_sel.sensitive
     @test !skin_lo_sel.passes_threshold
+    @test skin_lo_fk_sel == skin_lo_sel
 
     struct_res = GammaPropagationV2Result(:interacted, :compton, 0.500, Float64[73.55, 0.0, 100.0], "FC_PTFE")
     struct_sel = select_interaction(struct_res, DET2)
+    struct_fk_sel = select_interaction_fastkernel(struct_res, fk)
     @test struct_sel.class == :other
     @test !struct_sel.sensitive
     @test !struct_sel.passes_threshold
+    @test struct_fk_sel == struct_sel
 end
 
 
