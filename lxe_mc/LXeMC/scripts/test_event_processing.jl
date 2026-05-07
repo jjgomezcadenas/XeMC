@@ -13,21 +13,45 @@ Options:
   -h, --help     Show this help message and exit
   --n N          Number of events to process (default: 1000)
   --seed SEED    RNG seed (default: 20260507)
-  --path NAME    Event-processing path: v2 or fastkernel (default: v2)
+  --calib BOOL   Calibration sampling mode: true or false (default: true)
+  --path NAME    Event-processing path: v2, fastkernel, or fastkernel_fused (default: v2)
+  --energy E     Calibration gamma energy in MeV (default: 2.615)
+  --x X          Calibration source x in cm (default: 0.0)
+  --y Y          Calibration source y in cm (default: 0.0)
+  --z Z          Calibration source z in cm (default: 160.0)
+  --ux UX        Calibration direction x-component (default: 1.0)
+  --uy UY        Calibration direction y-component (default: 0.0)
+  --uz UZ        Calibration direction z-component (default: 0.0)
   --outdir DIR   Write output tables into DIR
 
 Examples:
   julia --project=. scripts/test_event_processing.jl
-  julia --project=. scripts/test_event_processing.jl --n 10000 --seed 42 --path fastkernel --outdir /tmp/event_proc
+  julia --project=. scripts/test_event_processing.jl --n 10000 --seed 42 --calib true --path fastkernel --outdir /tmp/event_proc
   julia --project=. scripts/test_event_processing.jl 10000 42
 """)
+end
+
+
+function parse_bool_arg(s::AbstractString)::Bool
+    v = lowercase(String(s))
+    v == "true" && return true
+    v == "false" && return false
+    error("Expected true or false, got '$s'")
 end
 
 
 function parse_cli(args)
     N = 1000
     seed = 20260507
+    calib = true
     path = "v2"
+    energy = 2.615
+    x_cm = 0.0
+    y_cm = 0.0
+    z_cm = 160.0
+    ux = 1.0
+    uy = 0.0
+    uz = 0.0
     outdir = nothing
 
     i = 1
@@ -47,9 +71,49 @@ function parse_cli(args)
             seed = parse(Int, args[i + 1])
             i += 2
             continue
+        elseif arg == "--calib"
+            i == length(args) && error("--calib requires true or false")
+            calib = parse_bool_arg(args[i + 1])
+            i += 2
+            continue
         elseif arg == "--path"
-            i == length(args) && error("--path requires a value: v2 or fastkernel")
+            i == length(args) && error("--path requires a value: v2, fastkernel, or fastkernel_fused")
             path = lowercase(args[i + 1])
+            i += 2
+            continue
+        elseif arg == "--energy"
+            i == length(args) && error("--energy requires a numeric value")
+            energy = parse(Float64, args[i + 1])
+            i += 2
+            continue
+        elseif arg == "--x"
+            i == length(args) && error("--x requires a numeric value")
+            x_cm = parse(Float64, args[i + 1])
+            i += 2
+            continue
+        elseif arg == "--y"
+            i == length(args) && error("--y requires a numeric value")
+            y_cm = parse(Float64, args[i + 1])
+            i += 2
+            continue
+        elseif arg == "--z"
+            i == length(args) && error("--z requires a numeric value")
+            z_cm = parse(Float64, args[i + 1])
+            i += 2
+            continue
+        elseif arg == "--ux"
+            i == length(args) && error("--ux requires a numeric value")
+            ux = parse(Float64, args[i + 1])
+            i += 2
+            continue
+        elseif arg == "--uy"
+            i == length(args) && error("--uy requires a numeric value")
+            uy = parse(Float64, args[i + 1])
+            i += 2
+            continue
+        elseif arg == "--uz"
+            i == length(args) && error("--uz requires a numeric value")
+            uz = parse(Float64, args[i + 1])
             i += 2
             continue
         elseif arg == "--outdir"
@@ -75,8 +139,15 @@ function parse_cli(args)
 
     N > 0 || error("N must be positive")
     seed >= 0 || error("seed must be non-negative")
-    path in ("v2", "fastkernel") || error("--path must be either 'v2' or 'fastkernel' (got '$path')")
-    return N, seed, path, outdir
+    path in ("v2", "fastkernel", "fastkernel_fused") ||
+        error("--path must be one of 'v2', 'fastkernel', or 'fastkernel_fused' (got '$path')")
+    energy > 0.0 || error("--energy must be positive")
+    if !calib
+        cli_state_requested = energy != 2.615 || x_cm != 0.0 || y_cm != 0.0 || z_cm != 160.0 ||
+                              ux != 1.0 || uy != 0.0 || uz != 0.0
+        !cli_state_requested || error("With --calib false, do not pass --energy/--x/--y/--z/--ux/--uy/--uz")
+    end
+    return N, seed, calib, path, energy, x_cm, y_cm, z_cm, ux, uy, uz, outdir
 end
 
 
@@ -110,12 +181,13 @@ end
 
 
 function main()
-    N, seed, path, outdir = parse_cli(ARGS)
+    N, seed, calib, path, energy, x_cm, y_cm, z_cm, ux, uy, uz, outdir = parse_cli(ARGS)
 
     cfg = default_config()
     mats = load_materials(cfg)
+    det_legacy = load_detector(default_detector_path(), mats)
     det = load_detector_v2(default_detector_v2_path(), mats)
-    fk = path == "fastkernel" ? compile_fastkernel_geometry(det) : nothing
+    fk = path in ("fastkernel", "fastkernel_fused") ? compile_fastkernel_geometry(det) : nothing
     rng = MersenneTwister(seed)
 
     status_counts = Dict{Symbol,Int}()
@@ -126,25 +198,51 @@ function main()
     t0 = time()
 
     for i in 1:N
-        gammas = sample_event("Tl208", "calib"; calib=true, rng=rng)
-        result = if path == "fastkernel"
-            process_event_fastkernel(gammas, fk, det, cfg, rng)
+        local result
+        local multiplicity
+        local E1
+        local E2
+        if path == "fastkernel_fused"
+            calib || error("fastkernel_fused currently requires --calib true")
+            fused = process_event_fastkernel_calib(
+                fk, det_legacy, cfg, rng;
+                E_MeV=energy,
+                x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
+                ux=ux, uy=uy, uz=uz,
+            )
+            result = fused.result
+            multiplicity = fused.multiplicity
+            E1 = fused.E1_MeV
+            E2 = fused.E2_MeV
         else
-            process_event(gammas, det, cfg, rng)
+            gammas = sample_gammas(
+                "calib";
+                calib=calib,
+                E_MeV=energy,
+                x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
+                ux=ux, uy=uy, uz=uz,
+                rng=rng,
+            )
+            result = if path == "fastkernel"
+                process_event_fastkernel(gammas, fk, det_legacy, cfg, rng)
+            else
+                process_event(gammas, det, cfg, rng)
+            end
+            multiplicity = length(gammas)
+            energies = sort([g.E_MeV for g in gammas]; rev=true)
+            E1 = length(energies) >= 1 ? energies[1] : 0.0
+            E2 = length(energies) >= 2 ? energies[2] : 0.0
         end
 
         status_counts[result.status] = get(status_counts, result.status, 0) + 1
 
-        mult_key = Symbol(string(length(gammas)))
+        mult_key = Symbol(string(multiplicity))
         multiplicity_counts[mult_key] = get(multiplicity_counts, mult_key, 0) + 1
 
         decisive_idx = result.status == :vetoed ? result.n_processed : 0
         dec_key = Symbol(string(decisive_idx))
         decisive_counts[dec_key] = get(decisive_counts, dec_key, 0) + 1
 
-        energies = sort([g.E_MeV for g in gammas]; rev=true)
-        E1 = length(energies) >= 1 ? energies[1] : 0.0
-        E2 = length(energies) >= 2 ? energies[2] : 0.0
         tbl_key = (E1, E2, result.status)
         energy_status_counts[tbl_key] = get(energy_status_counts, tbl_key, 0) + 1
 
@@ -157,7 +255,11 @@ function main()
 
     elapsed = time() - t0
 
-    println("N = $N, seed = $seed, path = $path")
+    println("N = $N, seed = $seed, calib = $calib, path = $path")
+    if calib
+        @printf("Calibration source: E=%.3f MeV, pos=(%.3f, %.3f, %.3f) cm, dir=(%.3f, %.3f, %.3f)\n",
+                energy, x_cm, y_cm, z_cm, ux, uy, uz)
+    end
     @printf("Elapsed time = %.2f s\n", elapsed)
     @printf("Rate = %.2f events/s\n", N / elapsed)
     print_counts("Event status counts", status_counts)
@@ -174,7 +276,17 @@ function main()
         open(joinpath(outdir, "summary.txt"), "w") do io
             @printf(io, "N = %d\n", N)
             @printf(io, "seed = %d\n", seed)
+            @printf(io, "calib = %s\n", string(calib))
             @printf(io, "path = %s\n", path)
+            if calib
+                @printf(io, "energy_MeV = %.8f\n", energy)
+                @printf(io, "x_cm = %.8f\n", x_cm)
+                @printf(io, "y_cm = %.8f\n", y_cm)
+                @printf(io, "z_cm = %.8f\n", z_cm)
+                @printf(io, "ux = %.8f\n", ux)
+                @printf(io, "uy = %.8f\n", uy)
+                @printf(io, "uz = %.8f\n", uz)
+            end
             @printf(io, "elapsed_s = %.8f\n", elapsed)
             @printf(io, "rate_events_per_s = %.8f\n", N / elapsed)
             @printf(io, "outdir = %s\n", outdir)

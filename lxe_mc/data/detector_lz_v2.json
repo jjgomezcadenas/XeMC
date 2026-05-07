@@ -140,7 +140,7 @@
             "parent": "Skin",
             "tag": "structural",
             "role": "field_cage_rings",
-            "inFastKernel": false,
+            "inFastKernel": true,
             "isXe": false,
             "sensitive": false,
             "fv_target": false,

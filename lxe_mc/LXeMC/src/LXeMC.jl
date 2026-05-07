@@ -85,6 +85,8 @@ export find_node_v2, classify_runtime_v2, select_interaction, geometric_prefilte
 export select_interaction_fastkernel
 export propagate_gamma_fastkernel
 export process_event_fastkernel
+export FastKernelCalibEventResult, process_event_fastkernel_calib
+export FastGammaDeposit, FastGammaTrackResult, transport_gamma_fastkernel
 
 # --- Sampling ---
 export sample_distance, sample_process
@@ -105,7 +107,7 @@ export cluster_deposits_in_z, is_single_site
 
 # --- Decays ---
 export DecayGamma, DecayScheme, GammaEmission, SampledGamma
-export load_decays, sample_decay, sample_event, sample_isotropic_direction
+export load_decays, sample_decay, sample_event, sample_gammas, sample_isotropic_direction
 export FluxTable, spectrum_E, spectrum_u, E_centers, u_centers, survival_fraction
 export peak_bin_fraction, off_peak_fraction
 export propagate_in_source, random_position_in_volume, generate_source_flux

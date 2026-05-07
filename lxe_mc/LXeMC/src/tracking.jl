@@ -438,6 +438,61 @@ struct EventProcessingResult
 end
 
 
+struct FastKernelCalibEventResult
+    result::EventProcessingResult
+    multiplicity::Int
+    E1_MeV::Float64
+    E2_MeV::Float64
+end
+
+
+"""
+    FastGammaDeposit
+
+One local gamma energy deposit used by the continued fast-kernel event
+path. `coarse_region` is the transport region where the interaction
+occurred, while `region` stores the analysis-refined region:
+
+- `FV`
+- `LXeTPC`
+- `Skin`
+- passive transport region name (`LXe_det`, `FC_PTFE`, `FC_rings`, ...)
+"""
+struct FastGammaDeposit
+    Edep_MeV::Float64
+    position::Vector{Float64}
+    coarse_region::String
+    region::String
+end
+
+
+"""
+    FastGammaTrackResult
+
+Result of continued fast-kernel photon transport for one gamma. The
+transport follows repeated Compton scatters until a decisive analysis
+outcome is reached or the gamma is terminated.
+
+`status` values used by the current fast event path:
+
+- `:escaped`
+- `:below_cut`
+- `:absorbed_passive`
+- `:below_roi_fv`
+- `:vetoed_tpc`
+- `:vetoed_skin`
+- `:ms_rejected`
+"""
+struct FastGammaTrackResult
+    status::Symbol
+    deposits::Vector{FastGammaDeposit}
+    terminal_region::String
+    energy_MeV::Float64
+    position::Vector{Float64}
+    direction::Vector{Float64}
+end
+
+
 """
     propagate_gamma_v2(gamma, det, cfg, rng; step_cm=0.05, max_cm=400.0)
         -> GammaPropagationV2Result
@@ -532,7 +587,7 @@ function propagate_gamma_fastkernel(gamma,
     while E >= cfg.Egamma_cut && traveled < max_cm
         region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
         region === nothing && return GammaPropagationV2Result(:escaped, :none, 0.0, copy(pos), "MARS")
-        region.fv_target && return GammaPropagationV2Result(:entered_fv, :none, 0.0, copy(pos), region.name)
+        region.name == "FV" && return GammaPropagationV2Result(:entered_fv, :none, 0.0, copy(pos), "FV")
 
         mat = region.material
         s_bnd = distance_to_boundary_fastkernel(region, (pos[1], pos[2], pos[3]), (dir[1], dir[2], dir[3]))
@@ -582,12 +637,238 @@ function propagate_gamma_fastkernel(gamma,
 end
 
 
+@inline function _visible_threshold_MeV(cfg::SimConfig, region_name::String)::Float64
+    region_name == "Skin" && return cfg.veto_skin
+    region_name in ("TopActive", "BarrelActive", "BottomActive") && return cfg.veto_TPC
+    region_name == "FV" && return cfg.veto_TPC
+    return Inf
+end
+
+
+@inline function _is_passive_region(region_name::String)::Bool
+    region_name == "LXe_passive" || region_name == "FC_PTFE" || region_name == "FC_rings"
+end
+
+
+function _replace_last_deposit!(deposits::Vector{FastGammaDeposit}, dep::FastGammaDeposit)
+    deposits[end] = dep
+    deposits
+end
+
+
+@inline function _fast_track_result(status::Symbol,
+                                    deposits::Vector{FastGammaDeposit},
+                                    terminal_region::String,
+                                    E::Float64,
+                                    pos::Vector{Float64},
+                                    dir::Vector{Float64})
+    FastGammaTrackResult(status, deposits, terminal_region, E, copy(pos), copy(dir))
+end
+
+
+"""
+    transport_gamma_fastkernel(gamma, fk, cfg, rng; max_cm=400.0)
+        -> FastGammaTrackResult
+
+Continued fast-kernel photon transport used by the fast event path.
+
+Unlike `propagate_gamma_fastkernel`, which stops at the first interaction
+for geometry/transport validation, this routine continues after Compton
+scatters and applies analysis-driven early exits:
+
+- immediate veto in `Skin` and `LXeTPC \\ FV` when the local deposit is
+  above threshold
+- ROI-floor termination when the surviving photon energy falls below
+  `cfg.E_roi_floor`
+- local collapse of the remaining gamma energy at the current position
+  when the ROI-floor condition is met
+
+The returned deposits are later folded into event-level SS/MS logic.
+"""
+function transport_gamma_fastkernel(gamma,
+                                    fk::FastKernelGeometry,
+                                    cfg::SimConfig,
+                                    rng::AbstractRNG;
+                                    max_cm::Float64=400.0)::FastGammaTrackResult
+
+    pos = copy(gamma.position)
+    dir = copy(gamma.direction)
+    E = gamma.E_MeV
+    traveled = 0.0
+    deposits = FastGammaDeposit[]
+
+    while E >= cfg.Egamma_cut && traveled < max_cm
+        coarse_region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
+        coarse_region === nothing && return _fast_track_result(:escaped, deposits, "MARS", E, pos, dir)
+
+        if coarse_region.name == "FV"
+            return _fast_track_result(:handoff_fv, deposits, "FV", E, pos, dir)
+        end
+
+        mat = coarse_region.material
+        s_bnd = distance_to_boundary_fastkernel(coarse_region, (pos[1], pos[2], pos[3]), (dir[1], dir[2], dir[3]))
+        if !isfinite(s_bnd)
+            return _fast_track_result(:escaped, deposits, coarse_region.name, E, pos, dir)
+        end
+
+        if mat.density <= 0.0 || mat.xcom === nothing
+            pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
+            traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
+            continue
+        end
+
+        sC, sP, sPh = sigma_three(mat, E)
+        s_tot = sC + sP + sPh
+
+        if s_tot <= 0.0
+            pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
+            traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
+            continue
+        end
+
+        Σ_tot = mat.n_atom * s_tot
+        s_int = sample_distance(Σ_tot, rng)
+
+        if s_int + TRANSPORT_BOUNDARY_TOL_CM < s_bnd
+            pos .= pos .+ dir .* s_int
+            refined_region = coarse_region.name
+
+            proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
+            if proc === :compton
+                Egp, cos_theta = sample_compton(E, cfg, rng)
+                dep = E - Egp
+                push!(deposits, FastGammaDeposit(dep, copy(pos), coarse_region.name, refined_region))
+
+                if refined_region == "Skin" && dep >= cfg.veto_skin
+                    return _fast_track_result(:vetoed_skin, deposits, refined_region, Egp, pos, dir)
+                elseif refined_region in ("TopActive", "BarrelActive", "BottomActive") && dep >= cfg.veto_TPC
+                    return _fast_track_result(:vetoed_tpc, deposits, refined_region, Egp, pos, dir)
+                elseif refined_region == "FV" && dep >= cfg.veto_TPC
+                    sin_theta = sqrt(max(0.0, 1.0 - cos_theta^2))
+                    phi = 2π * rand(rng)
+                    local_dir = Float64[sin_theta * cos(phi), sin_theta * sin(phi), cos_theta]
+                    dir .= rotate_to_global(local_dir, dir)
+                    E = Egp
+                    if E < cfg.E_roi_floor
+                        dep_total = deposits[end].Edep_MeV + E
+                        _replace_last_deposit!(deposits,
+                            FastGammaDeposit(dep_total, deposits[end].position,
+                                             deposits[end].coarse_region,
+                                             deposits[end].region))
+                        return _fast_track_result(:below_roi_fv, deposits, refined_region, 0.0, pos, dir)
+                    end
+                    continue
+                else
+                    E = Egp
+                    if E < cfg.E_roi_floor
+                        dep_total = deposits[end].Edep_MeV + E
+                        _replace_last_deposit!(deposits,
+                            FastGammaDeposit(dep_total, deposits[end].position,
+                                             deposits[end].coarse_region,
+                                             deposits[end].region))
+
+                        if refined_region == "Skin"
+                            return _fast_track_result(:vetoed_skin, deposits, refined_region, 0.0, pos, dir)
+                        elseif refined_region in ("TopActive", "BarrelActive", "BottomActive")
+                            return _fast_track_result(:vetoed_tpc, deposits, refined_region, 0.0, pos, dir)
+                        elseif refined_region == "FV"
+                            return _fast_track_result(:below_roi_fv, deposits, refined_region, 0.0, pos, dir)
+                        elseif _is_passive_region(refined_region)
+                            return _fast_track_result(:absorbed_passive, deposits, refined_region, 0.0, pos, dir)
+                        else
+                            return _fast_track_result(:below_cut, deposits, refined_region, 0.0, pos, dir)
+                        end
+                    end
+
+                    sin_theta = sqrt(max(0.0, 1.0 - cos_theta^2))
+                    phi = 2π * rand(rng)
+                    local_dir = Float64[sin_theta * cos(phi), sin_theta * sin(phi), cos_theta]
+                    dir .= rotate_to_global(local_dir, dir)
+                    continue
+                end
+            elseif proc === :pair
+                push!(deposits, FastGammaDeposit(E, copy(pos), coarse_region.name, refined_region))
+                if refined_region == "Skin"
+                    return _fast_track_result(:vetoed_skin, deposits, refined_region, 0.0, pos, dir)
+                elseif refined_region in ("TopActive", "BarrelActive", "BottomActive")
+                    return _fast_track_result(:vetoed_tpc, deposits, refined_region, 0.0, pos, dir)
+                elseif refined_region == "FV"
+                    return _fast_track_result(:below_roi_fv, deposits, refined_region, 0.0, pos, dir)
+                elseif _is_passive_region(refined_region)
+                    return _fast_track_result(:absorbed_passive, deposits, refined_region, 0.0, pos, dir)
+                else
+                    return _fast_track_result(:below_cut, deposits, refined_region, 0.0, pos, dir)
+                end
+            else
+                push!(deposits, FastGammaDeposit(E, copy(pos), coarse_region.name, refined_region))
+                if refined_region == "Skin"
+                    return _fast_track_result(:vetoed_skin, deposits, refined_region, 0.0, pos, dir)
+                elseif refined_region in ("TopActive", "BarrelActive", "BottomActive")
+                    return _fast_track_result(:vetoed_tpc, deposits, refined_region, 0.0, pos, dir)
+                elseif refined_region == "FV"
+                    return _fast_track_result(:below_roi_fv, deposits, refined_region, 0.0, pos, dir)
+                elseif _is_passive_region(refined_region)
+                    return _fast_track_result(:absorbed_passive, deposits, refined_region, 0.0, pos, dir)
+                else
+                    return _fast_track_result(:below_cut, deposits, refined_region, 0.0, pos, dir)
+                end
+            end
+        end
+
+        pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
+        traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
+    end
+
+    _fast_track_result(:below_cut, deposits, "MARS", E, pos, dir)
+end
+
+
 function _update_event_state(sel)
     has_fv = sel.class == :fv && sel.passes_threshold
     has_tpc_veto = sel.class == :tpc && sel.passes_threshold
     has_skin_veto = sel.class == :skin && sel.passes_threshold
     vetoed = has_tpc_veto || has_skin_veto
     (has_fv=has_fv, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto, vetoed=vetoed)
+end
+
+
+function _fold_fast_deposit(dep::FastGammaDeposit,
+                            has_fv::Bool,
+                            has_tpc_veto::Bool,
+                            has_skin_veto::Bool,
+                            fv_z_ref::Float64,
+                            cfg::SimConfig)
+    if dep.region == "FV"
+        if dep.Edep_MeV >= cfg.veto_TPC
+            if !has_fv
+                return (has_fv=true, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto,
+                        fv_z_ref=dep.position[3], vetoed=false, ms_rejected=false)
+            elseif abs(dep.position[3] - fv_z_ref) > cfg.dz_resolution
+                return (has_fv=true, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto,
+                        fv_z_ref=fv_z_ref, vetoed=true, ms_rejected=true)
+            else
+                return (has_fv=true, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto,
+                        fv_z_ref=fv_z_ref, vetoed=false, ms_rejected=false)
+            end
+        end
+    elseif dep.region == "LXeTPC" && dep.Edep_MeV >= cfg.veto_TPC
+        return (has_fv=has_fv, has_tpc_veto=true, has_skin_veto=has_skin_veto,
+                fv_z_ref=fv_z_ref, vetoed=true, ms_rejected=false)
+    elseif dep.region == "Skin" && dep.Edep_MeV >= cfg.veto_skin
+        return (has_fv=has_fv, has_tpc_veto=has_tpc_veto, has_skin_veto=true,
+                fv_z_ref=fv_z_ref, vetoed=true, ms_rejected=false)
+    end
+
+    (has_fv=has_fv, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto,
+     fv_z_ref=fv_z_ref, vetoed=false, ms_rejected=false)
+end
+
+
+function _classify_fv_stack_result(deposits::Vector{Deposit}, cfg::SimConfig)::Symbol
+    clusters = cluster_deposits_in_z(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
+    isempty(clusters) && return :no_fv
+    length(clusters) == 1 && return :accepted
+    :ms_rejected
 end
 
 
@@ -640,22 +921,50 @@ function process_event(gammas, det::DetectorV2, cfg::SimConfig, rng::AbstractRNG
 end
 
 
-function process_event_fastkernel(gammas, fk::FastKernelGeometry, det::DetectorV2,
+function process_event_fastkernel(gammas, fk::FastKernelGeometry, det,
                                   cfg::SimConfig, rng::AbstractRNG)
     has_fv = false
     has_tpc_veto = false
     has_skin_veto = false
+    fv_z_ref = NaN
     n_processed = 0
+    fv_vol = fiducial_volume(det)
 
     for gamma in gammas
-        result = propagate_gamma_fastkernel(gamma, fk, cfg, rng)
-        sel = select_interaction_fastkernel(result, fk)
+        result = transport_gamma_fastkernel(gamma, fk, cfg, rng)
         n_processed += 1
-        state = _update_event_state(sel)
-        has_fv |= state.has_fv
-        has_tpc_veto |= state.has_tpc_veto
-        has_skin_veto |= state.has_skin_veto
-        if state.vetoed
+
+        for dep in result.deposits
+            state = _fold_fast_deposit(dep, has_fv, has_tpc_veto, has_skin_veto, fv_z_ref, cfg)
+            has_fv = state.has_fv
+            has_tpc_veto = state.has_tpc_veto
+            has_skin_veto = state.has_skin_veto
+            fv_z_ref = state.fv_z_ref
+            if state.vetoed
+                return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+            end
+        end
+
+        if result.status == :handoff_fv
+            deps = simulate_event(
+                result.energy_MeV,
+                fv_vol,
+                cfg;
+                position=(result.position[1], result.position[2], result.position[3]),
+                direction=(result.direction[1], result.direction[2], result.direction[3]),
+                rng=rng,
+            )
+            fv_status = _classify_fv_stack_result(deps, cfg)
+            if fv_status == :accepted
+                has_fv = true
+            elseif fv_status == :ms_rejected
+                return EventProcessingResult(:ms_rejected, true, has_tpc_veto, has_skin_veto, n_processed)
+            end
+        elseif result.status == :vetoed_tpc
+            has_tpc_veto = true
+            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+        elseif result.status == :vetoed_skin
+            has_skin_veto = true
             return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed)
         end
     end
@@ -664,6 +973,34 @@ function process_event_fastkernel(gammas, fk::FastKernelGeometry, det::DetectorV
         return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, n_processed)
     end
     EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+end
+
+
+function process_event_fastkernel_calib(fk::FastKernelGeometry, det, cfg::SimConfig,
+                                        rng::AbstractRNG;
+                                        E_MeV::Float64=2.615,
+                                        x_cm::Float64=0.0,
+                                        y_cm::Float64=0.0,
+                                        z_cm::Float64=160.0,
+                                        ux::Float64=1.0,
+                                        uy::Float64=0.0,
+                                        uz::Float64=0.0)
+    gammas = sample_gammas("calib";
+                           calib=true,
+                           E_MeV=E_MeV,
+                           x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
+                           ux=ux, uy=uy, uz=uz,
+                           rng=rng)
+    multiplicity = length(gammas)
+
+    E1 = multiplicity >= 1 ? gammas[1].E_MeV : 0.0
+    E2 = multiplicity >= 2 ? gammas[2].E_MeV : 0.0
+    FastKernelCalibEventResult(
+        process_event_fastkernel(gammas, fk, det, cfg, rng),
+        multiplicity,
+        E1,
+        E2,
+    )
 end
 
 

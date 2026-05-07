@@ -120,6 +120,13 @@ function sample_isotropic_direction(rng::AbstractRNG)::Vector{Float64}
 end
 
 
+function _normalize_direction(ux::Real, uy::Real, uz::Real)::Vector{Float64}
+    n = sqrt(Float64(ux)^2 + Float64(uy)^2 + Float64(uz)^2)
+    n > 0.0 || error("Direction vector must be non-zero")
+    Float64[Float64(ux) / n, Float64(uy) / n, Float64(uz) / n]
+end
+
+
 """
     sample_decay(scheme::DecayScheme, rng) -> Vector{GammaEmission}
 
@@ -151,17 +158,49 @@ function sample_decay(scheme::DecayScheme, rng::AbstractRNG)::Vector{GammaEmissi
 end
 
 
-function sample_event(isotope, source; calib::Bool=false, rng::AbstractRNG=Random.default_rng())::Vector{SampledGamma}
-    calib || error("sample_event(...; calib=false) is not implemented yet")
+function sample_gammas(source;
+                       calib::Bool=false,
+                       E_MeV::Float64=2.615,
+                       x_cm::Float64=0.0,
+                       y_cm::Float64=0.0,
+                       z_cm::Float64=160.0,
+                       ux::Float64=1.0,
+                       uy::Float64=0.0,
+                       uz::Float64=0.0,
+                       rng::AbstractRNG=Random.default_rng())::Vector{SampledGamma}
+    if !calib
+        error("sample_gammas(...; calib=false) is not implemented yet")
+    end
 
     multiplicity = rand(rng, 0:2)
-    gammas = SampledGamma[]
-    for _ in 1:multiplicity
-        push!(gammas, SampledGamma(
-            2.615,
-            Float64[0.0, 0.0, 160.0],
-            sample_isotropic_direction(rng)
-        ))
+    gammas = Vector{SampledGamma}(undef, multiplicity)
+    dir = _normalize_direction(ux, uy, uz)
+
+    @inbounds for i in 1:multiplicity
+        gammas[i] = SampledGamma(
+            E_MeV,
+            Float64[x_cm, y_cm, z_cm],
+            copy(dir),
+        )
     end
     gammas
+end
+
+
+function sample_event(isotope, source;
+                      calib::Bool=false,
+                      E_MeV::Float64=2.615,
+                      x_cm::Float64=0.0,
+                      y_cm::Float64=0.0,
+                      z_cm::Float64=160.0,
+                      ux::Float64=1.0,
+                      uy::Float64=0.0,
+                      uz::Float64=0.0,
+                      rng::AbstractRNG=Random.default_rng())::Vector{SampledGamma}
+    sample_gammas(source;
+                  calib=calib,
+                  E_MeV=E_MeV,
+                  x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
+                  ux=ux, uy=uy, uz=uz,
+                  rng=rng)
 end

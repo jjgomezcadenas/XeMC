@@ -12,6 +12,7 @@ Loaded from `data/sim_config.json`.
 struct SimConfig
     # --- Transport cuts ---
     Egamma_cut::Float64     # photon tracking cutoff [MeV]
+    E_roi_floor::Float64    # gamma energy below which the photon cannot contribute to the ROI [MeV]
     Te_cut::Float64         # lepton tracking cutoff [MeV]
     k_min::Float64          # bremsstrahlung photon threshold [MeV]
 
@@ -59,6 +60,7 @@ function load_config(path::AbstractString)::SimConfig
 
     SimConfig(
         Float64(pc["Egamma_cut_MeV"]),
+        Float64(pc["E_roi_floor_MeV"]),
         Float64(lc["Te_cut_MeV"]),
         Float64(br["k_min_MeV"]),
         Float64(st["ds_step_cm"]),
