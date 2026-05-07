@@ -259,6 +259,7 @@ function main()
 
     status_counts = Dict{Symbol,Int}()
     interaction_counts = Dict{Symbol,Int}()
+    selection_counts = Dict{Symbol,Int}()
     deposits = Float64[]
     rs = Float64[]
     zs = Float64[]
@@ -266,6 +267,17 @@ function main()
     for r in results
         status_counts[r.status] = get(status_counts, r.status, 0) + 1
         interaction_counts[r.interaction_type] = get(interaction_counts, r.interaction_type, 0) + 1
+        sel = select_interaction(r, det)
+        sel_key = if sel.class == :fv
+            :fv_pass
+        elseif sel.class == :tpc
+            sel.passes_threshold ? :tpc_pass : :tpc_fail
+        elseif sel.class == :skin
+            sel.passes_threshold ? :skin_pass : :skin_fail
+        else
+            :other
+        end
+        selection_counts[sel_key] = get(selection_counts, sel_key, 0) + 1
         if r.status == :interacted
             push!(deposits, r.deposit_E_MeV)
             push!(rs, hypot(r.position[1], r.position[2]))
@@ -285,6 +297,7 @@ function main()
         println("Tagged output directory: $tagged_outdir")
         write_counts(joinpath(tagged_outdir, "status_counts.csv"), status_counts)
         write_counts(joinpath(tagged_outdir, "interaction_type_counts.csv"), interaction_counts)
+        write_counts(joinpath(tagged_outdir, "selection_outcome_counts.csv"), selection_counts)
         open(joinpath(tagged_outdir, "summary.txt"), "w") do io
             @printf(io, "N = %d\n", N)
             @printf(io, "seed = %d\n", seed)
@@ -300,6 +313,7 @@ function main()
     else
         print_counts("Status counts", status_counts)
         print_counts("Interaction-type counts", interaction_counts)
+        print_counts("Selection outcome counts", selection_counts)
     end
 
     if !isempty(deposits)

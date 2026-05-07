@@ -405,6 +405,46 @@ end
 end
 
 
+@testset "V2 interaction selector" begin
+    fv_res = GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV")
+    fv_sel = select_interaction(fv_res, DET2)
+    @test fv_sel.class == :fv
+    @test fv_sel.sensitive
+    @test fv_sel.passes_threshold
+    @test fv_sel.region == "FV"
+
+    tpc_hi = GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[60.0, 0.0, 120.0], "LXeTPC")
+    tpc_hi_sel = select_interaction(tpc_hi, DET2)
+    @test tpc_hi_sel.class == :tpc
+    @test tpc_hi_sel.sensitive
+    @test tpc_hi_sel.passes_threshold
+
+    tpc_lo = GammaPropagationV2Result(:interacted, :compton, 0.005, Float64[60.0, 0.0, 120.0], "LXeTPC")
+    tpc_lo_sel = select_interaction(tpc_lo, DET2)
+    @test tpc_lo_sel.class == :tpc
+    @test tpc_lo_sel.sensitive
+    @test !tpc_lo_sel.passes_threshold
+
+    skin_hi = GammaPropagationV2Result(:interacted, :compton, 0.200, Float64[78.0, 0.0, 100.0], "Skin")
+    skin_hi_sel = select_interaction(skin_hi, DET2)
+    @test skin_hi_sel.class == :skin
+    @test skin_hi_sel.sensitive
+    @test skin_hi_sel.passes_threshold
+
+    skin_lo = GammaPropagationV2Result(:interacted, :compton, 0.050, Float64[78.0, 0.0, 100.0], "Skin")
+    skin_lo_sel = select_interaction(skin_lo, DET2)
+    @test skin_lo_sel.class == :skin
+    @test skin_lo_sel.sensitive
+    @test !skin_lo_sel.passes_threshold
+
+    struct_res = GammaPropagationV2Result(:interacted, :compton, 0.500, Float64[73.55, 0.0, 100.0], "FC_PTFE")
+    struct_sel = select_interaction(struct_res, DET2)
+    @test struct_sel.class == :other
+    @test !struct_sel.sensitive
+    @test !struct_sel.passes_threshold
+end
+
+
 # =====================================================================
 # Test 3b: Geometric solids and CylShell
 # =====================================================================

@@ -103,12 +103,14 @@ def plot_hist(ax, centers, widths, counts, title, xlabel, color):
 def make_figure(directory: Path):
     status_labels, status_counts = read_counts_csv(directory / "status_counts.csv")
     interaction_labels, interaction_counts = read_counts_csv(directory / "interaction_type_counts.csv")
+    selection_labels, selection_counts = read_counts_csv(directory / "selection_outcome_counts.csv")
     _, _, e_centers, e_widths, e_counts = read_hist1d_csv(directory / "deposit_energy_hist.csv")
     r_edges, z_edges, heatmap = read_heatmap_csv(directory / "interaction_rz_heatmap.csv")
     summary = read_summary(directory / "summary.txt")
 
     status_map = dict(zip(status_labels, status_counts))
     interaction_map = dict(zip(interaction_labels, interaction_counts))
+    selection_map = dict(zip(selection_labels, selection_counts))
     total = float(np.sum(status_counts))
 
     outcome_labels = ["compton", "pair", "photo", "inFV", "out"]
@@ -125,21 +127,27 @@ def make_figure(directory: Path):
     if total > 0:
         outcome_counts /= total
 
-    fig = plt.figure(figsize=(14, 10), constrained_layout=True)
-    gs = fig.add_gridspec(2, 2, height_ratios=[0.9, 1.35])
+    selection_plot_labels = ["fv_pass", "tpc_pass", "tpc_fail", "skin_pass", "skin_fail", "other"]
+    selection_plot_counts = np.asarray(
+        [selection_map.get(label, 0) for label in selection_plot_labels],
+        dtype=float,
+    )
+    if total > 0:
+        selection_plot_counts /= total
+
+    fig = plt.figure(figsize=(16, 10), constrained_layout=True)
+    gs = fig.add_gridspec(2, 3, height_ratios=[0.9, 1.35])
 
     ax_outcome = fig.add_subplot(gs[0, 0])
-    ax_e = fig.add_subplot(gs[0, 1])
+    ax_select = fig.add_subplot(gs[0, 1])
+    ax_e = fig.add_subplot(gs[0, 2])
     ax_heat = fig.add_subplot(gs[1, :])
 
     plot_counts(ax_outcome, outcome_labels, outcome_counts, "Interaction Outcome", "#F58518")
+    plot_counts(ax_select, selection_plot_labels, selection_plot_counts, "Selection Outcome", "#4C78A8")
 
-    title_bits = []
-    for key in ["E0_MeV", "x0_cm", "y0_cm", "z0_cm", "ux", "uy", "uz", "N"]:
-        if key in summary:
-            title_bits.append(f"{key}={summary[key]}")
-    if title_bits:
-        ax_outcome.set_title("Interaction Outcome\n" + ", ".join(title_bits), fontsize=10)
+    if "E0_MeV" in summary and "N" in summary:
+        ax_outcome.set_title(f"Interaction Outcome\nE={float(summary['E0_MeV']):.2f} MeV, N={summary['N']}", fontsize=10)
 
     plot_hist(ax_e, e_centers, e_widths, e_counts, "Deposited Energy", "MeV", "#54A24B")
 
@@ -180,8 +188,7 @@ def main():
     outpath = directory / args.outfile
     fig.savefig(outpath, dpi=180)
     print(f"Wrote {outpath}")
-    plt.show(block=False)
-    input("Press Return to close the figure...")
+    plt.show()
     plt.close(fig)
 
 

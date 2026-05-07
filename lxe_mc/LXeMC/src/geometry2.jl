@@ -149,6 +149,41 @@ function classify_runtime_v2(det::DetectorV2, pos::NTuple{3,<:Real})
 end
 
 
+function select_interaction(result, det::DetectorV2)
+    cls = classify_runtime_v2(det, (result.position[1], result.position[2], result.position[3]))
+    cls === nothing && return (
+        class = :other,
+        sensitive = false,
+        passes_threshold = false,
+        ecut_keV = 0.0,
+        region = "MARS",
+        interaction_type = result.interaction_type
+    )
+
+    class = if cls.fv_target
+        :fv
+    elseif cls.name == "LXeTPC"
+        :tpc
+    elseif cls.name == "Skin"
+        :skin
+    else
+        :other
+    end
+
+    dep_keV = 1000.0 * result.deposit_E_MeV
+    passes_threshold = cls.sensitive && dep_keV >= cls.ecut_keV
+
+    (
+        class = class,
+        sensitive = cls.sensitive,
+        passes_threshold = passes_threshold,
+        ecut_keV = cls.ecut_keV,
+        region = cls.name,
+        interaction_type = result.interaction_type
+    )
+end
+
+
 function _same_runtime_node(a, b)::Bool
     a === nothing && return b === nothing
     b === nothing && return false
