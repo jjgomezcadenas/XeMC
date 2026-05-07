@@ -395,8 +395,13 @@ end
     interacted = filter(r -> r.status == :interacted, results)
     @test !isempty(interacted)
     @test all(r -> r.region == "LXeTPC", interacted)
-    @test all(r -> r.interaction_type in (:compton, :photoelectric), interacted)
-    @test all(r -> r.interaction_type == :compton ? (0.0 < r.deposit_E_MeV < 2.615) : isapprox(r.deposit_E_MeV, 2.615; atol=1e-6), interacted)
+    @test all(r -> r.interaction_type in (:compton, :photoelectric, :pair), interacted)
+    @test all(
+        r -> r.interaction_type == :compton ?
+            (0.0 < r.deposit_E_MeV < 2.615) :
+            isapprox(r.deposit_E_MeV, 2.615; atol=1e-6),
+        interacted
+    )
 end
 
 

@@ -440,8 +440,8 @@ Propagate one sampled gamma through the Geometry V2 tracking tree until:
 - it escapes the tracking geometry (`status = :escaped`)
 - it falls below the photon cutoff (`status = :below_cut`)
 
-This first V2 transport stage samples only Compton and photoelectric
-interactions. Pair production is left for a later step.
+This first V2 transport stage samples Compton, pair-production, and
+photoelectric interactions, but still stops at the first interaction.
 """
 function propagate_gamma_v2(gamma,
                             det::DetectorV2,
@@ -473,8 +473,8 @@ function propagate_gamma_v2(gamma,
             continue
         end
 
-        sC, _, sPh = sigma_three(mat, E)
-        s_tot = sC + sPh
+        sC, sP, sPh = sigma_three(mat, E)
+        s_tot = sC + sP + sPh
 
         if s_tot <= 0.0
             pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
@@ -490,10 +490,12 @@ function propagate_gamma_v2(gamma,
             region = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
             region_name = region === nothing ? cls.name : region.name
 
-            proc = sample_process(sC/s_tot, 0.0, sPh/s_tot, rng)
+            proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
             if proc === :compton
                 Egp, _ = sample_compton(E, cfg, rng)
                 return GammaPropagationV2Result(:interacted, :compton, E - Egp, copy(pos), region_name)
+            elseif proc === :pair
+                return GammaPropagationV2Result(:interacted, :pair, E, copy(pos), region_name)
             else
                 return GammaPropagationV2Result(:interacted, :photoelectric, E, copy(pos), region_name)
             end
