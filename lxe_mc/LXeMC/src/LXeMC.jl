@@ -99,7 +99,7 @@ export sample_brems, brems_photon_angle
 # --- Tracking ---
 export Track, ParticleStack, Deposit
 export transport_photon!, transport_lepton!
-export simulate_event, simulate_event_photon_only
+export simulate_event, simulate_event_photon_only, propagate_gamma_in_fv
 export PropagationResult, EventProcessingResult
 export GammaPropagationResult
 export propagate_to_fiducial, propagate_to_lxe

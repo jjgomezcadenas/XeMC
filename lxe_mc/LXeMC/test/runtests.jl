@@ -406,6 +406,44 @@ end
 end
 
 
+@testset "FV-only stack transport" begin
+    fvgeom = compile_fv_geometry(DET3)
+    fvvol = fiducial_volume(DET)
+
+    rng1 = MersenneTwister(20260508)
+    deps_old = simulate_event(2.61, fvvol, CFG;
+                              position=(0.0, 0.0, 61.0),
+                              direction=(0.0, 0.0, 1.0),
+                              rng=rng1)
+    rng2 = MersenneTwister(20260508)
+    deps_new = propagate_gamma_in_fv(2.61, fvgeom, CFG;
+                                     position=(0.0, 0.0, 61.0),
+                                     direction=(0.0, 0.0, 1.0),
+                                     rng=rng2)
+
+    @test length(deps_new) == length(deps_old)
+    @test all(is_inside_fv(fvgeom, d.position) for d in deps_new)
+    @test sum(d.energy for d in deps_new) ≈ sum(d.energy for d in deps_old) atol=1e-9
+    @test [d.source for d in deps_new] == [d.source for d in deps_old]
+
+    rng3 = MersenneTwister(12345)
+    deps_old_2 = simulate_event(2.61, fvvol, CFG;
+                                position=(10.0, 0.0, 80.0),
+                                direction=(0.0, 0.0, -1.0),
+                                rng=rng3)
+    rng4 = MersenneTwister(12345)
+    deps_new_2 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
+                                       position=(10.0, 0.0, 80.0),
+                                       direction=(0.0, 0.0, -1.0),
+                                       rng=rng4)
+
+    @test length(deps_new_2) == length(deps_old_2)
+    @test all(is_inside_fv(fvgeom, d.position) for d in deps_new_2)
+    @test sum(d.energy for d in deps_new_2) ≈ sum(d.energy for d in deps_old_2) atol=1e-9
+    @test [d.source for d in deps_new_2] == [d.source for d in deps_old_2]
+end
+
+
 # =====================================================================
 # Test 3b: Geometric solids and CylShell
 # =====================================================================
