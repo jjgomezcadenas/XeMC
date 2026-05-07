@@ -6,14 +6,10 @@ using Statistics
 
 const CFG  = default_config()
 const MATS = load_materials(CFG)
-const DET  = load_detector(default_detector_path(), MATS)
 const DET3 = load_tracking_detector(default_tracking_detector_path(), MATS)
 const SOURCE_GEOM = JSON.parsefile(normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json")))
-const VOL  = active_volume(DET)
-const MAT  = VOL.material
+const MAT  = MATS["LXe"]
 const GEOM_TOL = 0.1
-# TPC center position (cathode at z=0, TPC spans [0, 145.6])
-const TPC_CENTER = (0.0, 0.0, VOL.logical.position[3])
 
 
 # =====================================================================
@@ -51,58 +47,6 @@ end
     @test MAT.brems_T !== nothing
     # Vacuum has zero density
     @test MATS["Vacuum"].density == 0.0
-end
-
-
-# =====================================================================
-# Test 3: Detector geometry
-# =====================================================================
-@testset "Legacy stack geometry" begin
-    @test DET.name == "LZ"
-    @test length(DET.volumes) == 21  # legacy geometry plus 5 added field-cage/grid-holder proxy volumes (FV separate)
-    @test VOL.name == "LXeTPC"
-
-    # TPC: centered at z=72.8 (cathode at z=0, drift upward)
-    @test VOL.logical.solid.radius_cm ≈ 72.8
-    @test VOL.logical.solid.half_height_cm ≈ 72.8
-    @test is_inside(VOL, [0.0, 0.0, 72.8])    # center of TPC
-    @test !is_inside(VOL, [0.0, 0.0, -1.0])   # below cathode
-    @test !is_inside(VOL, [100.0, 0.0, 72.8])  # outside radius
-
-    by_name = Dict(v.name => v for v in DET.volumes)
-
-    # LXe masses vs reference table (tonnes)
-    m_tpc  = mass(VOL) / 1e6                               # tonnes
-    m_skin = mass(by_name["Skin"]) / 1e6
-    m_rfr  = mass(by_name["RFR"]) / 1e6
-    m_dome = mass(by_name["Dome"]) / 1e6
-    m_lxe  = m_tpc + m_skin + m_rfr + m_dome
-    @test m_tpc  ≈ 7.16  rtol=0.01    # ref 7.16 t
-    @test m_skin ≈ 1.80  rtol=0.01    # ref 1.80 t
-    @test m_rfr  ≈ 0.68  rtol=0.01    # ref 0.68 t
-    @test m_dome ≈ 2.88  rtol=0.25    # cylindrical approx overestimates (ignores head curvature)
-    @test m_lxe  ≈ 12.52 rtol=0.06   # total LXe, dome approx inflates by ~0.6 t
-
-    # Ti cryostat masses (within 1%)
-    m_ocv = sum(mass(by_name[n]) for n in ["OCV_barrel","OCV_top","OCV_bottom"]) / 1000.0
-    m_icv = sum(mass(by_name[n]) for n in ["ICV_barrel","ICV_top","ICV_bottom"]) / 1000.0
-    @test m_ocv ≈ 778.6  rtol=0.01
-    @test m_icv ≈ 651.1  rtol=0.01
-
-    # Field cage is PTFE
-    @test by_name["FieldCage"].material.name == "PTFE"
-
-    # Fiducial volume
-    fv = fiducial_volume(DET)
-    @test fv.name == "FV"
-    @test fv.logical.solid.radius_cm ≈ 39.0
-    @test fv.logical.solid.half_height_cm ≈ 35.0
-    @test is_inside(fv, [0.0, 0.0, 61.0])      # FV center
-    @test !is_inside(fv, [0.0, 0.0, 0.0])       # cathode, outside FV
-    @test !is_inside(fv, [40.0, 0.0, 61.0])     # outside FV radius
-    @test is_inside(VOL, fv.logical.position)    # FV center is inside TPC
-    m_fv = mass(fv) / 1e6                        # tonnes
-    @test 0.9 < m_fv < 1.1                       # ~1 tonne fiducial
 end
 
 
@@ -409,39 +353,37 @@ end
 
 @testset "FV-only stack transport" begin
     fvgeom = compile_fv_geometry(DET3)
-    fvvol = fiducial_volume(DET)
-
     rng1 = MersenneTwister(20260508)
-    deps_old = simulate_event(2.61, fvvol, CFG;
-                              position=(0.0, 0.0, 61.0),
-                              direction=(0.0, 0.0, 1.0),
-                              rng=rng1)
+    deps1 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
+                                  position=(0.0, 0.0, 61.0),
+                                  direction=(0.0, 0.0, 1.0),
+                                  rng=rng1)
     rng2 = MersenneTwister(20260508)
-    deps_new = propagate_gamma_in_fv(2.61, fvgeom, CFG;
-                                     position=(0.0, 0.0, 61.0),
-                                     direction=(0.0, 0.0, 1.0),
-                                     rng=rng2)
+    deps2 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
+                                  position=(0.0, 0.0, 61.0),
+                                  direction=(0.0, 0.0, 1.0),
+                                  rng=rng2)
 
-    @test length(deps_new) == length(deps_old)
-    @test all(is_inside_fv(fvgeom, d.position) for d in deps_new)
-    @test sum(d.energy for d in deps_new) ≈ sum(d.energy for d in deps_old) atol=1e-9
-    @test [d.source for d in deps_new] == [d.source for d in deps_old]
+    @test length(deps2) == length(deps1)
+    @test all(is_inside_fv(fvgeom, d.position) for d in deps1)
+    @test sum(d.energy for d in deps2) ≈ sum(d.energy for d in deps1) atol=1e-9
+    @test [d.source for d in deps2] == [d.source for d in deps1]
 
     rng3 = MersenneTwister(12345)
-    deps_old_2 = simulate_event(2.61, fvvol, CFG;
-                                position=(10.0, 0.0, 80.0),
-                                direction=(0.0, 0.0, -1.0),
-                                rng=rng3)
+    deps3 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
+                                  position=(10.0, 0.0, 80.0),
+                                  direction=(0.0, 0.0, -1.0),
+                                  rng=rng3)
     rng4 = MersenneTwister(12345)
-    deps_new_2 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
-                                       position=(10.0, 0.0, 80.0),
-                                       direction=(0.0, 0.0, -1.0),
-                                       rng=rng4)
+    deps4 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
+                                  position=(10.0, 0.0, 80.0),
+                                  direction=(0.0, 0.0, -1.0),
+                                  rng=rng4)
 
-    @test length(deps_new_2) == length(deps_old_2)
-    @test all(is_inside_fv(fvgeom, d.position) for d in deps_new_2)
-    @test sum(d.energy for d in deps_new_2) ≈ sum(d.energy for d in deps_old_2) atol=1e-9
-    @test [d.source for d in deps_new_2] == [d.source for d in deps_old_2]
+    @test length(deps4) == length(deps3)
+    @test all(is_inside_fv(fvgeom, d.position) for d in deps3)
+    @test sum(d.energy for d in deps4) ≈ sum(d.energy for d in deps3) atol=1e-9
+    @test [d.source for d in deps4] == [d.source for d in deps3]
 end
 
 
@@ -558,13 +500,6 @@ end
     t_exit = distance_to_exit([51.0, 0.0, 0.0], [-1.0, 0.0, 0.0], lcs)
     @test t_exit ≈ 1.0  atol=0.1  # exits through inner surface
 
-    # next_volume: ray from outside MARS toward ICV barrel
-    by_name = Dict(v.name => v for v in DET.volumes)
-    icv = by_name["ICV_barrel"]
-    # From r=100, aimed at center, should hit ICV barrel
-    vol, t = next_volume([100.0, 0.0, 53.585], [-1.0, 0.0, 0.0], DET)
-    @test vol !== nothing
-    @test t < 100.0  # should hit something before traveling 100 cm
 end
 
 
@@ -676,140 +611,3 @@ end
     end
 end
 
-
-# =====================================================================
-# Test 12: Energy conservation (full mode)
-# =====================================================================
-@testset "Energy conservation" begin
-    rng = MersenneTwister(3)
-    E0 = 2.615
-    N = 200
-    losses = Float64[]
-    for _ in 1:N
-        deps = simulate_event(E0, VOL, CFG; position=TPC_CENTER, rng=rng)
-        E_dep = sum(d.energy for d in deps)
-        push!(losses, E0 - E_dep)
-    end
-    @test abs(mean(losses)) < 5 * CFG.Te_cut
-end
-
-
-# =====================================================================
-# Test 13: SS fraction for Tl-208
-# =====================================================================
-@testset "SS fraction Tl-208" begin
-    rng = MersenneTwister(7)
-    N = 200
-    n_ss = 0
-    for _ in 1:N
-        deps = simulate_event(2.615, VOL, CFG; position=TPC_CENTER, rng=rng)
-        if is_single_site(deps, CFG.dz_resolution; E_min=CFG.E_cluster_min)
-            n_ss += 1
-        end
-    end
-    frac = n_ss / N
-    @test 0.05 < frac < 0.30
-end
-
-
-# =====================================================================
-# Test 14: Photon-only energy conservation
-# =====================================================================
-@testset "Photon-only energy conservation" begin
-    rng = MersenneTwister(10)
-    E0 = 2.615
-    N = 200
-    for _ in 1:N
-        deps = simulate_event_photon_only(E0, VOL, CFG; position=TPC_CENTER, rng=rng)
-        E_dep = sum(d.energy for d in deps)
-        @test E_dep ≈ E0  rtol=1e-10
-    end
-end
-
-
-# =====================================================================
-# Test 15: Veto pre-filter (propagate_to_fiducial)
-# =====================================================================
-@testset "Veto pre-filter" begin
-    rng = MersenneTwister(20)
-    E0 = 2.615
-    N = 1000
-
-    # Gammas from TPC wall (r=72.8, aimed inward at z=72.8 = TPC center height)
-    n_vetoed = 0; n_accepted = 0; n_lost = 0
-    n_int_vetoed = Int[]
-    for _ in 1:N
-        φ = 2π * rand(rng)
-        pos = (72.0 * cos(φ), 72.0 * sin(φ), 72.8)
-        dir_vec = (-cos(φ), -sin(φ), 0.0)
-
-        result = propagate_to_fiducial(E0, pos, dir_vec, DET, CFG, rng)
-        if result.status === :vetoed
-            n_vetoed += 1
-            push!(n_int_vetoed, result.n_interactions)
-        elseif result.status === :accepted
-            n_accepted += 1
-        else
-            n_lost += 1
-        end
-    end
-
-    frac_vetoed  = n_vetoed / N
-    frac_accepted = n_accepted / N
-
-    # Radial shielding: 33.8 cm / 8.9 cm mfp ≈ 3.8 λ
-    # Unscattered survival ≈ exp(-3.8) ≈ 2.2%
-    # Accepted is slightly higher (~3%) due to forward Compton below veto threshold
-    @test 0.90 < frac_vetoed < 0.99     # ~97% vetoed
-    @test 0.01 < frac_accepted < 0.07   # ~2-5% reach FV
-    @test n_lost == 0                    # radial gammas don't escape
-
-    # Nearly all vetoed events are killed at the first interaction
-    # (99.8% at interaction 1, 0.2% at interaction 2, from 10k-event study)
-    frac_first = count(==(1), n_int_vetoed) / length(n_int_vetoed)
-    @test frac_first > 0.95              # >95% vetoed at first interaction
-    @test maximum(n_int_vetoed) <= 3     # never needs more than ~2-3 steps
-end
-
-
-# =====================================================================
-# Test 17: Source flux generation
-# =====================================================================
-@testset "Source flux" begin
-    decays = load_decays()
-    by_name = Dict(v.name => v for v in DET.volumes)
-    source = by_name["ICV_barrel"]
-    rng = MersenneTwister(42)
-    N = 10000
-
-    # Bi-214: single gamma, no companion veto
-    ft_bi = generate_source_flux(N, source, decays["Bi214"], DET, CFG, rng)
-    @test ft_bi.N_generated == N
-    @test ft_bi.N_vetoed == 0                      # no companions → no veto
-    @test ft_bi.N_surviving > 0
-    # ~38% survive (forward + in energy window); ~51% backward
-    @test 0.25 < survival_fraction(ft_bi) < 0.50
-    @test ft_bi.N_backward > N * 0.3               # ~50% go backward
-    # Peak bin: most surviving Bi-214 are unscattered (2.448 in bin 8)
-    f_pk = peak_bin_fraction(ft_bi, 2.448)
-    f_off = off_peak_fraction(ft_bi, 2.448)
-    @test f_pk > f_off                             # Bi-214: peak dominates (thin source)
-    # Flux table dimensions
-    @test size(ft_bi.pdf) == (25, 10)
-    @test sum(ft_bi.pdf) ≈ ft_bi.N_surviving / ft_bi.N_generated  rtol=1e-10
-
-    # Tl-208: companion gamma causes veto
-    rng2 = MersenneTwister(42)
-    ft_tl = generate_source_flux(N, source, decays["Tl208"], DET, CFG, rng2)
-    @test ft_tl.N_generated == N
-    @test ft_tl.N_vetoed > N * 0.15                 # ~25% vetoed (both gammas inward + visible)
-    @test ft_tl.N_surviving > 0
-    @test ft_tl.N_backward > N * 0.15              # ~26% backward (no gamma toward LXe)
-    @test sum(ft_tl.pdf) ≈ ft_tl.N_surviving / ft_tl.N_generated  rtol=1e-10
-    # Tl-208: peak (2.615) should be large (most exit unscattered from thin Ti)
-    # but off-peak (scattered) is the dangerous background
-    f_pk_tl = peak_bin_fraction(ft_tl, 2.615)
-    f_off_tl = off_peak_fraction(ft_tl, 2.615)
-    @test f_pk_tl > 0.0
-    @test f_off_tl > 0.0
-end

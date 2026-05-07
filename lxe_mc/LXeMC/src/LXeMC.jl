@@ -26,7 +26,6 @@ ss = is_single_site(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
 - `config.jl`: `SimConfig` — transport parameters
 - `nist_data.jl`: XCOM/ESTAR CSV loaders, log-log interpolation
 - `materials.jl`: `Material` — material properties + physics methods
-- `geometry.jl`: legacy flat detector / stack-source geometry helpers
 - `geometry2.jl`: canonical tracking detector + fast-kernel geometry
 - `physics_utils.jl`: bremsstrahlung differential cross section
 - `sampling.jl`: MC samplers for all interaction channels
@@ -43,7 +42,6 @@ include("nist_data.jl")
 include("physics_utils.jl")
 include("materials.jl")
 include("geometry_core.jl")
-include("geometry.jl")
 include("geometry2.jl")
 include("sampling.jl")
 include("tracking.jl")
@@ -67,14 +65,13 @@ export csda_range_g_per_cm2, csda_range_mm, sigma_brems, brems_rejection_M
 export coulomb_correction_fc, dsigma_dk_brems
 
 # --- Geometry ---
-# Legacy flat detector geometry plus shared primitive solids.
+# Shared primitive solids and wrappers.
 export Cyl, CylShell, Box, Disk
 export volume, volume_inner, surface_area, surface_area_inner, surface_area_outer
 export R_outer, depth, is_flat
 export LCyl, LCylShell, LBox, LDisk, is_inside
 export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
-export Detector, active_volume, fiducial_volume, find_volume, load_detector
-export distance_to_entry, distance_to_exit, next_volume
+export distance_to_entry, distance_to_exit
 # Canonical tracking geometry and compiled fast-kernel support.
 export RegionTag, Placement, LogicalVolume, DetectorNode, TrackingDetector
 export FastKernelRegion, FastKernelGeometry, FVGeometry
@@ -104,28 +101,18 @@ export sample_brems, brems_photon_angle
 # --- Tracking ---
 export Track, ParticleStack, Deposit
 export transport_photon!, transport_lepton!
-export simulate_event, simulate_event_photon_only, propagate_gamma_in_fv
-export PropagationResult, EventProcessingResult
+export propagate_gamma_in_fv
+export EventProcessingResult
 export GammaPropagationResult
-export propagate_to_fiducial, propagate_to_lxe
 export process_event
-export classify_lxe_region, veto_threshold
 export cluster_deposits_in_z, is_single_site
 
 # --- Decays ---
 export DecayGamma, DecayScheme, GammaEmission, SampledGamma
 export load_decays, sample_decay, sample_event, sample_gammas, sample_isotropic_direction
-export FluxTable, spectrum_E, spectrum_u, E_centers, u_centers, survival_fraction
-export peak_bin_fraction, off_peak_fraction
-export propagate_in_source, random_position_in_volume, generate_source_flux
+export propagate_in_source, random_position_in_volume
 
 # --- Convenience paths ---
-"""Path to the default detector JSON (LZ)."""
-function default_detector_path()
-    normpath(joinpath(@__DIR__, "..", "..", "data", "detector_lz.json"))
-end
-export default_detector_path
-
 """Path to the preferred canonical tracking detector JSON file."""
 function default_tracking_detector_path()
     normpath(joinpath(@__DIR__, "..", "..", "data", "detector_lz_v3.json"))
