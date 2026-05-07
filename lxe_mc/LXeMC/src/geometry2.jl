@@ -72,13 +72,13 @@ struct CappedCylinder
 end
 
 
-struct PlacementV2
+struct Placement
     position_cm::Vector{Float64}
     orientation::Symbol
 end
 
 
-struct LogicalVolumeV2
+struct LogicalVolume
     name::String
     solid::Union{Cyl,CylShell,Box,Disk,Cap,DomedContainer,CappedCylinder}
     material::Material
@@ -99,12 +99,12 @@ mutable struct DetectorNode
     id::Int
     parent_id::Int
     children_ids::Vector{Int}
-    lv::LogicalVolumeV2
-    placement::PlacementV2
+    lv::LogicalVolume
+    placement::Placement
 end
 
 
-struct DetectorV2
+struct TrackingDetector
     name::String
     nodes::Vector{DetectorNode}
     name_to_id::Dict{String,Int}
@@ -250,7 +250,7 @@ function _parse_activity(d)::Dict{String,Float64}
 end
 
 
-function _build_solid_v2(name::String, d)
+function _build_tracking_solid(name::String, d)
     shape = lowercase(String(d["shape"]))
     if shape == "cylinder"
         return Cyl(Float64(d["radius_cm"]), Float64(d["half_height_cm"]))
@@ -292,7 +292,7 @@ function _build_solid_v2(name::String, d)
 end
 
 
-function _default_semantics_v3(name::String)
+function _default_tracking_semantics(name::String)
     if name == "MARS"
         return (tag=TAG_WORLD, role="world", inFastKernel=false, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
     elseif name in ("LZ_detector", "AirDome")
@@ -312,10 +312,10 @@ function _default_semantics_v3(name::String)
 end
 
 
-function _build_node_v2(id::Int, d, material::Material; version::Int=2)::Tuple{DetectorNode,String}
+function _build_tracking_node(id::Int, d, material::Material; version::Int=2)::Tuple{DetectorNode,String}
     name = String(d["name"])
-    solid = _build_solid_v2(name, d)
-    defaults = version >= 3 ? _default_semantics_v3(name) : nothing
+    solid = _build_tracking_solid(name, d)
+    defaults = version >= 3 ? _default_tracking_semantics(name) : nothing
     tag = haskey(d, "tag") ? _parse_region_tag(d["tag"]) : defaults.tag
     role = String(get(d, "role", defaults === nothing ? "" : defaults.role))
     inFastKernel = Bool(get(d, "inFastKernel", defaults === nothing ? false : defaults.inFastKernel))
@@ -326,11 +326,11 @@ function _build_node_v2(id::Int, d, material::Material; version::Int=2)::Tuple{D
     fv_target = Bool(get(d, "fv_target", defaults === nothing ? false : defaults.fv_target))
     approximation = String(get(d, "approximation", "exact"))
     activity = _parse_activity(d)
-    lv = LogicalVolumeV2(name, solid, material, tag, role, inFastKernel, isXe, sensitive, ecut_keV, dz_mm, fv_target, approximation, activity)
+    lv = LogicalVolume(name, solid, material, tag, role, inFastKernel, isXe, sensitive, ecut_keV, dz_mm, fv_target, approximation, activity)
 
     pos = Float64.(get(d, "position_cm", [0.0, 0.0, 0.0]))
     orientation = Symbol(get(d, "orientation", "none"))
-    placement = PlacementV2(pos, orientation)
+    placement = Placement(pos, orientation)
 
     parent_name = String(get(d, "parent", ""))
     node = DetectorNode(id, 0, Int[], lv, placement)
@@ -356,7 +356,7 @@ function _logical_volume(node::DetectorNode)
 end
 
 
-function _is_inside_cap(cap::Cap, placement::PlacementV2, pos::Vector{Float64})::Bool
+function _is_inside_cap(cap::Cap, placement::Placement, pos::Vector{Float64})::Bool
     _is_inside_cap(cap,
                    placement.position_cm[1], placement.position_cm[2], placement.position_cm[3],
                    placement.orientation,
@@ -385,7 +385,7 @@ function _is_inside_cap(cap::Cap,
 end
 
 
-function _is_inside_domed_container(dc::DomedContainer, placement::PlacementV2, pos::Vector{Float64})::Bool
+function _is_inside_domed_container(dc::DomedContainer, placement::Placement, pos::Vector{Float64})::Bool
     dx = pos[1] - placement.position_cm[1]
     dy = pos[2] - placement.position_cm[2]
     dz = pos[3] - placement.position_cm[3]
@@ -410,7 +410,7 @@ function _is_inside_domed_container(dc::DomedContainer, placement::PlacementV2, 
 end
 
 
-function _is_inside_capped_cylinder(cc::CappedCylinder, placement::PlacementV2, pos::Vector{Float64})::Bool
+function _is_inside_capped_cylinder(cc::CappedCylinder, placement::Placement, pos::Vector{Float64})::Bool
     dx = pos[1] - placement.position_cm[1]
     dy = pos[2] - placement.position_cm[2]
     dz = pos[3] - placement.position_cm[3]
@@ -710,7 +710,7 @@ function _interior_sample_points(node::DetectorNode; tol_cm::Float64=GEOM_VALIDA
 end
 
 
-function _validate_reachability(det::DetectorV2)
+function _validate_reachability(det::TrackingDetector)
     seen = falses(length(det.nodes))
     stack = Int[det.root_id]
     while !isempty(stack)
@@ -719,11 +719,11 @@ function _validate_reachability(det::DetectorV2)
         seen[id] = true
         append!(stack, det.nodes[id].children_ids)
     end
-    all(seen) || error("DetectorV2 contains unreachable nodes")
+    all(seen) || error("TrackingDetector contains unreachable nodes")
 end
 
 
-function _validate_child_containment(det::DetectorV2)
+function _validate_child_containment(det::TrackingDetector)
     for node in det.nodes
         node.parent_id == 0 && continue
         parent = det.nodes[node.parent_id]
@@ -746,7 +746,7 @@ function _has_obvious_overlap(a::DetectorNode, b::DetectorNode)::Bool
 end
 
 
-function _validate_sibling_overlaps(det::DetectorV2)
+function _validate_sibling_overlaps(det::TrackingDetector)
     for parent in det.nodes
         ids = parent.children_ids
         for i in 1:length(ids)-1
@@ -795,7 +795,7 @@ function volume(node::DetectorNode)::Float64
 end
 
 
-function sibling_overlaps(det::DetectorV2; exact_only::Bool=true)
+function sibling_overlaps(det::TrackingDetector; exact_only::Bool=true)
     overlaps = NamedTuple[]
     for parent in det.nodes
         ids = parent.children_ids
@@ -819,7 +819,7 @@ function sibling_overlaps(det::DetectorV2; exact_only::Bool=true)
 end
 
 
-function validate_tracking_detector(det::DetectorV2)::Bool
+function validate_tracking_detector(det::TrackingDetector)::Bool
     root = root_node(det)
     root.parent_id == 0 || error("Root node '$(root.lv.name)' must have parent_id = 0")
     root.lv.tag == TAG_WORLD || error("Root node '$(root.lv.name)' must have tag TAG_WORLD")
@@ -830,7 +830,7 @@ function validate_tracking_detector(det::DetectorV2)::Bool
 end
 
 
-function tree_dump(det::DetectorV2)::String
+function tree_dump(det::TrackingDetector)::String
     lines = String[]
     function visit(id::Int, depth::Int)
         node = det.nodes[id]
@@ -846,14 +846,14 @@ end
 
 
 """
-    _load_tracking_tree(path, materials) -> DetectorV2
+    _load_tracking_tree(path, materials) -> TrackingDetector
 
 Load the canonical tracking detector JSON. The file defines a unique
 `world` entry and a flat list of volumes with explicit `parent` links.
 """
 function _load_tracking_tree(path::AbstractString,
                              materials::Dict{String,Material};
-                             validate::Bool=true)::DetectorV2
+                             validate::Bool=true)::TrackingDetector
     raw = open(path, "r") do io
         JSON.parse(io)
     end
@@ -872,7 +872,7 @@ function _load_tracking_tree(path::AbstractString,
     world_name = String(world_raw["name"])
     world_mat_name = String(world_raw["material"])
     haskey(materials, world_mat_name) || error("Unknown material '$world_mat_name' for world '$world_name'")
-    world_node, world_parent = _build_node_v2(1, world_raw, materials[world_mat_name]; version=version)
+    world_node, world_parent = _build_tracking_node(1, world_raw, materials[world_mat_name]; version=version)
     world_node.lv.tag == TAG_WORLD || error("World node '$world_name' must have tag 'world'")
     isempty(world_parent) || error("World node '$world_name' cannot define a parent")
     push!(nodes, world_node)
@@ -887,7 +887,7 @@ function _load_tracking_tree(path::AbstractString,
         haskey(materials, mat_name) || error("Unknown material '$mat_name' for node '$name'")
 
         id = length(nodes) + 1
-        node, parent_name = _build_node_v2(id, d, materials[mat_name]; version=version)
+        node, parent_name = _build_tracking_node(id, d, materials[mat_name]; version=version)
         isempty(parent_name) && error("Tracking geometry node '$name' is missing 'parent'")
 
         push!(nodes, node)
@@ -903,47 +903,46 @@ function _load_tracking_tree(path::AbstractString,
         push!(nodes[parent_id].children_ids, node.id)
     end
 
-    det = DetectorV2(det_name, nodes, name_to_id, 1)
+    det = TrackingDetector(det_name, nodes, name_to_id, 1)
     validate && validate_tracking_detector(det)
     det
 end
 
 
 """
-    load_tracking_detector(path, materials; validate=true) -> DetectorV2
+    load_tracking_detector(path, materials; validate=true) -> TrackingDetector
 
-Load the canonical tracking detector geometry. On `CleanupV3`, this
-expects the explicit partitioned tracking schema used by
-`detector_lz_v3.json`.
+Load the canonical tracking detector geometry. This expects the explicit
+partitioned tracking schema used by the current tracking detector file.
 """
 function load_tracking_detector(path::AbstractString,
                                materials::Dict{String,Material};
-                               validate::Bool=true)::DetectorV2
+                               validate::Bool=true)::TrackingDetector
     _load_tracking_tree(path, materials; validate=validate)
 end
 
 
-root_node(det::DetectorV2) = det.nodes[det.root_id]
+root_node(det::TrackingDetector) = det.nodes[det.root_id]
 
 
-function node_by_name(det::DetectorV2, name::AbstractString)::DetectorNode
+function node_by_name(det::TrackingDetector, name::AbstractString)::DetectorNode
     id = get(det.name_to_id, String(name), 0)
-    id == 0 && error("DetectorV2 has no node named '$name'")
+    id == 0 && error("TrackingDetector has no node named '$name'")
     det.nodes[id]
 end
 
 
-function child_nodes(det::DetectorV2, node::DetectorNode)::Vector{DetectorNode}
+function child_nodes(det::TrackingDetector, node::DetectorNode)::Vector{DetectorNode}
     [det.nodes[id] for id in node.children_ids]
 end
 
 
-function child_nodes(det::DetectorV2, name::AbstractString)::Vector{DetectorNode}
+function child_nodes(det::TrackingDetector, name::AbstractString)::Vector{DetectorNode}
     child_nodes(det, node_by_name(det, name))
 end
 
 
-function detector_summary(det::DetectorV2)::String
+function detector_summary(det::TrackingDetector)::String
     root = root_node(det)
     "TrackingDetector($(det.name)): $(length(det.nodes)) nodes, root=$(root.lv.name)"
 end
@@ -1100,7 +1099,7 @@ function _push_fastkernel_region!(regions::Vector{FastKernelRegion},
 end
 
 
-function compile_fastkernel_geometry(det::DetectorV2)::FastKernelGeometry
+function compile_fastkernel_geometry(det::TrackingDetector)::FastKernelGeometry
     raw_regions = Dict{String,FastKernelRegion}()
 
     for node in det.nodes
@@ -1112,7 +1111,7 @@ function compile_fastkernel_geometry(det::DetectorV2)::FastKernelGeometry
     regions = FastKernelRegion[]
     name_to_index = Dict{String,Int}()
     for (idx, name) in enumerate(("LZ_detector", "AirDome", "FC_PTFE", "FC_rings", "FV", "TopActive", "BarrelActive", "BottomActive", "Skin", "LXe_passive"))
-        haskey(raw_regions, name) || error("FastKernelGeometry requires canonical v3 region '$name'")
+        haskey(raw_regions, name) || error("FastKernelGeometry requires canonical tracking region '$name'")
         region = raw_regions[name]
         _push_fastkernel_region!(regions, name_to_index,
             _with_fastkernel_identity(idx, name, region.role, region))
@@ -1440,7 +1439,7 @@ function distance_to_boundary_fastkernel(region::FastKernelRegion,
 end
 
 
-function _node_depth(det::DetectorV2, node::DetectorNode)::Int
+function _node_depth(det::TrackingDetector, node::DetectorNode)::Int
     depth = 0
     current = node
     while current.parent_id != 0
@@ -1464,7 +1463,7 @@ function _child_preference(a::DetectorNode, b::DetectorNode)::DetectorNode
 end
 
 
-function find_tracking_node(det::DetectorV2, pos::Vector{Float64})::Union{DetectorNode,Nothing}
+function find_tracking_node(det::TrackingDetector, pos::Vector{Float64})::Union{DetectorNode,Nothing}
     root = det.nodes[det.root_id]
     is_inside(root, pos) || return nothing
 
@@ -1483,4 +1482,4 @@ function find_tracking_node(det::DetectorV2, pos::Vector{Float64})::Union{Detect
 end
 
 
-find_tracking_node(det::DetectorV2, pos::NTuple{3,<:Real}) = find_tracking_node(det, Float64[pos...])
+find_tracking_node(det::TrackingDetector, pos::NTuple{3,<:Real}) = find_tracking_node(det, Float64[pos...])

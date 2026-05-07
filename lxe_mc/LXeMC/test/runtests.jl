@@ -106,7 +106,7 @@ end
 end
 
 
-@testset "Detector geometry V3" begin
+@testset "Tracking geometry" begin
     @test DET3.name == "LZ"
 
     names3 = sort([n.lv.name for n in DET3.nodes])
@@ -456,8 +456,8 @@ end
     # DomedContainer: coaxial barrel plus two filled caps
     dc = DomedContainer(50.0, 20.0, Cap(50.0, 2.0), Cap(50.0, 3.0))
     @test volume(dc) ≈ (40.0 * π * 50.0^2 + (2.0 / 3.0) * π * 50.0^2 * 25.0 + (2.0 / 3.0) * π * 50.0^2 * (50.0 / 3.0))
-    dc_lv = LogicalVolumeV2("dc", dc, MATS["Vacuum"], TAG_VACUUM, "container", false, false, false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
-    dc_node = DetectorNode(1, 0, Int[], dc_lv, PlacementV2([0.0, 0.0, 0.0], :none))
+    dc_lv = LogicalVolume("dc", dc, MATS["Vacuum"], TAG_VACUUM, "container", false, false, false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
+    dc_node = DetectorNode(1, 0, Int[], dc_lv, Placement([0.0, 0.0, 0.0], :none))
     @test is_inside(dc_node, [0.0, 0.0, 0.0])        # barrel center
     @test is_inside(dc_node, [0.0, 0.0, 30.0])       # inside top cap
     @test is_inside(dc_node, [0.0, 0.0, -30.0])      # inside bottom cap
@@ -467,8 +467,8 @@ end
     # CappedCylinder: optional top/bottom caps
     cc = CappedCylinder(50.0, 20.0; bottom_cap=Cap(50.0, 3.0))
     @test volume(cc) ≈ (40.0 * π * 50.0^2 + (2.0 / 3.0) * π * 50.0^2 * (50.0 / 3.0))
-    cc_lv = LogicalVolumeV2("cc", cc, MATS["LXe"], TAG_PASSIVE_LXE, "container", false, true, false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
-    cc_node = DetectorNode(1, 0, Int[], cc_lv, PlacementV2([0.0, 0.0, 0.0], :none))
+    cc_lv = LogicalVolume("cc", cc, MATS["LXe"], TAG_PASSIVE_LXE, "container", false, true, false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
+    cc_node = DetectorNode(1, 0, Int[], cc_lv, Placement([0.0, 0.0, 0.0], :none))
     @test is_inside(cc_node, [0.0, 0.0, 0.0])        # barrel center
     @test is_inside(cc_node, [0.0, 0.0, -30.0])      # inside bottom cap
     @test !is_inside(cc_node, [0.0, 0.0, 30.0])      # no top cap

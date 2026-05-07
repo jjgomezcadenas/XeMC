@@ -71,7 +71,7 @@ export LCyl, LCylShell, LBox, LDisk, is_inside
 export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
 export Detector, active_volume, fiducial_volume, find_volume, load_detector
 export distance_to_entry, distance_to_exit, next_volume
-export RegionTag, PlacementV2, LogicalVolumeV2, DetectorNode, DetectorV2
+export RegionTag, Placement, LogicalVolume, DetectorNode, TrackingDetector
 export FastKernelRegion, FastKernelGeometry
 export Cap, DomedContainer, CappedCylinder
 export TAG_WORLD, TAG_VACUUM, TAG_STRUCTURAL, TAG_TPC_ACTIVE
@@ -120,15 +120,9 @@ function default_detector_path()
 end
 export default_detector_path
 
-"""Path to the Geometry V3 detector JSON (LZ)."""
-function default_detector_v3_path()
-    normpath(joinpath(@__DIR__, "..", "..", "data", "detector_lz_v3.json"))
-end
-export default_detector_v3_path
-
-"""Path to the preferred canonical tracking detector JSON (currently V3)."""
+"""Path to the preferred canonical tracking detector JSON file."""
 function default_tracking_detector_path()
-    default_detector_v3_path()
+    normpath(joinpath(@__DIR__, "..", "..", "data", "detector_lz_v3.json"))
 end
 export default_tracking_detector_path
 
