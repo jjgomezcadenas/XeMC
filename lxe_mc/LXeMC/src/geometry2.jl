@@ -368,14 +368,25 @@ end
 
 
 function _is_inside_cap(cap::Cap, placement::PlacementV2, pos::Vector{Float64})::Bool
-    dx = pos[1] - placement.position_cm[1]
-    dy = pos[2] - placement.position_cm[2]
-    dz = pos[3] - placement.position_cm[3]
+    _is_inside_cap(cap,
+                   placement.position_cm[1], placement.position_cm[2], placement.position_cm[3],
+                   placement.orientation,
+                   pos[1], pos[2], pos[3])
+end
+
+
+function _is_inside_cap(cap::Cap,
+                        cx::Float64, cy::Float64, cz::Float64,
+                        orientation::Symbol,
+                        x::Float64, y::Float64, z::Float64)::Bool
+    dx = x - cx
+    dy = y - cy
+    dz = z - cz
     r2 = dx^2 + dy^2
     R = cap.radius_cm
     r2 > R^2 && return false
 
-    sgn = placement.orientation === :down ? -1.0 : 1.0
+    sgn = orientation === :down ? -1.0 : 1.0
     dz_rel = sgn * dz
     dz_rel < 0.0 && return false
 
@@ -397,11 +408,15 @@ function _is_inside_domed_container(dc::DomedContainer, placement::PlacementV2, 
     if abs(dz) <= H
         return true
     elseif dz > H
-        top_pos = Float64[placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] + H]
-        return _is_inside_cap(dc.top_cap, PlacementV2(top_pos, :up), pos)
+        return _is_inside_cap(dc.top_cap,
+                              placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] + H,
+                              :up,
+                              pos[1], pos[2], pos[3])
     else
-        bottom_pos = Float64[placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] - H]
-        return _is_inside_cap(dc.bottom_cap, PlacementV2(bottom_pos, :down), pos)
+        return _is_inside_cap(dc.bottom_cap,
+                              placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] - H,
+                              :down,
+                              pos[1], pos[2], pos[3])
     end
 end
 
@@ -419,24 +434,72 @@ function _is_inside_capped_cylinder(cc::CappedCylinder, placement::PlacementV2, 
         return true
     elseif dz > H
         cc.top_cap === nothing && return false
-        top_pos = Float64[placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] + H]
-        return _is_inside_cap(cc.top_cap, PlacementV2(top_pos, :up), pos)
+        return _is_inside_cap(cc.top_cap,
+                              placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] + H,
+                              :up,
+                              pos[1], pos[2], pos[3])
     else
         cc.bottom_cap === nothing && return false
-        bottom_pos = Float64[placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] - H]
-        return _is_inside_cap(cc.bottom_cap, PlacementV2(bottom_pos, :down), pos)
+        return _is_inside_cap(cc.bottom_cap,
+                              placement.position_cm[1], placement.position_cm[2], placement.position_cm[3] - H,
+                              :down,
+                              pos[1], pos[2], pos[3])
     end
 end
 
 
 function is_inside(node::DetectorNode, pos::Vector{Float64})
     solid = node.lv.solid
+    cx = node.placement.position_cm[1]
+    cy = node.placement.position_cm[2]
+    cz = node.placement.position_cm[3]
+    x = pos[1]
+    y = pos[2]
+    z = pos[3]
+
     if solid isa Cap
-        return _is_inside_cap(solid, node.placement, pos)
+        return _is_inside_cap(solid, cx, cy, cz, node.placement.orientation, x, y, z)
     elseif solid isa DomedContainer
         return _is_inside_domed_container(solid, node.placement, pos)
     elseif solid isa CappedCylinder
         return _is_inside_capped_cylinder(solid, node.placement, pos)
+    elseif solid isa Cyl
+        dx = x - cx
+        dy = y - cy
+        dz = z - cz
+        return dx^2 + dy^2 < solid.radius_cm^2 && abs(dz) < solid.half_height_cm
+    elseif solid isa CylShell
+        dx = x - cx
+        dy = y - cy
+        dz = z - cz
+        r2 = dx^2 + dy^2
+        return r2 >= solid.R_inner_cm^2 && r2 < R_outer(solid)^2 && abs(dz) < solid.half_height_cm
+    elseif solid isa Box
+        return abs(x - cx) < solid.half_x_cm &&
+               abs(y - cy) < solid.half_y_cm &&
+               abs(z - cz) < solid.half_z_cm
+    elseif solid isa Disk
+        dx = x - cx
+        dy = y - cy
+        dz = z - cz
+        r2 = dx^2 + dy^2
+        R = solid.radius_cm
+        r2 > R^2 && return false
+        if is_flat(solid)
+            sgn = node.placement.orientation === :up ? 1.0 : -1.0
+            return 0.0 <= sgn * dz <= solid.wall_thickness_cm
+        end
+
+        c_inner = depth(solid)
+        c_outer = c_inner + solid.wall_thickness_cm
+        sgn = node.placement.orientation === :up ? 1.0 : -1.0
+        dz_rel = sgn * dz
+        dz_rel < 0.0 && return false
+
+        r_frac2 = r2 / R^2
+        inside_outer = r_frac2 + (dz_rel / c_outer)^2 <= 1.0
+        outside_inner = r_frac2 + (dz_rel / c_inner)^2 >= 1.0
+        return inside_outer && outside_inner
     end
     is_inside(_logical_volume(node), pos)
 end

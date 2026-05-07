@@ -114,6 +114,7 @@ function main()
     decisive_counts = Dict{Symbol,Int}()
     energy_status_counts = Dict{Tuple{Float64,Float64,Symbol},Int}()
     progress_step = max(1, cld(N, 10))
+    t0 = time()
 
     for i in 1:N
         gammas = sample_event("Tl208", "calib"; calib=true, rng=rng)
@@ -136,11 +137,16 @@ function main()
 
         if i % progress_step == 0 || i == N
             pct = 100.0 * i / N
-            @printf("Processed %d / %d events (%.1f%%)\n", i, N, pct)
+            elapsed = time() - t0
+            @printf("Processed %d / %d events (%.1f%%) in %.2f s\n", i, N, pct, elapsed)
         end
     end
 
+    elapsed = time() - t0
+
     println("N = $N, seed = $seed")
+    @printf("Elapsed time = %.2f s\n", elapsed)
+    @printf("Rate = %.2f events/s\n", N / elapsed)
     print_counts("Event status counts", status_counts)
     print_counts("Event multiplicity counts", multiplicity_counts)
     print_counts("First decisive gamma index counts", decisive_counts)
@@ -155,6 +161,8 @@ function main()
         open(joinpath(outdir, "summary.txt"), "w") do io
             @printf(io, "N = %d\n", N)
             @printf(io, "seed = %d\n", seed)
+            @printf(io, "elapsed_s = %.8f\n", elapsed)
+            @printf(io, "rate_events_per_s = %.8f\n", N / elapsed)
             @printf(io, "outdir = %s\n", outdir)
         end
     end
