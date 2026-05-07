@@ -72,17 +72,18 @@ export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
 export Detector, active_volume, fiducial_volume, find_volume, load_detector
 export distance_to_entry, distance_to_exit, next_volume
 export RegionTag, Placement, LogicalVolume, DetectorNode, TrackingDetector
-export FastKernelRegion, FastKernelGeometry
+export FastKernelRegion, FastKernelGeometry, FVGeometry
 export Cap, DomedContainer, CappedCylinder
 export TAG_WORLD, TAG_VACUUM, TAG_STRUCTURAL, TAG_TPC_ACTIVE
 export TAG_FV, TAG_SKIN, TAG_PASSIVE_LXE
 export root_node, node_by_name, child_nodes, detector_summary
 export load_tracking_detector
-export compile_fastkernel_geometry, classify_fastkernel, distance_to_boundary_fastkernel
+export compile_fastkernel_geometry, compile_fv_geometry, classify_fastkernel, distance_to_boundary_fastkernel
 export validate_tracking_detector, tree_dump, sibling_overlaps
 export region_tag, is_fv, is_active_lxe, is_veto_lxe, is_passive_lxe
 export is_structural, is_vacuum, is_sensitive, is_fv_target, ecut_keV, dz_mm
 export find_tracking_node
+export is_inside_fv
 export select_interaction_fastkernel
 export propagate_gamma_fastkernel
 export FastKernelCalibEventResult, process_event_fastkernel_calib

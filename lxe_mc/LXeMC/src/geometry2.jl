@@ -150,6 +150,14 @@ struct FastKernelGeometry
     passive_region::Int
 end
 
+
+struct FVGeometry
+    radius_cm::Float64
+    zmin_cm::Float64
+    zmax_cm::Float64
+    material::Material
+end
+
 const GEOM_VALIDATE_TOL_CM = 0.1
 
 
@@ -1132,6 +1140,31 @@ function compile_fastkernel_geometry(det::TrackingDetector)::FastKernelGeometry
         name_to_index["LXe_passive"]
     )
 end
+
+
+function compile_fv_geometry(det::TrackingDetector)::FVGeometry
+    fv = node_by_name(det, "FV")
+    solid = fv.lv.solid
+    solid isa Cyl || error("FVGeometry requires FV to be a cylinder")
+    cx, cy, cz = fv.placement.position_cm
+    (abs(cx) <= GEOM_VALIDATE_TOL_CM && abs(cy) <= GEOM_VALIDATE_TOL_CM) ||
+        error("FVGeometry expects the canonical FV cylinder to be centered on the detector axis")
+    FVGeometry(
+        solid.radius_cm,
+        cz - solid.half_height_cm,
+        cz + solid.half_height_cm,
+        fv.lv.material,
+    )
+end
+
+
+function is_inside_fv(fv::FVGeometry, pos::NTuple{3,<:Real})::Bool
+    x, y, z = pos
+    x^2 + y^2 < fv.radius_cm^2 && z > fv.zmin_cm && z < fv.zmax_cm
+end
+
+
+is_inside_fv(fv::FVGeometry, pos::Vector{Float64}) = is_inside_fv(fv, (pos[1], pos[2], pos[3]))
 
 
 function _is_inside_fastkernel_region(region::FastKernelRegion,

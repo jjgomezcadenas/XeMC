@@ -174,6 +174,16 @@ end
     @test classify_fastkernel(fk3, (0.0, 0.0, 10.0)).name == "BottomActive"
     @test classify_fastkernel(fk3, (0.0, 0.0, 61.0)).name == "FV"
     @test classify_fastkernel(fk3, (0.0, 0.0, -20.0)).name == "LXe_passive"
+
+    fvgeom = compile_fv_geometry(DET3)
+    @test fvgeom.radius_cm ≈ 39.0 atol=GEOM_TOL
+    @test fvgeom.zmin_cm ≈ 26.0 atol=GEOM_TOL
+    @test fvgeom.zmax_cm ≈ 96.0 atol=GEOM_TOL
+    @test fvgeom.material.name == "LXe"
+    @test is_inside_fv(fvgeom, (0.0, 0.0, 61.0))
+    @test !is_inside_fv(fvgeom, (40.0, 0.0, 61.0))
+    @test !is_inside_fv(fvgeom, (0.0, 0.0, 20.0))
+    @test !is_inside_fv(fvgeom, (0.0, 0.0, 100.0))
 end
 
 @testset "Source geometry schema" begin
