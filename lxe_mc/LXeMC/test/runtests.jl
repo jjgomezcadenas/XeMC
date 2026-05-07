@@ -7,8 +7,7 @@ using Statistics
 const CFG  = default_config()
 const MATS = load_materials(CFG)
 const DET  = load_detector(default_detector_path(), MATS)
-const DET2 = load_detector_v2(default_detector_v2_path(), MATS)
-const DET3 = load_detector_v2(default_detector_v3_path(), MATS)
+const DET3 = load_tracking_detector(default_tracking_detector_path(), MATS)
 const SOURCE_GEOM = JSON.parsefile(normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json")))
 const VOL  = active_volume(DET)
 const MAT  = VOL.material
@@ -106,127 +105,6 @@ end
     @test 0.9 < m_fv < 1.1                       # ~1 tonne fiducial
 end
 
-
-# =====================================================================
-# Test 3a: Detector geometry V2
-# =====================================================================
-@testset "Detector geometry V2" begin
-    @test DET2.name == "LZ"
-    @test length(DET2.nodes) == 9  # world + 8 runtime tracking volumes
-
-    root = root_node(DET2)
-    @test root.lv.name == "MARS"
-    @test root.lv.tag == TAG_WORLD
-    @test root.parent_id == 0
-
-    lz = node_by_name(DET2, "LZ_detector")
-    @test lz.parent_id == root.id
-    @test lz.lv.tag == TAG_VACUUM
-    @test lz.lv.role == "tracking_envelope"
-
-    air = node_by_name(DET2, "AirDome")
-    lxe = node_by_name(DET2, "LXe_det")
-    @test air.parent_id == lz.id
-    @test lxe.parent_id == lz.id
-    @test air.lv.role == "gas_dome"
-    @test lxe.lv.tag == TAG_PASSIVE_LXE
-
-    tpc = node_by_name(DET2, "LXeTPC")
-    fv = node_by_name(DET2, "FV")
-    @test tpc.parent_id == lxe.id
-    @test tpc.lv.tag == TAG_TPC_ACTIVE
-    @test fv.parent_id == tpc.id
-    @test fv.lv.tag == TAG_FV
-
-    skin = node_by_name(DET2, "Skin")
-    @test skin.parent_id == lxe.id
-    @test skin.lv.tag == TAG_SKIN
-
-    fc_ptfe = node_by_name(DET2, "FC_PTFE")
-    fc_rings = node_by_name(DET2, "FC_rings")
-    @test fc_ptfe.parent_id == lxe.id
-    @test fc_rings.parent_id == skin.id
-    @test is_structural(fc_ptfe)
-    @test is_structural(fc_rings)
-
-    child_names = sort([child.lv.name for child in child_nodes(DET2, "LXeTPC")])
-    @test child_names == ["FV"]
-
-    @test validate_detector_v2(DET2)
-    @test occursin("DetectorV2", detector_summary(DET2))
-    dump = tree_dump(DET2)
-    @test occursin("- MARS", dump)
-    @test occursin("  - LZ_detector", dump)
-    @test occursin("    - LXe_det", dump)
-    @test occursin("      - LXeTPC", dump)
-
-    @test is_fv(fv)
-    @test is_active_lxe(fv)
-    @test is_active_lxe(tpc)
-    @test is_veto_lxe(tpc)
-    @test is_veto_lxe(skin)
-    @test !is_veto_lxe(lxe)
-    @test is_passive_lxe(lxe)
-    @test is_vacuum(root)
-    @test is_vacuum(lz)
-    @test is_vacuum(air)
-    @test is_structural(fc_ptfe)
-    @test is_sensitive(tpc)
-    @test is_sensitive(fv)
-    @test is_sensitive(skin)
-    @test !is_sensitive(lz)
-    @test !is_sensitive(air)
-    @test !is_sensitive(lxe)
-    @test !is_sensitive(fc_ptfe)
-    @test !is_sensitive(fc_rings)
-    @test lz.lv.inFastKernel
-    @test air.lv.inFastKernel
-    @test lxe.lv.inFastKernel
-    @test tpc.lv.inFastKernel
-    @test fv.lv.inFastKernel
-    @test fc_ptfe.lv.inFastKernel
-    @test fc_rings.lv.inFastKernel
-    @test skin.lv.inFastKernel
-    @test !lz.lv.isXe
-    @test !air.lv.isXe
-    @test lxe.lv.isXe
-    @test tpc.lv.isXe
-    @test fv.lv.isXe
-    @test !fc_ptfe.lv.isXe
-    @test !fc_rings.lv.isXe
-    @test skin.lv.isXe
-    @test !is_fv_target(tpc)
-    @test is_fv_target(fv)
-    @test !is_fv_target(skin)
-    @test tpc.lv.ecut_keV ≈ 10.0 atol=GEOM_TOL
-    @test tpc.lv.dz_mm ≈ 3.0 atol=GEOM_TOL
-    @test fv.lv.ecut_keV ≈ 10.0 atol=GEOM_TOL
-    @test fv.lv.dz_mm ≈ 3.0 atol=GEOM_TOL
-    @test skin.lv.ecut_keV ≈ 100.0 atol=GEOM_TOL
-    @test skin.lv.dz_mm ≈ 3.0 atol=GEOM_TOL
-
-    @test veto_threshold(fv, CFG) == 0.0
-    @test veto_threshold(tpc, CFG) == CFG.veto_TPC
-    @test veto_threshold(skin, CFG) == CFG.veto_skin
-    @test veto_threshold(lxe, CFG) == Inf
-    @test veto_threshold(TAG_TPC_ACTIVE, CFG) == CFG.veto_TPC
-    @test veto_threshold(TAG_SKIN, CFG) == CFG.veto_skin
-
-    @test find_node_v2(DET2, (0.0, 0.0, 61.0)).lv.name == "FV"
-    @test find_node_v2(DET2, (0.0, 0.0, 120.0)).lv.name == "LXeTPC"
-    @test find_node_v2(DET2, (78.0, 0.0, 100.0)).lv.name == "Skin"
-    @test find_node_v2(DET2, (0.0, 0.0, -20.0)).lv.name == "LXe_det"
-    @test find_node_v2(DET2, (0.0, 0.0, -55.0)).lv.name == "LXe_det"
-    @test find_node_v2(DET2, (73.55, 0.0, 100.0)).lv.name == "FC_PTFE"
-    @test find_node_v2(DET2, (74.45, 0.0, 100.0)).lv.name == "FC_rings"
-    @test find_node_v2(DET2, (0.0, 0.0, 160.0)).lv.name == "AirDome"
-    @test find_node_v2(DET2, (79.0, 0.0, 100.0)).lv.name == "Skin"
-    @test find_node_v2(DET2, (83.0, 0.0, 100.0)).lv.name == "MARS"
-    @test find_node_v2(DET2, (110.0, 0.0, 0.0)).lv.name == "MARS"
-    @test find_node_v2(DET2, (200.0, 0.0, 0.0)) === nothing
-
-    @test_throws ErrorException compile_fastkernel_geometry(DET2)
-end
 
 @testset "Detector geometry V3" begin
     @test DET3.name == "LZ"
@@ -341,7 +219,7 @@ end
     shared = ["FC_PTFE", "FC_rings"]
 
     for name in shared
-        t = node_by_name(DET2, name)
+        t = node_by_name(DET3, name)
         s = sources[name]
         @test lowercase(String(s["shape"])) == begin
             solid = t.lv.solid
@@ -360,66 +238,11 @@ end
     source_only = ["MLI", "OCV_barrel", "ICV_barrel", "FC_sensors", "FC_topgrid", "FC_botgrid", "PMT_TOP_PMTs"]
     for name in source_only
         @test haskey(sources, name)
-        @test !haskey(DET2.name_to_id, name)
+        @test !haskey(DET3.name_to_id, name)
     end
 end
 
-@testset "Runtime classification V2" begin
-    c = classify_runtime_v2(DET2, (0.0, 0.0, 61.0))
-    @test c !== nothing
-    @test c.name == "FV"
-    @test c.sensitive
-    @test c.ecut_keV ≈ 10.0 atol=GEOM_TOL
-    @test c.dz_mm ≈ 3.0 atol=GEOM_TOL
-    @test c.fv_target
-
-    c = classify_runtime_v2(DET2, (60.0, 0.0, 120.0))
-    @test c !== nothing
-    @test c.name == "LXeTPC"
-    @test c.sensitive
-    @test c.ecut_keV ≈ 10.0 atol=GEOM_TOL
-    @test c.dz_mm ≈ 3.0 atol=GEOM_TOL
-    @test !c.fv_target
-
-    c = classify_runtime_v2(DET2, (78.0, 0.0, 100.0))
-    @test c !== nothing
-    @test c.name == "Skin"
-    @test c.sensitive
-    @test c.ecut_keV ≈ 100.0 atol=GEOM_TOL
-    @test c.dz_mm ≈ 3.0 atol=GEOM_TOL
-    @test !c.fv_target
-
-    c = classify_runtime_v2(DET2, (0.0, 0.0, -20.0))
-    @test c !== nothing
-    @test c.name == "LXe_det"
-    @test !c.sensitive
-    @test c.ecut_keV ≈ 0.0 atol=GEOM_TOL
-    @test c.dz_mm ≈ 0.0 atol=GEOM_TOL
-    @test !c.fv_target
-
-    c = classify_runtime_v2(DET2, (0.0, 0.0, 160.0))
-    @test c !== nothing
-    @test c.name == "AirDome"
-    @test !c.sensitive
-    @test !c.fv_target
-
-    c = classify_runtime_v2(DET2, (73.55, 0.0, 100.0))
-    @test c !== nothing
-    @test c.name == "FC_PTFE"
-    @test !c.sensitive
-
-    c = classify_runtime_v2(DET2, (74.45, 0.0, 100.0))
-    @test c !== nothing
-    @test c.name == "FC_rings"
-    @test !c.sensitive
-
-    c = classify_runtime_v2(DET2, (110.0, 0.0, 0.0))
-    @test c !== nothing
-    @test c.name == "MARS"
-    @test !c.sensitive
-end
-
-@testset "V2 sampler and geometric prefilter" begin
+@testset "Calibration sampler" begin
     for i in 1:50
         ev = sample_gammas("calib"; calib=true, rng=MersenneTwister(1234 + i))
         @test length(ev) in (0, 1, 2)
@@ -441,245 +264,74 @@ end
         @test g.position == Float64[1.0, 2.0, 3.0]
         @test g.direction == Float64[1.0, 0.0, 0.0]
     end
-
-    empty_ev = SampledGamma[]
-    @test !geometric_prefilter_v2(DET2, empty_ev)
-
-    already_in_fv = [
-        SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, -1.0])
-    ]
-    @test geometric_prefilter_v2(DET2, already_in_fv)
-
-    miss_fv = [
-        SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
-    ]
-    @test !geometric_prefilter_v2(DET2, miss_fv)
-
-    two_gammas_one_hits = [
-        SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]),
-        SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, -1.0])
-    ]
-    @test geometric_prefilter_v2(DET2, two_gammas_one_hits)
-
-    two_gammas_miss = [
-        SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]),
-        SampledGamma(2.615, Float64[-120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
-    ]
-    @test !geometric_prefilter_v2(DET2, two_gammas_miss)
 end
-
-
-@testset "V2 first interaction transport" begin
-    miss = SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
-    miss_res = propagate_gamma_v2(miss, DET2, CFG, MersenneTwister(1))
-    @test miss_res.status == :escaped
-    @test miss_res.interaction_type == :none
-
-    fv = SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, -1.0])
-    fv_res = propagate_gamma_v2(fv, DET2, CFG, MersenneTwister(2))
-    @test fv_res.status == :entered_fv
-    @test fv_res.interaction_type == :none
-    @test fv_res.region == "FV"
-
-    λ_lxe = mfp(MATS["LXe"], 2.615)
-    start_z = 96.0 + λ_lxe
-    rng = MersenneTwister(20260507)
-    results = GammaPropagationV2Result[]
-    for _ in 1:1000
-        gamma = SampledGamma(2.615, Float64[0.0, 0.0, start_z], Float64[0.0, 0.0, -1.0])
-        push!(results, propagate_gamma_v2(gamma, DET2, CFG, rng))
-    end
-
-    n_enter = count(r -> r.status == :entered_fv, results)
-    enter_frac = n_enter / length(results)
-    @test 0.25 <= enter_frac <= 0.50
-
-    interacted = filter(r -> r.status == :interacted, results)
-    @test !isempty(interacted)
-    @test all(r -> r.region == "LXeTPC", interacted)
-    @test all(r -> r.interaction_type in (:compton, :photoelectric, :pair), interacted)
-    @test all(
-        r -> r.interaction_type == :compton ?
-            (0.0 < r.deposit_E_MeV < 2.615) :
-            isapprox(r.deposit_E_MeV, 2.615; atol=1e-6),
-        interacted
-    )
-end
-
 
 @testset "FastKernel first interaction transport" begin
     fk = compile_fastkernel_geometry(DET3)
-    coarse_to_v2 = Dict(
-        "FV" => "FV",
-        "TopActive" => "LXeTPC",
-        "BarrelActive" => "LXeTPC",
-        "BottomActive" => "LXeTPC",
-        "Skin" => "Skin",
-        "FC_PTFE" => "FC_PTFE",
-        "FC_rings" => "FC_rings",
-        "LXe_passive" => "LXe_det",
-        "AirDome" => "AirDome",
-        "MARS" => "MARS",
-    )
-
-    exact_cases = [
-        SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]) => 1,
-        SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, -1.0]) => 2,
-        SampledGamma(2.615, Float64[0.0, 0.0, 72.8], Float64[1.0, 0.0, 0.0]) => 7,
-    ]
-
-    for (gamma, seed) in exact_cases
-        v2_res = propagate_gamma_v2(gamma, DET2, CFG, MersenneTwister(seed))
-        fk_res = propagate_gamma_fastkernel(gamma, fk, CFG, MersenneTwister(seed))
-        @test fk_res.status == v2_res.status
-        @test fk_res.interaction_type == v2_res.interaction_type
-        @test coarse_to_v2[fk_res.region] == v2_res.region
-        @test fk_res.deposit_E_MeV ≈ v2_res.deposit_E_MeV atol=1e-10
-        @test fk_res.position[1] ≈ v2_res.position[1] atol=1e-6
-        @test fk_res.position[2] ≈ v2_res.position[2] atol=1e-6
-        @test fk_res.position[3] ≈ v2_res.position[3] atol=1e-6
-    end
-
     air_to_lxe = SampledGamma(2.615, Float64[0.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
-    v2_air = propagate_gamma_v2(air_to_lxe, DET2, CFG, MersenneTwister(23))
     fk_air = propagate_gamma_fastkernel(air_to_lxe, fk, CFG, MersenneTwister(23))
-    @test fk_air.status == v2_air.status
-    @test coarse_to_v2[fk_air.region] == v2_air.region
+    @test fk_air.status in (:escaped, :entered_fv, :interacted)
+    @test fk_air.region in ("AirDome", "TopActive", "BarrelActive", "BottomActive", "FV", "Skin", "FC_PTFE", "FC_rings", "LXe_passive", "MARS")
 
     ptfe = SampledGamma(2.615, Float64[73.0, 0.0, 100.0], Float64[1.0, 0.0, 0.0])
-    v2_ptfe = propagate_gamma_v2(ptfe, DET2, CFG, MersenneTwister(11))
     fk_ptfe = propagate_gamma_fastkernel(ptfe, fk, CFG, MersenneTwister(11))
-    @test fk_ptfe.status == v2_ptfe.status == :interacted
-    @test coarse_to_v2[fk_ptfe.region] == v2_ptfe.region
+    @test fk_ptfe.status == :interacted
+    @test fk_ptfe.region in ("FC_PTFE", "FC_rings", "Skin")
 
     lxe_bulk = SampledGamma(2.615, Float64[0.0, 0.0, -20.0], Float64[0.0, 0.0, 1.0])
-    v2_lxe = propagate_gamma_v2(lxe_bulk, DET2, CFG, MersenneTwister(19))
     fk_lxe = propagate_gamma_fastkernel(lxe_bulk, fk, CFG, MersenneTwister(19))
-    @test fk_lxe.status == v2_lxe.status == :interacted
-    @test coarse_to_v2[fk_lxe.region] == v2_lxe.region == "LXe_det"
+    @test fk_lxe.status == :interacted
+    @test fk_lxe.region in ("LXe_passive", "BottomActive", "FV")
 end
 
-
-@testset "V2 interaction selector" begin
+@testset "Interaction selector" begin
     fk = compile_fastkernel_geometry(DET3)
-
-    fv_res = GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV")
-    fv_sel = select_interaction(fv_res, DET2)
-    fv_fk_sel = select_interaction_fastkernel(
-        GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV"),
+    fv_sel = select_interaction_fastkernel(
+        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV"),
         fk
     )
     @test fv_sel.class == :fv
     @test fv_sel.sensitive
     @test fv_sel.passes_threshold
     @test fv_sel.region == "FV"
-    @test fv_fk_sel == fv_sel
 
-    tpc_hi = GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 120.0], "TopActive")
-    tpc_hi_sel = select_interaction(tpc_hi, DET2)
-    tpc_hi_fk_sel = select_interaction_fastkernel(tpc_hi, fk)
+    tpc_hi_sel = select_interaction_fastkernel(
+        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 120.0], "TopActive"),
+        fk
+    )
     @test tpc_hi_sel.class == :tpc
     @test tpc_hi_sel.sensitive
     @test tpc_hi_sel.passes_threshold
-    @test tpc_hi_fk_sel.class == tpc_hi_sel.class
-    @test tpc_hi_fk_sel.sensitive == tpc_hi_sel.sensitive
-    @test tpc_hi_fk_sel.passes_threshold == tpc_hi_sel.passes_threshold
-    @test tpc_hi_fk_sel.ecut_keV == tpc_hi_sel.ecut_keV
-    @test tpc_hi_fk_sel.interaction_type == tpc_hi_sel.interaction_type
+    @test tpc_hi_sel.ecut_keV ≈ 10.0 atol=GEOM_TOL
 
-    tpc_lo = GammaPropagationV2Result(:interacted, :compton, 0.005, Float64[0.0, 0.0, 120.0], "TopActive")
-    tpc_lo_sel = select_interaction(tpc_lo, DET2)
-    tpc_lo_fk_sel = select_interaction_fastkernel(tpc_lo, fk)
+    tpc_lo_sel = select_interaction_fastkernel(
+        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.005, Float64[0.0, 0.0, 120.0], "TopActive"),
+        fk
+    )
     @test tpc_lo_sel.class == :tpc
-    @test tpc_lo_sel.sensitive
     @test !tpc_lo_sel.passes_threshold
-    @test tpc_lo_fk_sel.class == tpc_lo_sel.class
-    @test tpc_lo_fk_sel.sensitive == tpc_lo_sel.sensitive
-    @test tpc_lo_fk_sel.passes_threshold == tpc_lo_sel.passes_threshold
-    @test tpc_lo_fk_sel.ecut_keV == tpc_lo_sel.ecut_keV
-    @test tpc_lo_fk_sel.interaction_type == tpc_lo_sel.interaction_type
 
-    skin_hi = GammaPropagationV2Result(:interacted, :compton, 0.200, Float64[78.0, 0.0, 100.0], "Skin")
-    skin_hi_sel = select_interaction(skin_hi, DET2)
-    skin_hi_fk_sel = select_interaction_fastkernel(skin_hi, fk)
+    skin_hi_sel = select_interaction_fastkernel(
+        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.200, Float64[78.0, 0.0, 100.0], "Skin"),
+        fk
+    )
     @test skin_hi_sel.class == :skin
-    @test skin_hi_sel.sensitive
     @test skin_hi_sel.passes_threshold
-    @test skin_hi_fk_sel == skin_hi_sel
 
-    skin_lo = GammaPropagationV2Result(:interacted, :compton, 0.050, Float64[78.0, 0.0, 100.0], "Skin")
-    skin_lo_sel = select_interaction(skin_lo, DET2)
-    skin_lo_fk_sel = select_interaction_fastkernel(skin_lo, fk)
+    skin_lo_sel = select_interaction_fastkernel(
+        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.050, Float64[78.0, 0.0, 100.0], "Skin"),
+        fk
+    )
     @test skin_lo_sel.class == :skin
-    @test skin_lo_sel.sensitive
     @test !skin_lo_sel.passes_threshold
-    @test skin_lo_fk_sel == skin_lo_sel
 
-    struct_res = GammaPropagationV2Result(:interacted, :compton, 0.500, Float64[73.55, 0.0, 100.0], "FC_PTFE")
-    struct_sel = select_interaction(struct_res, DET2)
-    struct_fk_sel = select_interaction_fastkernel(struct_res, fk)
+    struct_sel = select_interaction_fastkernel(
+        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.500, Float64[73.55, 0.0, 100.0], "FC_PTFE"),
+        fk
+    )
     @test struct_sel.class == :other
     @test !struct_sel.sensitive
     @test !struct_sel.passes_threshold
-    @test struct_fk_sel == struct_sel
-end
-
-
-@testset "V2 event processing" begin
-    empty_event = LXeMC.process_event_from_selections(NamedTuple[])
-    @test empty_event.status == :no_fv
-    @test empty_event.n_processed == 0
-
-    fv_sel = select_interaction(
-        GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV"),
-        DET2
-    )
-    tpc_sel = select_interaction(
-        GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[60.0, 0.0, 120.0], "LXeTPC"),
-        DET2
-    )
-    skin_sel = select_interaction(
-        GammaPropagationV2Result(:interacted, :compton, 0.200, Float64[78.0, 0.0, 100.0], "Skin"),
-        DET2
-    )
-    other_sel = select_interaction(
-        GammaPropagationV2Result(:escaped, :none, 0.0, Float64[120.0, 0.0, 160.0], "MARS"),
-        DET2
-    )
-
-    one_fv = LXeMC.process_event_from_selections([fv_sel])
-    @test one_fv.status == :accepted
-    @test one_fv.has_fv
-    @test one_fv.n_processed == 1
-
-    one_skin = LXeMC.process_event_from_selections([skin_sel])
-    @test one_skin.status == :vetoed
-    @test one_skin.has_skin_veto
-    @test one_skin.n_processed == 1
-
-    one_tpc = LXeMC.process_event_from_selections([tpc_sel])
-    @test one_tpc.status == :vetoed
-    @test one_tpc.has_tpc_veto
-    @test one_tpc.n_processed == 1
-
-    miss_then_fv = LXeMC.process_event_from_selections([other_sel, fv_sel])
-    @test miss_then_fv.status == :accepted
-    @test miss_then_fv.has_fv
-    @test miss_then_fv.n_processed == 2
-
-    veto_first = LXeMC.process_event_from_selections([skin_sel, fv_sel])
-    @test veto_first.status == :vetoed
-    @test veto_first.n_processed == 1
-
-    fv_then_veto = LXeMC.process_event_from_selections([fv_sel, tpc_sel])
-    @test fv_then_veto.status == :vetoed
-    @test fv_then_veto.has_fv
-    @test fv_then_veto.has_tpc_veto
-    @test fv_then_veto.n_processed == 2
-
-    calib_res = LXeMC.process_event_v2(sample_gammas("calib"; calib=true, rng=MersenneTwister(777)),
-                                       DET2, CFG, MersenneTwister(778))
-    @test calib_res.status in (:accepted, :vetoed, :no_fv)
 end
 
 

@@ -249,12 +249,13 @@ function main()
     cfg = default_config()
     mats = load_materials(cfg)
     det = load_tracking_detector(default_tracking_detector_path(), mats)
+    fk = compile_fastkernel_geometry(det)
     rng = MersenneTwister(seed)
 
     results = GammaPropagationV2Result[]
     for _ in 1:N
         gamma = SampledGamma(E0, copy(position0), copy(direction0))
-        push!(results, propagate_gamma_v2(gamma, det, cfg, rng))
+        push!(results, propagate_gamma_fastkernel(gamma, fk, cfg, rng))
     end
 
     status_counts = Dict{Symbol,Int}()
@@ -267,7 +268,7 @@ function main()
     for r in results
         status_counts[r.status] = get(status_counts, r.status, 0) + 1
         interaction_counts[r.interaction_type] = get(interaction_counts, r.interaction_type, 0) + 1
-        sel = select_interaction(r, det)
+        sel = select_interaction_fastkernel(r, fk)
         sel_key = if sel.class == :fv
             :fv_pass
         elseif sel.class == :tpc
