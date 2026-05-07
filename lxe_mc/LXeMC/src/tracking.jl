@@ -420,6 +420,93 @@ struct PropagationResult
 end
 
 
+struct GammaPropagationV2Result
+    status::Symbol
+    interaction_type::Symbol
+    deposit_E_MeV::Float64
+    position::Vector{Float64}
+    region::String
+end
+
+
+"""
+    propagate_gamma_v2(gamma, det, cfg, rng; step_cm=0.05, max_cm=400.0)
+        -> GammaPropagationV2Result
+
+Propagate one sampled gamma through the Geometry V2 tracking tree until:
+
+- it enters `FV` before interacting (`status = :entered_fv`)
+- it has its first interaction in a tracking material (`status = :interacted`)
+- it escapes the tracking geometry (`status = :escaped`)
+- it falls below the photon cutoff (`status = :below_cut`)
+
+This first V2 transport stage samples only Compton and photoelectric
+interactions. Pair production is left for a later step.
+"""
+function propagate_gamma_v2(gamma,
+                            det::DetectorV2,
+                            cfg::SimConfig,
+                            rng::AbstractRNG;
+                            step_cm::Float64=0.05,
+                            max_cm::Float64=400.0)::GammaPropagationV2Result
+
+    pos = copy(gamma.position)
+    dir = copy(gamma.direction)
+    E = gamma.E_MeV
+    traveled = 0.0
+
+    while E >= cfg.Egamma_cut && traveled < max_cm
+        cls = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
+        cls === nothing && return GammaPropagationV2Result(:escaped, :none, 0.0, copy(pos), "MARS")
+        cls.fv_target && return GammaPropagationV2Result(:entered_fv, :none, 0.0, copy(pos), cls.name)
+
+        mat = cls.node.lv.material
+        s_bnd, _ = distance_to_node_change_v2(det, pos, dir; step_cm=step_cm, max_cm=max_cm - traveled)
+
+        if !isfinite(s_bnd)
+            return GammaPropagationV2Result(:escaped, :none, 0.0, copy(pos), cls.name)
+        end
+
+        if mat.density <= 0.0 || mat.xcom === nothing
+            pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
+            traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
+            continue
+        end
+
+        sC, _, sPh = sigma_three(mat, E)
+        s_tot = sC + sPh
+
+        if s_tot <= 0.0
+            pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
+            traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
+            continue
+        end
+
+        Σ_tot = mat.n_atom * s_tot
+        s_int = sample_distance(Σ_tot, rng)
+
+        if s_int + TRANSPORT_BOUNDARY_TOL_CM < s_bnd
+            pos .= pos .+ dir .* s_int
+            region = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
+            region_name = region === nothing ? cls.name : region.name
+
+            proc = sample_process(sC/s_tot, 0.0, sPh/s_tot, rng)
+            if proc === :compton
+                Egp, _ = sample_compton(E, cfg, rng)
+                return GammaPropagationV2Result(:interacted, :compton, E - Egp, copy(pos), region_name)
+            else
+                return GammaPropagationV2Result(:interacted, :photoelectric, E, copy(pos), region_name)
+            end
+        end
+
+        pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
+        traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
+    end
+
+    GammaPropagationV2Result(:below_cut, :none, 0.0, copy(pos), "MARS")
+end
+
+
 """
     propagate_to_fiducial(E_MeV, position, direction, det, cfg, rng)
         -> PropagationResult

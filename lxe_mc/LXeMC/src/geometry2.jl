@@ -149,22 +149,61 @@ function classify_runtime_v2(det::DetectorV2, pos::NTuple{3,<:Real})
 end
 
 
-function _line_reaches_fv(det::DetectorV2, gamma; step_cm::Float64=0.5, max_cm::Float64=400.0)::Bool
-    pos = copy(gamma.position)
-    dir = gamma.direction
-    nsteps = floor(Int, max_cm / step_cm)
-    for _ in 0:nsteps
-        cls = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
-        cls !== nothing && cls.fv_target && return true
-        pos .+= dir .* step_cm
-    end
-    false
+function _same_runtime_node(a, b)::Bool
+    a === nothing && return b === nothing
+    b === nothing && return false
+    a.node.id == b.node.id
 end
 
 
-function geometric_prefilter_v2(det::DetectorV2, gammas)::Bool
+function distance_to_node_change_v2(det::DetectorV2,
+                                    pos::Vector{Float64},
+                                    dir::Vector{Float64};
+                                    step_cm::Float64=0.05,
+                                    max_cm::Float64=400.0,
+                                    tol_cm::Float64=1e-4)
+    current = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
+    t_lo = 0.0
+    t_hi = step_cm
+
+    while t_lo < max_cm
+        probe_hi = pos .+ dir .* min(t_hi, max_cm)
+        cls_hi = classify_runtime_v2(det, (probe_hi[1], probe_hi[2], probe_hi[3]))
+
+        if !_same_runtime_node(current, cls_hi)
+            lo = t_lo
+            hi = min(t_hi, max_cm)
+            while hi - lo > tol_cm
+                mid = 0.5 * (lo + hi)
+                probe_mid = pos .+ dir .* mid
+                cls_mid = classify_runtime_v2(det, (probe_mid[1], probe_mid[2], probe_mid[3]))
+                if _same_runtime_node(current, cls_mid)
+                    lo = mid
+                else
+                    hi = mid
+                end
+            end
+            probe_next = pos .+ dir .* hi
+            next_cls = classify_runtime_v2(det, (probe_next[1], probe_next[2], probe_next[3]))
+            return hi, next_cls
+        end
+
+        t_lo = t_hi
+        t_hi += step_cm
+    end
+
+    Inf, nothing
+end
+
+
+function geometric_prefilter_v2(det::DetectorV2, gammas;
+                                cfg::SimConfig=default_config(),
+                                rng::AbstractRNG=Random.default_rng())::Bool
     isempty(gammas) && return false
-    any(g -> _line_reaches_fv(det, g), gammas)
+    any(g -> begin
+        result = propagate_gamma_v2(g, det, cfg, rng)
+        result.status == :entered_fv || result.region == "FV"
+    end, gammas)
 end
 
 

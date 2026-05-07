@@ -343,27 +343,60 @@ end
     empty_ev = SampledGamma[]
     @test !geometric_prefilter_v2(DET2, empty_ev)
 
-    hit_fv = [
-        SampledGamma(2.615, Float64[0.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+    already_in_fv = [
+        SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, -1.0])
     ]
-    @test geometric_prefilter_v2(DET2, hit_fv)
+    @test geometric_prefilter_v2(DET2, already_in_fv)
 
     miss_fv = [
-        SampledGamma(2.615, Float64[100.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+        SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
     ]
     @test !geometric_prefilter_v2(DET2, miss_fv)
 
     two_gammas_one_hits = [
-        SampledGamma(2.615, Float64[100.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]),
-        SampledGamma(2.615, Float64[0.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+        SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]),
+        SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, -1.0])
     ]
     @test geometric_prefilter_v2(DET2, two_gammas_one_hits)
 
     two_gammas_miss = [
-        SampledGamma(2.615, Float64[100.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]),
-        SampledGamma(2.615, Float64[-100.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+        SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0]),
+        SampledGamma(2.615, Float64[-120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
     ]
     @test !geometric_prefilter_v2(DET2, two_gammas_miss)
+end
+
+
+@testset "V2 first interaction transport" begin
+    miss = SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
+    miss_res = propagate_gamma_v2(miss, DET2, CFG, MersenneTwister(1))
+    @test miss_res.status == :escaped
+    @test miss_res.interaction_type == :none
+
+    fv = SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, -1.0])
+    fv_res = propagate_gamma_v2(fv, DET2, CFG, MersenneTwister(2))
+    @test fv_res.status == :entered_fv
+    @test fv_res.interaction_type == :none
+    @test fv_res.region == "FV"
+
+    λ_lxe = mfp(MATS["LXe"], 2.615)
+    start_z = 96.0 + λ_lxe
+    rng = MersenneTwister(20260507)
+    results = GammaPropagationV2Result[]
+    for _ in 1:1000
+        gamma = SampledGamma(2.615, Float64[0.0, 0.0, start_z], Float64[0.0, 0.0, -1.0])
+        push!(results, propagate_gamma_v2(gamma, DET2, CFG, rng))
+    end
+
+    n_enter = count(r -> r.status == :entered_fv, results)
+    enter_frac = n_enter / length(results)
+    @test 0.25 <= enter_frac <= 0.50
+
+    interacted = filter(r -> r.status == :interacted, results)
+    @test !isempty(interacted)
+    @test all(r -> r.region == "LXeTPC", interacted)
+    @test all(r -> r.interaction_type in (:compton, :photoelectric), interacted)
+    @test all(r -> r.interaction_type == :compton ? (0.0 < r.deposit_E_MeV < 2.615) : isapprox(r.deposit_E_MeV, 2.615; atol=1e-6), interacted)
 end
 
 
