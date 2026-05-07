@@ -4,8 +4,9 @@
 Simulation transport parameters for the LXe Monte Carlo.
 
 Material properties (Z, A, density, cross sections) are now in
-`Material`; geometry is in `Detector`. This struct holds only
-transport thresholds, stepping parameters, and physical constants.
+`Material`; detector geometry lives in the canonical geometry layer
+(`TrackingDetector`, `FastKernelGeometry`, `FVGeometry`). This struct
+holds only transport thresholds, stepping parameters, and physical constants.
 
 Loaded from `data/sim_config.json`.
 """

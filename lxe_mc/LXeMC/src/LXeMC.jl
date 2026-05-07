@@ -72,7 +72,7 @@ export R_outer, depth, is_flat
 export LCyl, LCylShell, LBox, LDisk, is_inside
 export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
 export distance_to_entry, distance_to_exit
-# Canonical tracking geometry and compiled fast-kernel support.
+# Canonical detector geometry and compiled fast-kernel support.
 export RegionTag, Placement, LogicalVolume, DetectorNode, TrackingDetector
 export FastKernelRegion, FastKernelGeometry, FVGeometry
 export Cap, DomedContainer, CappedCylinder
@@ -113,7 +113,7 @@ export load_decays, sample_decay, sample_event, sample_gammas, sample_isotropic_
 export propagate_in_source, random_position_in_volume
 
 # --- Convenience paths ---
-"""Path to the preferred canonical tracking detector JSON file."""
+"""Path to the canonical detector-geometry JSON file."""
 function default_tracking_detector_path()
     normpath(joinpath(@__DIR__, "..", "..", "data", "detector_lz_v3.json"))
 end
