@@ -12,11 +12,12 @@ using LXeMC, Random
 
 cfg  = default_config()
 mats = load_materials(cfg)
-det  = load_detector(default_detector_path(), mats)
-vol  = active_volume(det)
+det  = load_tracking_detector(default_tracking_detector_path(), mats)
+fk   = compile_fastkernel_geometry(det)
+fv   = compile_fv_geometry(det)
 rng  = MersenneTwister(42)
 
-deposits = simulate_event(2.615, vol, cfg; rng=rng)
+deposits = propagate_gamma_in_fv(2.615, fv, cfg; rng=rng)
 ss = is_single_site(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
 ```
 
@@ -25,7 +26,8 @@ ss = is_single_site(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
 - `config.jl`: `SimConfig` — transport parameters
 - `nist_data.jl`: XCOM/ESTAR CSV loaders, log-log interpolation
 - `materials.jl`: `Material` — material properties + physics methods
-- `geometry.jl`: `Cyl`/`LCyl`/`PCyl`/`Detector` hierarchy
+- `geometry.jl`: legacy stack geometry helpers
+- `geometry2.jl`: canonical tracking detector + fast-kernel geometry
 - `physics_utils.jl`: bremsstrahlung differential cross section
 - `sampling.jl`: MC samplers for all interaction channels
 - `tracking.jl`: particle transport, event simulation, clustering
