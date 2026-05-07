@@ -177,9 +177,9 @@ function main()
 
     cfg = default_config()
     mats = load_materials(cfg)
-    det_legacy = load_detector(default_detector_path(), mats)
     det = load_tracking_detector(default_tracking_detector_path(), mats)
     fk = compile_fastkernel_geometry(det)
+    fv = compile_fv_geometry(det)
     rng = MersenneTwister(seed)
 
     status_counts = Dict{Symbol,Int}()
@@ -191,7 +191,7 @@ function main()
 
     for i in 1:N
         fused = process_event_fastkernel_calib(
-            fk, det_legacy, cfg, rng;
+            fk, fv, cfg, rng;
             E_MeV=energy,
             x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
             ux=ux, uy=uy, uz=uz,

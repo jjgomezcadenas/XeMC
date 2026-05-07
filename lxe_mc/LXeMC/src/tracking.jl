@@ -982,14 +982,13 @@ function _classify_fv_stack_result(deposits::Vector{Deposit}, cfg::SimConfig)::S
 end
 
 
-function process_event(gammas, fk::FastKernelGeometry, det,
+function process_event(gammas, fk::FastKernelGeometry, fv::FVGeometry,
                        cfg::SimConfig, rng::AbstractRNG)
     has_fv = false
     has_tpc_veto = false
     has_skin_veto = false
     fv_z_ref = NaN
     n_processed = 0
-    fv_vol = fiducial_volume(det)
 
     for gamma in gammas
         result = transport_gamma_fastkernel(gamma, fk, cfg, rng)
@@ -1007,9 +1006,9 @@ function process_event(gammas, fk::FastKernelGeometry, det,
         end
 
         if result.status == :handoff_fv
-            deps = simulate_event(
+            deps = propagate_gamma_in_fv(
                 result.energy_MeV,
-                fv_vol,
+                fv,
                 cfg;
                 position=(result.position[1], result.position[2], result.position[3]),
                 direction=(result.direction[1], result.direction[2], result.direction[3]),
@@ -1037,7 +1036,7 @@ function process_event(gammas, fk::FastKernelGeometry, det,
 end
 
 
-function process_event_fastkernel_calib(fk::FastKernelGeometry, det, cfg::SimConfig,
+function process_event_fastkernel_calib(fk::FastKernelGeometry, fv::FVGeometry, cfg::SimConfig,
                                         rng::AbstractRNG;
                                         E_MeV::Float64=2.615,
                                         x_cm::Float64=0.0,
@@ -1057,7 +1056,7 @@ function process_event_fastkernel_calib(fk::FastKernelGeometry, det, cfg::SimCon
     E1 = multiplicity >= 1 ? gammas[1].E_MeV : 0.0
     E2 = multiplicity >= 2 ? gammas[2].E_MeV : 0.0
     FastKernelCalibEventResult(
-        process_event(gammas, fk, det, cfg, rng),
+        process_event(gammas, fk, fv, cfg, rng),
         multiplicity,
         E1,
         E2,

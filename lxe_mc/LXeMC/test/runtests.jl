@@ -347,8 +347,9 @@ end
 
 @testset "FastKernel event processing" begin
     fk = compile_fastkernel_geometry(DET3)
+    fvgeom = compile_fv_geometry(DET3)
 
-    empty_fk = process_event(SampledGamma[], fk, DET, CFG, MersenneTwister(1))
+    empty_fk = process_event(SampledGamma[], fk, fvgeom, CFG, MersenneTwister(1))
     @test empty_fk.status == :no_fv
     @test empty_fk.n_processed == 0
 
@@ -387,8 +388,8 @@ end
         rng1 = MersenneTwister(seed)
         rng2 = MersenneTwister(seed)
         gammas = sample_gammas("calib"; calib=true, rng=rng1)
-        vec_res = process_event(gammas, fk, DET, CFG, rng1)
-        fused_res = process_event_fastkernel_calib(fk, DET, CFG, rng2)
+        vec_res = process_event(gammas, fk, fvgeom, CFG, rng1)
+        fused_res = process_event_fastkernel_calib(fk, fvgeom, CFG, rng2)
 
         @test fused_res.result.status == vec_res.status
         @test fused_res.result.has_fv == vec_res.has_fv
