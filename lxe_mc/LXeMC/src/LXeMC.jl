@@ -72,16 +72,18 @@ export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
 export Detector, active_volume, fiducial_volume, find_volume, load_detector
 export distance_to_entry, distance_to_exit, next_volume
 export RegionTag, PlacementV2, LogicalVolumeV2, DetectorNode, DetectorV2
-export FastKernelVolume, FastKernelGeometry
+export FastKernelRegion, FastKernelGeometry
 export Cap, DomedContainer, CappedCylinder
 export TAG_WORLD, TAG_VACUUM, TAG_STRUCTURAL, TAG_TPC_ACTIVE
 export TAG_FV, TAG_SKIN, TAG_PASSIVE_LXE
 export load_detector_v2, root_node, node_by_name, child_nodes, detector_summary
-export compile_fastkernel_geometry
+export compile_fastkernel_geometry, classify_fastkernel, distance_to_boundary_fastkernel
 export validate_detector_v2, tree_dump, sibling_overlaps
 export region_tag, is_fv, is_active_lxe, is_veto_lxe, is_passive_lxe
 export is_structural, is_vacuum, is_sensitive, is_fv_target, ecut_keV, dz_mm
 export find_node_v2, classify_runtime_v2, select_interaction, geometric_prefilter_v2
+export propagate_gamma_fastkernel
+export process_event_fastkernel
 
 # --- Sampling ---
 export sample_distance, sample_process

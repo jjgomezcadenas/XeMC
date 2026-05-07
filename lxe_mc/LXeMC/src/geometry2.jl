@@ -112,21 +112,39 @@ struct DetectorV2
 end
 
 
-struct FastKernelVolume
+struct FastKernelRegion
+    id::Int
     name::String
-    material::Material
     role::String
-    inFastKernel::Bool
+    kind::Symbol
+    material::Material
     isXe::Bool
     sensitive::Bool
     ecut_keV::Float64
     fv_target::Bool
+    rmin_cm::Float64
+    rmax_cm::Float64
+    zmin_cm::Float64
+    zmax_cm::Float64
+    has_top_cap::Bool
+    has_bottom_cap::Bool
+    top_cap_radius_cm::Float64
+    top_cap_aspect_ratio::Float64
+    bottom_cap_radius_cm::Float64
+    bottom_cap_aspect_ratio::Float64
 end
 
 
 struct FastKernelGeometry
-    volumes::Vector{FastKernelVolume}
+    regions::Vector{FastKernelRegion}
     name_to_index::Dict{String,Int}
+    detector_region::Int
+    air_region::Int
+    ptfe_region::Int
+    lxe_bulk_region::Int
+    tpc_region::Int
+    fv_region::Int
+    skin_region::Int
 end
 
 const GEOM_VALIDATE_TOL_CM = 0.1
@@ -967,26 +985,442 @@ function detector_summary(det::DetectorV2)::String
 end
 
 
+function _compile_fastkernel_region(id::Int, node::DetectorNode)::FastKernelRegion
+    solid = node.lv.solid
+    x0, y0, z0 = node.placement.position_cm
+    abs(x0) <= GEOM_VALIDATE_TOL_CM || error("FastKernel currently expects coaxial geometry; node '$(node.lv.name)' has x=$(x0)")
+    abs(y0) <= GEOM_VALIDATE_TOL_CM || error("FastKernel currently expects coaxial geometry; node '$(node.lv.name)' has y=$(y0)")
+
+    kind = :unknown
+    rmin_cm = 0.0
+    rmax_cm = 0.0
+    zmin_cm = 0.0
+    zmax_cm = 0.0
+    has_top_cap = false
+    has_bottom_cap = false
+    top_cap_radius_cm = 0.0
+    top_cap_aspect_ratio = 0.0
+    bottom_cap_radius_cm = 0.0
+    bottom_cap_aspect_ratio = 0.0
+
+    if solid isa Cyl
+        kind = :cylinder
+        rmax_cm = solid.radius_cm
+        zmin_cm = z0 - solid.half_height_cm
+        zmax_cm = z0 + solid.half_height_cm
+    elseif solid isa CylShell
+        kind = :cylinder_shell
+        rmin_cm = solid.R_inner_cm
+        rmax_cm = solid.R_inner_cm + solid.wall_thickness_cm
+        zmin_cm = z0 - solid.half_height_cm
+        zmax_cm = z0 + solid.half_height_cm
+    elseif solid isa Cap
+        kind = :cap
+        cap_depth = depth(solid)
+        rmax_cm = solid.radius_cm
+        if node.placement.orientation === :down
+            has_bottom_cap = true
+            bottom_cap_radius_cm = solid.radius_cm
+            bottom_cap_aspect_ratio = solid.aspect_ratio
+            zmin_cm = z0 - cap_depth
+            zmax_cm = z0
+        else
+            has_top_cap = true
+            top_cap_radius_cm = solid.radius_cm
+            top_cap_aspect_ratio = solid.aspect_ratio
+            zmin_cm = z0
+            zmax_cm = z0 + cap_depth
+        end
+    elseif solid isa DomedContainer
+        kind = :domed_container
+        rmax_cm = solid.radius_cm
+        zmin_cm = z0 - solid.barrel_half_height_cm - depth(solid.bottom_cap)
+        zmax_cm = z0 + solid.barrel_half_height_cm + depth(solid.top_cap)
+        has_top_cap = true
+        has_bottom_cap = true
+        top_cap_radius_cm = solid.top_cap.radius_cm
+        top_cap_aspect_ratio = solid.top_cap.aspect_ratio
+        bottom_cap_radius_cm = solid.bottom_cap.radius_cm
+        bottom_cap_aspect_ratio = solid.bottom_cap.aspect_ratio
+    elseif solid isa CappedCylinder
+        kind = :capped_cylinder
+        rmax_cm = solid.radius_cm
+        zmin_cm = z0 - solid.barrel_half_height_cm
+        zmax_cm = z0 + solid.barrel_half_height_cm
+        if solid.top_cap !== nothing
+            has_top_cap = true
+            top_cap_radius_cm = solid.top_cap.radius_cm
+            top_cap_aspect_ratio = solid.top_cap.aspect_ratio
+            zmax_cm += depth(solid.top_cap)
+        end
+        if solid.bottom_cap !== nothing
+            has_bottom_cap = true
+            bottom_cap_radius_cm = solid.bottom_cap.radius_cm
+            bottom_cap_aspect_ratio = solid.bottom_cap.aspect_ratio
+            zmin_cm -= depth(solid.bottom_cap)
+        end
+    else
+        error("Unsupported fast-kernel solid type '$(typeof(solid))' for node '$(node.lv.name)'")
+    end
+
+    FastKernelRegion(
+        id,
+        node.lv.name,
+        node.lv.role,
+        kind,
+        node.lv.material,
+        node.lv.isXe,
+        node.lv.sensitive,
+        node.lv.ecut_keV,
+        node.lv.fv_target,
+        rmin_cm,
+        rmax_cm,
+        zmin_cm,
+        zmax_cm,
+        has_top_cap,
+        has_bottom_cap,
+        top_cap_radius_cm,
+        top_cap_aspect_ratio,
+        bottom_cap_radius_cm,
+        bottom_cap_aspect_ratio
+    )
+end
+
+
 function compile_fastkernel_geometry(det::DetectorV2)::FastKernelGeometry
-    volumes = FastKernelVolume[]
+    regions = FastKernelRegion[]
     name_to_index = Dict{String,Int}()
 
     for node in det.nodes
         node.lv.inFastKernel || continue
-        push!(volumes, FastKernelVolume(
-            node.lv.name,
-            node.lv.material,
-            node.lv.role,
-            node.lv.inFastKernel,
-            node.lv.isXe,
-            node.lv.sensitive,
-            node.lv.ecut_keV,
-            node.lv.fv_target
-        ))
-        name_to_index[node.lv.name] = length(volumes)
+        region = _compile_fastkernel_region(length(regions) + 1, node)
+        push!(regions, region)
+        name_to_index[region.name] = region.id
     end
 
-    FastKernelGeometry(volumes, name_to_index)
+    detector_region = get(name_to_index, "LZ_detector", 0)
+    air_region = get(name_to_index, "AirDome", 0)
+    ptfe_region = get(name_to_index, "FC_PTFE", 0)
+    lxe_bulk_region = get(name_to_index, "LXe_det", 0)
+    tpc_region = get(name_to_index, "LXeTPC", 0)
+    fv_region = get(name_to_index, "FV", 0)
+    skin_region = get(name_to_index, "Skin", 0)
+
+    detector_region != 0 || error("FastKernelGeometry is missing LZ_detector")
+    air_region != 0 || error("FastKernelGeometry is missing AirDome")
+    ptfe_region != 0 || error("FastKernelGeometry is missing FC_PTFE")
+    lxe_bulk_region != 0 || error("FastKernelGeometry is missing LXe_det")
+    tpc_region != 0 || error("FastKernelGeometry is missing LXeTPC")
+    fv_region != 0 || error("FastKernelGeometry is missing FV")
+    skin_region != 0 || error("FastKernelGeometry is missing Skin")
+
+    FastKernelGeometry(
+        regions,
+        name_to_index,
+        detector_region,
+        air_region,
+        ptfe_region,
+        lxe_bulk_region,
+        tpc_region,
+        fv_region,
+        skin_region
+    )
+end
+
+
+function _is_inside_fastkernel_region(region::FastKernelRegion,
+                                      x::Float64, y::Float64, z::Float64)::Bool
+    r2 = x^2 + y^2
+    if region.kind == :cylinder
+        return r2 < region.rmax_cm^2 &&
+               z > region.zmin_cm &&
+               z < region.zmax_cm
+    elseif region.kind == :cylinder_shell
+        return r2 >= region.rmin_cm^2 &&
+               r2 < region.rmax_cm^2 &&
+               z > region.zmin_cm &&
+               z < region.zmax_cm
+    elseif region.kind == :cap
+        r2 > region.rmax_cm^2 && return false
+        if region.has_top_cap
+            z < region.zmin_cm && return false
+            dz_rel = z - region.zmin_cm
+            c = region.top_cap_radius_cm / region.top_cap_aspect_ratio
+            return r2 / region.top_cap_radius_cm^2 + (dz_rel / c)^2 <= 1.0
+        else
+            z > region.zmax_cm && return false
+            dz_rel = region.zmax_cm - z
+            c = region.bottom_cap_radius_cm / region.bottom_cap_aspect_ratio
+            return r2 / region.bottom_cap_radius_cm^2 + (dz_rel / c)^2 <= 1.0
+        end
+    elseif region.kind == :domed_container
+        r2 > region.rmax_cm^2 && return false
+        top_depth = region.has_top_cap ? region.top_cap_radius_cm / region.top_cap_aspect_ratio : 0.0
+        bottom_depth = region.has_bottom_cap ? region.bottom_cap_radius_cm / region.bottom_cap_aspect_ratio : 0.0
+        barrel_zmin = region.zmin_cm + bottom_depth
+        barrel_zmax = region.zmax_cm - top_depth
+        if z >= barrel_zmin && z <= barrel_zmax
+            return true
+        elseif z > barrel_zmax
+            dz_rel = z - barrel_zmax
+            c = region.top_cap_radius_cm / region.top_cap_aspect_ratio
+            return r2 / region.top_cap_radius_cm^2 + (dz_rel / c)^2 <= 1.0
+        else
+            dz_rel = barrel_zmin - z
+            c = region.bottom_cap_radius_cm / region.bottom_cap_aspect_ratio
+            return r2 / region.bottom_cap_radius_cm^2 + (dz_rel / c)^2 <= 1.0
+        end
+    elseif region.kind == :capped_cylinder
+        r2 > region.rmax_cm^2 && return false
+        top_depth = region.has_top_cap ? region.top_cap_radius_cm / region.top_cap_aspect_ratio : 0.0
+        bottom_depth = region.has_bottom_cap ? region.bottom_cap_radius_cm / region.bottom_cap_aspect_ratio : 0.0
+        barrel_zmin = region.zmin_cm + bottom_depth
+        barrel_zmax = region.zmax_cm - top_depth
+        if z >= barrel_zmin && z <= barrel_zmax
+            return true
+        elseif z > barrel_zmax
+            region.has_top_cap || return false
+            dz_rel = z - barrel_zmax
+            c = region.top_cap_radius_cm / region.top_cap_aspect_ratio
+            return r2 / region.top_cap_radius_cm^2 + (dz_rel / c)^2 <= 1.0
+        else
+            region.has_bottom_cap || return false
+            dz_rel = barrel_zmin - z
+            c = region.bottom_cap_radius_cm / region.bottom_cap_aspect_ratio
+            return r2 / region.bottom_cap_radius_cm^2 + (dz_rel / c)^2 <= 1.0
+        end
+    end
+    false
+end
+
+
+_is_inside_fastkernel_region(region::FastKernelRegion, pos::NTuple{3,<:Real}) =
+    _is_inside_fastkernel_region(region, Float64(pos[1]), Float64(pos[2]), Float64(pos[3]))
+
+
+function classify_fastkernel(fk::FastKernelGeometry, pos::NTuple{3,<:Real})
+    x = Float64(pos[1])
+    y = Float64(pos[2])
+    z = Float64(pos[3])
+
+    det_region = fk.regions[fk.detector_region]
+    _is_inside_fastkernel_region(det_region, x, y, z) || return nothing
+
+    air_region = fk.regions[fk.air_region]
+    _is_inside_fastkernel_region(air_region, x, y, z) && return air_region
+
+    ptfe_region = fk.regions[fk.ptfe_region]
+    _is_inside_fastkernel_region(ptfe_region, x, y, z) && return ptfe_region
+
+    lxe_region = fk.regions[fk.lxe_bulk_region]
+    _is_inside_fastkernel_region(lxe_region, x, y, z) || return det_region
+
+    fv_region = fk.regions[fk.fv_region]
+    _is_inside_fastkernel_region(fv_region, x, y, z) && return fv_region
+
+    skin_region = fk.regions[fk.skin_region]
+    _is_inside_fastkernel_region(skin_region, x, y, z) && return skin_region
+
+    tpc_region = fk.regions[fk.tpc_region]
+    _is_inside_fastkernel_region(tpc_region, x, y, z) && return tpc_region
+
+    lxe_region
+end
+
+
+function _min_positive(ts::Float64...)
+    tmin = Inf
+    for t in ts
+        if t > 1e-10 && t < tmin
+            tmin = t
+        end
+    end
+    tmin
+end
+
+
+function _distance_to_cap_exit(region::FastKernelRegion,
+                               x::Float64, y::Float64, z::Float64,
+                               ux::Float64, uy::Float64, uz::Float64)::Float64
+    R = region.has_top_cap ? region.top_cap_radius_cm : region.bottom_cap_radius_cm
+    ar = region.has_top_cap ? region.top_cap_aspect_ratio : region.bottom_cap_aspect_ratio
+    z_eq = region.has_top_cap ? region.zmin_cm : region.zmax_cm
+    c = R / ar
+
+    a = (ux^2 + uy^2) / R^2 + (uz^2) / c^2
+    a <= 1e-20 && return Inf
+    b = 2.0 * ((x * ux + y * uy) / R^2 + ((z - z_eq) * uz) / c^2)
+    cc = (x^2 + y^2) / R^2 + ((z - z_eq)^2) / c^2 - 1.0
+    disc = b^2 - 4.0 * a * cc
+    disc < 0.0 && return Inf
+
+    sq = sqrt(disc)
+    tmin = Inf
+    for t in ((-b - sq) / (2.0 * a), (-b + sq) / (2.0 * a))
+        if t > 1e-10
+            zh = z + uz * t
+            if region.has_top_cap
+                zh >= z_eq - 1e-10 || continue
+            else
+                zh <= z_eq + 1e-10 || continue
+            end
+            tmin = min(tmin, t)
+        end
+    end
+
+    t_plane = Inf
+    if region.has_top_cap
+        if uz < -1e-20
+            t = (z_eq - z) / uz
+            if t > 1e-10
+                xh = x + ux * t
+                yh = y + uy * t
+                if xh^2 + yh^2 <= R^2 + 1e-10
+                    t_plane = t
+                end
+            end
+        end
+    else
+        if uz > 1e-20
+            t = (z_eq - z) / uz
+            if t > 1e-10
+                xh = x + ux * t
+                yh = y + uy * t
+                if xh^2 + yh^2 <= R^2 + 1e-10
+                    t_plane = t
+                end
+            end
+        end
+    end
+
+    min(tmin, t_plane)
+end
+
+
+function _distance_to_barrel_side_exit(rmax_cm::Float64,
+                                       zbar_min::Float64, zbar_max::Float64,
+                                       x::Float64, y::Float64, z::Float64,
+                                       ux::Float64, uy::Float64, uz::Float64)::Float64
+    a = ux^2 + uy^2
+    a <= 1e-20 && return Inf
+    b = 2.0 * (x * ux + y * uy)
+    c = x^2 + y^2 - rmax_cm^2
+    disc = b^2 - 4.0 * a * c
+    disc < 0.0 && return Inf
+
+    sq = sqrt(disc)
+    tmin = Inf
+    for t in ((-b - sq) / (2.0 * a), (-b + sq) / (2.0 * a))
+        if t > 1e-10
+            zh = z + uz * t
+            if zh >= zbar_min - 1e-10 && zh <= zbar_max + 1e-10
+                tmin = min(tmin, t)
+            end
+        end
+    end
+    tmin
+end
+
+
+function _distance_to_barrel_disk_exit(rmin_cm::Float64, rmax_cm::Float64,
+                                       zface::Float64,
+                                       x::Float64, y::Float64, z::Float64,
+                                       ux::Float64, uy::Float64, uz::Float64)::Float64
+    abs(uz) <= 1e-20 && return Inf
+    t = (zface - z) / uz
+    t <= 1e-10 && return Inf
+    xh = x + ux * t
+    yh = y + uy * t
+    r2 = xh^2 + yh^2
+    if r2 >= rmin_cm^2 - 1e-10 && r2 <= rmax_cm^2 + 1e-10
+        return t
+    end
+    Inf
+end
+
+
+function distance_to_boundary_fastkernel(region::FastKernelRegion,
+                                         pos::NTuple{3,<:Real},
+                                         dir::NTuple{3,<:Real})::Float64
+    x = Float64(pos[1]); y = Float64(pos[2]); z = Float64(pos[3])
+    ux = Float64(dir[1]); uy = Float64(dir[2]); uz = Float64(dir[3])
+
+    if region.kind == :cylinder
+        return _min_positive(
+            _distance_to_barrel_side_exit(region.rmax_cm, region.zmin_cm, region.zmax_cm, x, y, z, ux, uy, uz),
+            _distance_to_barrel_disk_exit(0.0, region.rmax_cm, region.zmin_cm, x, y, z, ux, uy, uz),
+            _distance_to_barrel_disk_exit(0.0, region.rmax_cm, region.zmax_cm, x, y, z, ux, uy, uz),
+        )
+    elseif region.kind == :cylinder_shell
+        t_inner = begin
+            a = ux^2 + uy^2
+            if a <= 1e-20
+                Inf
+            else
+                b = 2.0 * (x * ux + y * uy)
+                c = x^2 + y^2 - region.rmin_cm^2
+                disc = b^2 - 4.0 * a * c
+                if disc < 0.0
+                    Inf
+                else
+                    sq = sqrt(disc)
+                    tmin = Inf
+                    for t in ((-b - sq) / (2.0 * a), (-b + sq) / (2.0 * a))
+                        if t > 1e-10
+                            zh = z + uz * t
+                            if zh >= region.zmin_cm - 1e-10 && zh <= region.zmax_cm + 1e-10
+                                tmin = min(tmin, t)
+                            end
+                        end
+                    end
+                    tmin
+                end
+            end
+        end
+        return _min_positive(
+            t_inner,
+            _distance_to_barrel_side_exit(region.rmax_cm, region.zmin_cm, region.zmax_cm, x, y, z, ux, uy, uz),
+            _distance_to_barrel_disk_exit(region.rmin_cm, region.rmax_cm, region.zmin_cm, x, y, z, ux, uy, uz),
+            _distance_to_barrel_disk_exit(region.rmin_cm, region.rmax_cm, region.zmax_cm, x, y, z, ux, uy, uz),
+        )
+    elseif region.kind == :cap
+        return _distance_to_cap_exit(region, x, y, z, ux, uy, uz)
+    elseif region.kind == :domed_container || region.kind == :capped_cylinder
+        top_depth = region.has_top_cap ? region.top_cap_radius_cm / region.top_cap_aspect_ratio : 0.0
+        bottom_depth = region.has_bottom_cap ? region.bottom_cap_radius_cm / region.bottom_cap_aspect_ratio : 0.0
+        barrel_zmin = region.zmin_cm + bottom_depth
+        barrel_zmax = region.zmax_cm - top_depth
+
+        t_side = _distance_to_barrel_side_exit(region.rmax_cm, barrel_zmin, barrel_zmax, x, y, z, ux, uy, uz)
+
+        t_top = Inf
+        if region.has_top_cap
+            top_region = FastKernelRegion(
+                0, "", "", :cap, region.material, region.isXe, region.sensitive, region.ecut_keV, region.fv_target,
+                0.0, region.top_cap_radius_cm, barrel_zmax, barrel_zmax + top_depth,
+                true, false, region.top_cap_radius_cm, region.top_cap_aspect_ratio, 0.0, 0.0
+            )
+            t_top = _distance_to_cap_exit(top_region, x, y, z, ux, uy, uz)
+        else
+            t_top = _distance_to_barrel_disk_exit(0.0, region.rmax_cm, barrel_zmax, x, y, z, ux, uy, uz)
+        end
+
+        t_bottom = Inf
+        if region.has_bottom_cap
+            bottom_region = FastKernelRegion(
+                0, "", "", :cap, region.material, region.isXe, region.sensitive, region.ecut_keV, region.fv_target,
+                0.0, region.bottom_cap_radius_cm, barrel_zmin - bottom_depth, barrel_zmin,
+                false, true, 0.0, 0.0, region.bottom_cap_radius_cm, region.bottom_cap_aspect_ratio
+            )
+            t_bottom = _distance_to_cap_exit(bottom_region, x, y, z, ux, uy, uz)
+        else
+            t_bottom = _distance_to_barrel_disk_exit(0.0, region.rmax_cm, barrel_zmin, x, y, z, ux, uy, uz)
+        end
+
+        return _min_positive(t_side, t_top, t_bottom)
+    end
+
+    Inf
 end
 
 

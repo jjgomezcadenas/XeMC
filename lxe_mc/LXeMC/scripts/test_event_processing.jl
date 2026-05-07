@@ -13,11 +13,12 @@ Options:
   -h, --help     Show this help message and exit
   --n N          Number of events to process (default: 1000)
   --seed SEED    RNG seed (default: 20260507)
+  --path NAME    Event-processing path: v2 or fastkernel (default: v2)
   --outdir DIR   Write output tables into DIR
 
 Examples:
   julia --project=. scripts/test_event_processing.jl
-  julia --project=. scripts/test_event_processing.jl --n 10000 --seed 42 --outdir /tmp/event_proc
+  julia --project=. scripts/test_event_processing.jl --n 10000 --seed 42 --path fastkernel --outdir /tmp/event_proc
   julia --project=. scripts/test_event_processing.jl 10000 42
 """)
 end
@@ -26,6 +27,7 @@ end
 function parse_cli(args)
     N = 1000
     seed = 20260507
+    path = "v2"
     outdir = nothing
 
     i = 1
@@ -43,6 +45,11 @@ function parse_cli(args)
         elseif arg == "--seed"
             i == length(args) && error("--seed requires an integer value")
             seed = parse(Int, args[i + 1])
+            i += 2
+            continue
+        elseif arg == "--path"
+            i == length(args) && error("--path requires a value: v2 or fastkernel")
+            path = lowercase(args[i + 1])
             i += 2
             continue
         elseif arg == "--outdir"
@@ -68,7 +75,8 @@ function parse_cli(args)
 
     N > 0 || error("N must be positive")
     seed >= 0 || error("seed must be non-negative")
-    return N, seed, outdir
+    path in ("v2", "fastkernel") || error("--path must be either 'v2' or 'fastkernel' (got '$path')")
+    return N, seed, path, outdir
 end
 
 
@@ -102,11 +110,12 @@ end
 
 
 function main()
-    N, seed, outdir = parse_cli(ARGS)
+    N, seed, path, outdir = parse_cli(ARGS)
 
     cfg = default_config()
     mats = load_materials(cfg)
     det = load_detector_v2(default_detector_v2_path(), mats)
+    fk = path == "fastkernel" ? compile_fastkernel_geometry(det) : nothing
     rng = MersenneTwister(seed)
 
     status_counts = Dict{Symbol,Int}()
@@ -118,7 +127,11 @@ function main()
 
     for i in 1:N
         gammas = sample_event("Tl208", "calib"; calib=true, rng=rng)
-        result = process_event(gammas, det, cfg, rng)
+        result = if path == "fastkernel"
+            process_event_fastkernel(gammas, fk, det, cfg, rng)
+        else
+            process_event(gammas, det, cfg, rng)
+        end
 
         status_counts[result.status] = get(status_counts, result.status, 0) + 1
 
@@ -144,7 +157,7 @@ function main()
 
     elapsed = time() - t0
 
-    println("N = $N, seed = $seed")
+    println("N = $N, seed = $seed, path = $path")
     @printf("Elapsed time = %.2f s\n", elapsed)
     @printf("Rate = %.2f events/s\n", N / elapsed)
     print_counts("Event status counts", status_counts)
@@ -161,6 +174,7 @@ function main()
         open(joinpath(outdir, "summary.txt"), "w") do io
             @printf(io, "N = %d\n", N)
             @printf(io, "seed = %d\n", seed)
+            @printf(io, "path = %s\n", path)
             @printf(io, "elapsed_s = %.8f\n", elapsed)
             @printf(io, "rate_events_per_s = %.8f\n", N / elapsed)
             @printf(io, "outdir = %s\n", outdir)
