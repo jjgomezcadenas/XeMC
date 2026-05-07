@@ -191,35 +191,41 @@ function _same_runtime_node(a, b)::Bool
 end
 
 
+function _runtime_node_id(det::DetectorV2, x::Float64, y::Float64, z::Float64)
+    node = find_node_v2(det, (x, y, z))
+    node === nothing ? 0 : node.id
+end
+
+
 function distance_to_node_change_v2(det::DetectorV2,
                                     pos::Vector{Float64},
                                     dir::Vector{Float64};
                                     step_cm::Float64=0.05,
                                     max_cm::Float64=400.0,
                                     tol_cm::Float64=1e-4)
-    current = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
+    x0, y0, z0 = pos
+    dx, dy, dz = dir
+    current_id = _runtime_node_id(det, x0, y0, z0)
     t_lo = 0.0
     t_hi = step_cm
 
     while t_lo < max_cm
-        probe_hi = pos .+ dir .* min(t_hi, max_cm)
-        cls_hi = classify_runtime_v2(det, (probe_hi[1], probe_hi[2], probe_hi[3]))
+        thi = min(t_hi, max_cm)
+        cls_hi_id = _runtime_node_id(det, x0 + dx * thi, y0 + dy * thi, z0 + dz * thi)
 
-        if !_same_runtime_node(current, cls_hi)
+        if cls_hi_id != current_id
             lo = t_lo
-            hi = min(t_hi, max_cm)
+            hi = thi
             while hi - lo > tol_cm
                 mid = 0.5 * (lo + hi)
-                probe_mid = pos .+ dir .* mid
-                cls_mid = classify_runtime_v2(det, (probe_mid[1], probe_mid[2], probe_mid[3]))
-                if _same_runtime_node(current, cls_mid)
+                cls_mid_id = _runtime_node_id(det, x0 + dx * mid, y0 + dy * mid, z0 + dz * mid)
+                if cls_mid_id == current_id
                     lo = mid
                 else
                     hi = mid
                 end
             end
-            probe_next = pos .+ dir .* hi
-            next_cls = classify_runtime_v2(det, (probe_next[1], probe_next[2], probe_next[3]))
+            next_cls = classify_runtime_v2(det, (x0 + dx * hi, y0 + dy * hi, z0 + dz * hi))
             return hi, next_cls
         end
 
@@ -887,25 +893,35 @@ function _node_depth(det::DetectorV2, node::DetectorNode)::Int
 end
 
 
+function _child_preference(a::DetectorNode, b::DetectorNode)::DetectorNode
+    a_exact = a.lv.approximation == "exact"
+    b_exact = b.lv.approximation == "exact"
+    if a_exact != b_exact
+        return a_exact ? a : b
+    end
+
+    va = volume(a)
+    vb = volume(b)
+    va <= vb ? a : b
+end
+
+
 function find_node_v2(det::DetectorV2, pos::Vector{Float64})::Union{DetectorNode,Nothing}
-    containing = DetectorNode[]
-    for node in det.nodes
-        is_inside(node, pos) && push!(containing, node)
+    root = det.nodes[det.root_id]
+    is_inside(root, pos) || return nothing
+
+    current = root
+    while true
+        best_child = nothing
+        for child_id in current.children_ids
+            child = det.nodes[child_id]
+            if is_inside(child, pos)
+                best_child = best_child === nothing ? child : _child_preference(best_child, child)
+            end
+        end
+        best_child === nothing && return current
+        current = best_child
     end
-    isempty(containing) && return nothing
-
-    max_depth = maximum(_node_depth(det, node) for node in containing)
-    candidates = [node for node in containing if _node_depth(det, node) == max_depth]
-
-    exact = [node for node in candidates if node.lv.approximation == "exact"]
-    candidates = isempty(exact) ? candidates : exact
-
-    if length(candidates) > 1
-        volumes = [volume(node) for node in candidates]
-        candidates = [candidates[sortperm(volumes)[1]]]
-    end
-
-    first(candidates)
 end
 
 

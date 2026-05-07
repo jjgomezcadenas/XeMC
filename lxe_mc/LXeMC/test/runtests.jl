@@ -445,6 +445,64 @@ end
 end
 
 
+@testset "V2 event processing" begin
+    empty_event = process_event_from_selections(NamedTuple[])
+    @test empty_event.status == :no_fv
+    @test empty_event.n_processed == 0
+
+    fv_sel = select_interaction(
+        GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV"),
+        DET2
+    )
+    tpc_sel = select_interaction(
+        GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[60.0, 0.0, 120.0], "LXeTPC"),
+        DET2
+    )
+    skin_sel = select_interaction(
+        GammaPropagationV2Result(:interacted, :compton, 0.200, Float64[78.0, 0.0, 100.0], "Skin"),
+        DET2
+    )
+    other_sel = select_interaction(
+        GammaPropagationV2Result(:escaped, :none, 0.0, Float64[120.0, 0.0, 160.0], "MARS"),
+        DET2
+    )
+
+    one_fv = process_event_from_selections([fv_sel])
+    @test one_fv.status == :accepted
+    @test one_fv.has_fv
+    @test one_fv.n_processed == 1
+
+    one_skin = process_event_from_selections([skin_sel])
+    @test one_skin.status == :vetoed
+    @test one_skin.has_skin_veto
+    @test one_skin.n_processed == 1
+
+    one_tpc = process_event_from_selections([tpc_sel])
+    @test one_tpc.status == :vetoed
+    @test one_tpc.has_tpc_veto
+    @test one_tpc.n_processed == 1
+
+    miss_then_fv = process_event_from_selections([other_sel, fv_sel])
+    @test miss_then_fv.status == :accepted
+    @test miss_then_fv.has_fv
+    @test miss_then_fv.n_processed == 2
+
+    veto_first = process_event_from_selections([skin_sel, fv_sel])
+    @test veto_first.status == :vetoed
+    @test veto_first.n_processed == 1
+
+    fv_then_veto = process_event_from_selections([fv_sel, tpc_sel])
+    @test fv_then_veto.status == :vetoed
+    @test fv_then_veto.has_fv
+    @test fv_then_veto.has_tpc_veto
+    @test fv_then_veto.n_processed == 2
+
+    calib_res = process_event(sample_event("Tl208", "calib"; calib=true, rng=MersenneTwister(777)),
+                              DET2, CFG, MersenneTwister(778))
+    @test calib_res.status in (:accepted, :vetoed, :no_fv)
+end
+
+
 # =====================================================================
 # Test 3b: Geometric solids and CylShell
 # =====================================================================

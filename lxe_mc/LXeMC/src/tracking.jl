@@ -429,6 +429,15 @@ struct GammaPropagationV2Result
 end
 
 
+struct EventProcessingResult
+    status::Symbol
+    has_fv::Bool
+    has_tpc_veto::Bool
+    has_skin_veto::Bool
+    n_processed::Int
+end
+
+
 """
     propagate_gamma_v2(gamma, det, cfg, rng; step_cm=0.05, max_cm=400.0)
         -> GammaPropagationV2Result
@@ -506,6 +515,64 @@ function propagate_gamma_v2(gamma,
     end
 
     GammaPropagationV2Result(:below_cut, :none, 0.0, copy(pos), "MARS")
+end
+
+
+function _update_event_state(sel)
+    has_fv = sel.class == :fv && sel.passes_threshold
+    has_tpc_veto = sel.class == :tpc && sel.passes_threshold
+    has_skin_veto = sel.class == :skin && sel.passes_threshold
+    vetoed = has_tpc_veto || has_skin_veto
+    (has_fv=has_fv, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto, vetoed=vetoed)
+end
+
+
+function process_event_from_selections(selections)
+    has_fv = false
+    has_tpc_veto = false
+    has_skin_veto = false
+
+    for (i, sel) in enumerate(selections)
+        state = _update_event_state(sel)
+        has_fv |= state.has_fv
+        has_tpc_veto |= state.has_tpc_veto
+        has_skin_veto |= state.has_skin_veto
+
+        if state.vetoed
+            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, i)
+        end
+    end
+
+    if has_fv
+        return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, length(selections))
+    end
+    EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, length(selections))
+end
+
+
+function process_event(gammas, det::DetectorV2, cfg::SimConfig, rng::AbstractRNG)
+    has_fv = false
+    has_tpc_veto = false
+    has_skin_veto = false
+    n_processed = 0
+
+    for gamma in gammas
+        result = propagate_gamma_v2(gamma, det, cfg, rng)
+        sel = select_interaction(result, det)
+        n_processed += 1
+        state = _update_event_state(sel)
+        has_fv |= state.has_fv
+        has_tpc_veto |= state.has_tpc_veto
+        has_skin_veto |= state.has_skin_veto
+        if state.vetoed
+            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+        end
+    end
+
+    if has_fv
+        return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+    end
+    EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, n_processed)
 end
 
 

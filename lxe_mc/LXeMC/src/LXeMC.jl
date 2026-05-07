@@ -92,8 +92,9 @@ export sample_brems, brems_photon_angle
 export Track, ParticleStack, Deposit
 export transport_photon!, transport_lepton!
 export simulate_event, simulate_event_photon_only
-export PropagationResult, GammaPropagationV2Result
+export PropagationResult, GammaPropagationV2Result, EventProcessingResult
 export propagate_to_fiducial, propagate_to_lxe, propagate_gamma_v2
+export process_event, process_event_from_selections
 export classify_lxe_region, veto_threshold
 export cluster_deposits_in_z, is_single_site
 
