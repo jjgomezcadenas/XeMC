@@ -18,60 +18,6 @@ geometry helpers.
     TAG_PASSIVE_LXE
 end
 
-
-struct Cap
-    radius_cm::Float64
-    aspect_ratio::Float64
-
-    function Cap(radius::Real, aspect_ratio::Real)
-        radius > 0 || error("Cap: radius must be positive (got $radius)")
-        aspect_ratio > 0 || error("Cap: aspect_ratio must be positive (got $aspect_ratio)")
-        new(Float64(radius), Float64(aspect_ratio))
-    end
-end
-
-
-depth(c::Cap) = c.radius_cm / c.aspect_ratio
-
-
-struct DomedContainer
-    radius_cm::Float64
-    barrel_half_height_cm::Float64
-    top_cap::Cap
-    bottom_cap::Cap
-
-    function DomedContainer(radius::Real,
-                            barrel_half_height::Real,
-                            top_cap::Cap,
-                            bottom_cap::Cap)
-        radius > 0 || error("DomedContainer: radius must be positive (got $radius)")
-        barrel_half_height >= 0 || error("DomedContainer: barrel_half_height must be non-negative (got $barrel_half_height)")
-        top_cap.radius_cm ≈ Float64(radius) || error("DomedContainer: top cap radius must match container radius")
-        bottom_cap.radius_cm ≈ Float64(radius) || error("DomedContainer: bottom cap radius must match container radius")
-        new(Float64(radius), Float64(barrel_half_height), top_cap, bottom_cap)
-    end
-end
-
-
-struct CappedCylinder
-    radius_cm::Float64
-    barrel_half_height_cm::Float64
-    top_cap::Union{Nothing,Cap}
-    bottom_cap::Union{Nothing,Cap}
-
-    function CappedCylinder(radius::Real,
-                            barrel_half_height::Real;
-                            top_cap::Union{Nothing,Cap}=nothing,
-                            bottom_cap::Union{Nothing,Cap}=nothing)
-        radius > 0 || error("CappedCylinder: radius must be positive (got $radius)")
-        barrel_half_height >= 0 || error("CappedCylinder: barrel_half_height must be non-negative (got $barrel_half_height)")
-        top_cap === nothing || top_cap.radius_cm ≈ Float64(radius) || error("CappedCylinder: top cap radius must match cylinder radius")
-        bottom_cap === nothing || bottom_cap.radius_cm ≈ Float64(radius) || error("CappedCylinder: bottom cap radius must match cylinder radius")
-        new(Float64(radius), Float64(barrel_half_height), top_cap, bottom_cap)
-    end
-end
-
-
 struct Placement
     position_cm::Vector{Float64}
     orientation::Symbol
