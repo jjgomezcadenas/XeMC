@@ -84,6 +84,8 @@ struct LogicalVolumeV2
     material::Material
     tag::RegionTag
     role::String
+    inFastKernel::Bool
+    isXe::Bool
     sensitive::Bool
     ecut_keV::Float64
     dz_mm::Float64
@@ -107,6 +109,24 @@ struct DetectorV2
     nodes::Vector{DetectorNode}
     name_to_id::Dict{String,Int}
     root_id::Int
+end
+
+
+struct FastKernelVolume
+    name::String
+    material::Material
+    role::String
+    inFastKernel::Bool
+    isXe::Bool
+    sensitive::Bool
+    ecut_keV::Float64
+    fv_target::Bool
+end
+
+
+struct FastKernelGeometry
+    volumes::Vector{FastKernelVolume}
+    name_to_index::Dict{String,Int}
 end
 
 const GEOM_VALIDATE_TOL_CM = 0.1
@@ -331,13 +351,15 @@ function _build_node_v2(id::Int, d, material::Material)::Tuple{DetectorNode,Stri
     solid = _build_solid_v2(name, d)
     tag = _parse_region_tag(d["tag"])
     role = String(get(d, "role", ""))
+    inFastKernel = Bool(get(d, "inFastKernel", false))
+    isXe = Bool(get(d, "isXe", false))
     sensitive = Bool(get(d, "sensitive", false))
     ecut_keV = Float64(get(d, "ecut_keV", 0.0))
     dz_mm = Float64(get(d, "dz_mm", 0.0))
     fv_target = Bool(get(d, "fv_target", false))
     approximation = String(get(d, "approximation", "exact"))
     activity = _parse_activity(d)
-    lv = LogicalVolumeV2(name, solid, material, tag, role, sensitive, ecut_keV, dz_mm, fv_target, approximation, activity)
+    lv = LogicalVolumeV2(name, solid, material, tag, role, inFastKernel, isXe, sensitive, ecut_keV, dz_mm, fv_target, approximation, activity)
 
     pos = Float64.(get(d, "position_cm", [0.0, 0.0, 0.0]))
     orientation = Symbol(get(d, "orientation", "none"))
@@ -942,6 +964,29 @@ end
 function detector_summary(det::DetectorV2)::String
     root = root_node(det)
     "DetectorV2($(det.name)): $(length(det.nodes)) nodes, root=$(root.lv.name)"
+end
+
+
+function compile_fastkernel_geometry(det::DetectorV2)::FastKernelGeometry
+    volumes = FastKernelVolume[]
+    name_to_index = Dict{String,Int}()
+
+    for node in det.nodes
+        node.lv.inFastKernel || continue
+        push!(volumes, FastKernelVolume(
+            node.lv.name,
+            node.lv.material,
+            node.lv.role,
+            node.lv.inFastKernel,
+            node.lv.isXe,
+            node.lv.sensitive,
+            node.lv.ecut_keV,
+            node.lv.fv_target
+        ))
+        name_to_index[node.lv.name] = length(volumes)
+    end
+
+    FastKernelGeometry(volumes, name_to_index)
 end
 
 

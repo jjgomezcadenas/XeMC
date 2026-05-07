@@ -177,6 +177,22 @@ end
     @test !is_sensitive(lxe)
     @test !is_sensitive(fc_ptfe)
     @test !is_sensitive(fc_rings)
+    @test lz.lv.inFastKernel
+    @test air.lv.inFastKernel
+    @test lxe.lv.inFastKernel
+    @test tpc.lv.inFastKernel
+    @test fv.lv.inFastKernel
+    @test fc_ptfe.lv.inFastKernel
+    @test !fc_rings.lv.inFastKernel
+    @test skin.lv.inFastKernel
+    @test !lz.lv.isXe
+    @test !air.lv.isXe
+    @test lxe.lv.isXe
+    @test tpc.lv.isXe
+    @test fv.lv.isXe
+    @test !fc_ptfe.lv.isXe
+    @test !fc_rings.lv.isXe
+    @test skin.lv.isXe
     @test !is_fv_target(tpc)
     @test is_fv_target(fv)
     @test !is_fv_target(skin)
@@ -206,6 +222,15 @@ end
     @test find_node_v2(DET2, (83.0, 0.0, 100.0)).lv.name == "MARS"
     @test find_node_v2(DET2, (110.0, 0.0, 0.0)).lv.name == "MARS"
     @test find_node_v2(DET2, (200.0, 0.0, 0.0)) === nothing
+
+    fk = compile_fastkernel_geometry(DET2)
+    fk_names = sort([v.name for v in fk.volumes])
+    @test fk_names == ["AirDome", "FC_PTFE", "FV", "LXeTPC", "LXe_det", "LZ_detector", "Skin"]
+    @test !haskey(fk.name_to_index, "FC_rings")
+    @test fk.volumes[fk.name_to_index["AirDome"]].material.name == "HPGXe"
+    @test fk.volumes[fk.name_to_index["FC_PTFE"]].material.name == "PTFE"
+    @test fk.volumes[fk.name_to_index["LXe_det"]].isXe
+    @test !fk.volumes[fk.name_to_index["AirDome"]].isXe
 end
 
 @testset "Source geometry schema" begin
@@ -563,7 +588,7 @@ end
     # DomedContainer: coaxial barrel plus two filled caps
     dc = DomedContainer(50.0, 20.0, Cap(50.0, 2.0), Cap(50.0, 3.0))
     @test volume(dc) ≈ (40.0 * π * 50.0^2 + (2.0 / 3.0) * π * 50.0^2 * 25.0 + (2.0 / 3.0) * π * 50.0^2 * (50.0 / 3.0))
-    dc_lv = LogicalVolumeV2("dc", dc, MATS["Vacuum"], TAG_VACUUM, "container", false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
+    dc_lv = LogicalVolumeV2("dc", dc, MATS["Vacuum"], TAG_VACUUM, "container", false, false, false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
     dc_node = DetectorNode(1, 0, Int[], dc_lv, PlacementV2([0.0, 0.0, 0.0], :none))
     @test is_inside(dc_node, [0.0, 0.0, 0.0])        # barrel center
     @test is_inside(dc_node, [0.0, 0.0, 30.0])       # inside top cap
@@ -574,7 +599,7 @@ end
     # CappedCylinder: optional top/bottom caps
     cc = CappedCylinder(50.0, 20.0; bottom_cap=Cap(50.0, 3.0))
     @test volume(cc) ≈ (40.0 * π * 50.0^2 + (2.0 / 3.0) * π * 50.0^2 * (50.0 / 3.0))
-    cc_lv = LogicalVolumeV2("cc", cc, MATS["LXe"], TAG_PASSIVE_LXE, "container", false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
+    cc_lv = LogicalVolumeV2("cc", cc, MATS["LXe"], TAG_PASSIVE_LXE, "container", false, true, false, 0.0, 0.0, false, "exact", Dict{String,Float64}())
     cc_node = DetectorNode(1, 0, Int[], cc_lv, PlacementV2([0.0, 0.0, 0.0], :none))
     @test is_inside(cc_node, [0.0, 0.0, 0.0])        # barrel center
     @test is_inside(cc_node, [0.0, 0.0, -30.0])      # inside bottom cap
