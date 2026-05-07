@@ -153,15 +153,15 @@ end
     @test skin3.lv.ecut_keV ≈ 100.0 atol=GEOM_TOL
     @test skin3.lv.dz_mm ≈ 0.0 atol=GEOM_TOL
 
-    @test find_node_v2(DET3, (0.0, 0.0, 120.0)).lv.name == "TopActive"
-    @test find_node_v2(DET3, (60.0, 0.0, 61.0)).lv.name == "BarrelActive"
-    @test find_node_v2(DET3, (0.0, 0.0, 10.0)).lv.name == "BottomActive"
-    @test find_node_v2(DET3, (0.0, 0.0, 61.0)).lv.name == "FV"
-    @test find_node_v2(DET3, (73.55, 0.0, 100.0)).lv.name == "FC_PTFE"
-    @test find_node_v2(DET3, (74.45, 0.0, 100.0)).lv.name == "FC_rings"
-    @test find_node_v2(DET3, (78.0, 0.0, 100.0)).lv.name == "Skin"
-    @test find_node_v2(DET3, (0.0, 0.0, -20.0)).lv.name == "LXe_passive"
-    @test find_node_v2(DET3, (0.0, 0.0, 160.0)).lv.name == "AirDome"
+    @test find_tracking_node(DET3, (0.0, 0.0, 120.0)).lv.name == "TopActive"
+    @test find_tracking_node(DET3, (60.0, 0.0, 61.0)).lv.name == "BarrelActive"
+    @test find_tracking_node(DET3, (0.0, 0.0, 10.0)).lv.name == "BottomActive"
+    @test find_tracking_node(DET3, (0.0, 0.0, 61.0)).lv.name == "FV"
+    @test find_tracking_node(DET3, (73.55, 0.0, 100.0)).lv.name == "FC_PTFE"
+    @test find_tracking_node(DET3, (74.45, 0.0, 100.0)).lv.name == "FC_rings"
+    @test find_tracking_node(DET3, (78.0, 0.0, 100.0)).lv.name == "Skin"
+    @test find_tracking_node(DET3, (0.0, 0.0, -20.0)).lv.name == "LXe_passive"
+    @test find_tracking_node(DET3, (0.0, 0.0, 160.0)).lv.name == "AirDome"
 
     fk3 = compile_fastkernel_geometry(DET3)
     @test sort([r.name for r in fk3.regions]) == ["AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "Skin", "TopActive"]
@@ -287,7 +287,7 @@ end
 @testset "Interaction selector" begin
     fk = compile_fastkernel_geometry(DET3)
     fv_sel = select_interaction_fastkernel(
-        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV"),
+        LXeMC.GammaPropagationResult(:interacted, :compton, 0.020, Float64[0.0, 0.0, 61.0], "FV"),
         fk
     )
     @test fv_sel.class == :fv
@@ -296,7 +296,7 @@ end
     @test fv_sel.region == "FV"
 
     tpc_hi_sel = select_interaction_fastkernel(
-        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.020, Float64[0.0, 0.0, 120.0], "TopActive"),
+        LXeMC.GammaPropagationResult(:interacted, :compton, 0.020, Float64[0.0, 0.0, 120.0], "TopActive"),
         fk
     )
     @test tpc_hi_sel.class == :tpc
@@ -305,28 +305,28 @@ end
     @test tpc_hi_sel.ecut_keV ≈ 10.0 atol=GEOM_TOL
 
     tpc_lo_sel = select_interaction_fastkernel(
-        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.005, Float64[0.0, 0.0, 120.0], "TopActive"),
+        LXeMC.GammaPropagationResult(:interacted, :compton, 0.005, Float64[0.0, 0.0, 120.0], "TopActive"),
         fk
     )
     @test tpc_lo_sel.class == :tpc
     @test !tpc_lo_sel.passes_threshold
 
     skin_hi_sel = select_interaction_fastkernel(
-        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.200, Float64[78.0, 0.0, 100.0], "Skin"),
+        LXeMC.GammaPropagationResult(:interacted, :compton, 0.200, Float64[78.0, 0.0, 100.0], "Skin"),
         fk
     )
     @test skin_hi_sel.class == :skin
     @test skin_hi_sel.passes_threshold
 
     skin_lo_sel = select_interaction_fastkernel(
-        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.050, Float64[78.0, 0.0, 100.0], "Skin"),
+        LXeMC.GammaPropagationResult(:interacted, :compton, 0.050, Float64[78.0, 0.0, 100.0], "Skin"),
         fk
     )
     @test skin_lo_sel.class == :skin
     @test !skin_lo_sel.passes_threshold
 
     struct_sel = select_interaction_fastkernel(
-        LXeMC.GammaPropagationV2Result(:interacted, :compton, 0.500, Float64[73.55, 0.0, 100.0], "FC_PTFE"),
+        LXeMC.GammaPropagationResult(:interacted, :compton, 0.500, Float64[73.55, 0.0, 100.0], "FC_PTFE"),
         fk
     )
     @test struct_sel.class == :other

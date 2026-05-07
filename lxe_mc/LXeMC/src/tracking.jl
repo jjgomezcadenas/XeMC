@@ -420,7 +420,7 @@ struct PropagationResult
 end
 
 
-struct GammaPropagationV2Result
+struct GammaPropagationResult
     status::Symbol
     interaction_type::Symbol
     deposit_E_MeV::Float64
@@ -493,91 +493,11 @@ struct FastGammaTrackResult
 end
 
 
-"""
-    propagate_gamma_v2(gamma, det, cfg, rng; step_cm=0.05, max_cm=400.0)
-        -> GammaPropagationV2Result
-
-Propagate one sampled gamma through the Geometry V2 tracking tree until:
-
-- it enters `FV` before interacting (`status = :entered_fv`)
-- it has its first interaction in a tracking material (`status = :interacted`)
-- it escapes the tracking geometry (`status = :escaped`)
-- it falls below the photon cutoff (`status = :below_cut`)
-
-This first V2 transport stage samples Compton, pair-production, and
-photoelectric interactions, but still stops at the first interaction.
-"""
-function propagate_gamma_v2(gamma,
-                            det::DetectorV2,
-                            cfg::SimConfig,
-                            rng::AbstractRNG;
-                            step_cm::Float64=0.05,
-                            max_cm::Float64=400.0)::GammaPropagationV2Result
-
-    pos = copy(gamma.position)
-    dir = copy(gamma.direction)
-    E = gamma.E_MeV
-    traveled = 0.0
-
-    while E >= cfg.Egamma_cut && traveled < max_cm
-        cls = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
-        cls === nothing && return GammaPropagationV2Result(:escaped, :none, 0.0, copy(pos), "MARS")
-        cls.fv_target && return GammaPropagationV2Result(:entered_fv, :none, 0.0, copy(pos), cls.name)
-
-        mat = cls.node.lv.material
-        s_bnd, _ = distance_to_node_change_v2(det, pos, dir; step_cm=step_cm, max_cm=max_cm - traveled)
-
-        if !isfinite(s_bnd)
-            return GammaPropagationV2Result(:escaped, :none, 0.0, copy(pos), cls.name)
-        end
-
-        if mat.density <= 0.0 || mat.xcom === nothing
-            pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
-            traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
-            continue
-        end
-
-        sC, sP, sPh = sigma_three(mat, E)
-        s_tot = sC + sP + sPh
-
-        if s_tot <= 0.0
-            pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
-            traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
-            continue
-        end
-
-        Σ_tot = mat.n_atom * s_tot
-        s_int = sample_distance(Σ_tot, rng)
-
-        if s_int + TRANSPORT_BOUNDARY_TOL_CM < s_bnd
-            pos .= pos .+ dir .* s_int
-            region = classify_runtime_v2(det, (pos[1], pos[2], pos[3]))
-            region_name = region === nothing ? cls.name : region.name
-
-            proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
-            if proc === :compton
-                Egp, _ = sample_compton(E, cfg, rng)
-                return GammaPropagationV2Result(:interacted, :compton, E - Egp, copy(pos), region_name)
-            elseif proc === :pair
-                return GammaPropagationV2Result(:interacted, :pair, E, copy(pos), region_name)
-            else
-                return GammaPropagationV2Result(:interacted, :photoelectric, E, copy(pos), region_name)
-            end
-        end
-
-        pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
-        traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
-    end
-
-    GammaPropagationV2Result(:below_cut, :none, 0.0, copy(pos), "MARS")
-end
-
-
 function propagate_gamma_fastkernel(gamma,
                                     fk::FastKernelGeometry,
                                     cfg::SimConfig,
                                     rng::AbstractRNG;
-                                    max_cm::Float64=400.0)::GammaPropagationV2Result
+                                    max_cm::Float64=400.0)::GammaPropagationResult
 
     pos = copy(gamma.position)
     dir = copy(gamma.direction)
@@ -586,13 +506,13 @@ function propagate_gamma_fastkernel(gamma,
 
     while E >= cfg.Egamma_cut && traveled < max_cm
         region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
-        region === nothing && return GammaPropagationV2Result(:escaped, :none, 0.0, copy(pos), "MARS")
-        region.name == "FV" && return GammaPropagationV2Result(:entered_fv, :none, 0.0, copy(pos), "FV")
+        region === nothing && return GammaPropagationResult(:escaped, :none, 0.0, copy(pos), "MARS")
+        region.name == "FV" && return GammaPropagationResult(:entered_fv, :none, 0.0, copy(pos), "FV")
 
         mat = region.material
         s_bnd = distance_to_boundary_fastkernel(region, (pos[1], pos[2], pos[3]), (dir[1], dir[2], dir[3]))
         if !isfinite(s_bnd)
-            return GammaPropagationV2Result(:escaped, :none, 0.0, copy(pos), region.name)
+            return GammaPropagationResult(:escaped, :none, 0.0, copy(pos), region.name)
         end
 
         if mat.density <= 0.0 || mat.xcom === nothing
@@ -621,11 +541,11 @@ function propagate_gamma_fastkernel(gamma,
             proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
             if proc === :compton
                 Egp, _ = sample_compton(E, cfg, rng)
-                return GammaPropagationV2Result(:interacted, :compton, E - Egp, copy(pos), region_name)
+                return GammaPropagationResult(:interacted, :compton, E - Egp, copy(pos), region_name)
             elseif proc === :pair
-                return GammaPropagationV2Result(:interacted, :pair, E, copy(pos), region_name)
+                return GammaPropagationResult(:interacted, :pair, E, copy(pos), region_name)
             else
-                return GammaPropagationV2Result(:interacted, :photoelectric, E, copy(pos), region_name)
+                return GammaPropagationResult(:interacted, :photoelectric, E, copy(pos), region_name)
             end
         end
 
@@ -633,7 +553,7 @@ function propagate_gamma_fastkernel(gamma,
         traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
     end
 
-    GammaPropagationV2Result(:below_cut, :none, 0.0, copy(pos), "MARS")
+    GammaPropagationResult(:below_cut, :none, 0.0, copy(pos), "MARS")
 end
 
 
@@ -869,55 +789,6 @@ function _classify_fv_stack_result(deposits::Vector{Deposit}, cfg::SimConfig)::S
     isempty(clusters) && return :no_fv
     length(clusters) == 1 && return :accepted
     :ms_rejected
-end
-
-
-function process_event_from_selections(selections)
-    has_fv = false
-    has_tpc_veto = false
-    has_skin_veto = false
-
-    for (i, sel) in enumerate(selections)
-        state = _update_event_state(sel)
-        has_fv |= state.has_fv
-        has_tpc_veto |= state.has_tpc_veto
-        has_skin_veto |= state.has_skin_veto
-
-        if state.vetoed
-            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, i)
-        end
-    end
-
-    if has_fv
-        return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, length(selections))
-    end
-    EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, length(selections))
-end
-
-
-function process_event_v2(gammas, det::DetectorV2, cfg::SimConfig, rng::AbstractRNG)
-    has_fv = false
-    has_tpc_veto = false
-    has_skin_veto = false
-    n_processed = 0
-
-    for gamma in gammas
-        result = propagate_gamma_v2(gamma, det, cfg, rng)
-        sel = select_interaction(result, det)
-        n_processed += 1
-        state = _update_event_state(sel)
-        has_fv |= state.has_fv
-        has_tpc_veto |= state.has_tpc_veto
-        has_skin_veto |= state.has_skin_veto
-        if state.vetoed
-            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed)
-        end
-    end
-
-    if has_fv
-        return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, n_processed)
-    end
-    EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, n_processed)
 end
 
 

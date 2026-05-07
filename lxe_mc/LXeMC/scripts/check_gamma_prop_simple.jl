@@ -252,7 +252,7 @@ function main()
     fk = compile_fastkernel_geometry(det)
     rng = MersenneTwister(seed)
 
-    results = GammaPropagationV2Result[]
+    results = LXeMC.GammaPropagationResult[]
     for _ in 1:N
         gamma = SampledGamma(E0, copy(position0), copy(direction0))
         push!(results, propagate_gamma_fastkernel(gamma, fk, cfg, rng))

@@ -79,10 +79,10 @@ export TAG_FV, TAG_SKIN, TAG_PASSIVE_LXE
 export root_node, node_by_name, child_nodes, detector_summary
 export load_tracking_detector
 export compile_fastkernel_geometry, classify_fastkernel, distance_to_boundary_fastkernel
-export validate_detector_v2, tree_dump, sibling_overlaps
+export validate_tracking_detector, tree_dump, sibling_overlaps
 export region_tag, is_fv, is_active_lxe, is_veto_lxe, is_passive_lxe
 export is_structural, is_vacuum, is_sensitive, is_fv_target, ecut_keV, dz_mm
-export find_node_v2
+export find_tracking_node
 export select_interaction_fastkernel
 export propagate_gamma_fastkernel
 export FastKernelCalibEventResult, process_event_fastkernel_calib
@@ -100,6 +100,7 @@ export Track, ParticleStack, Deposit
 export transport_photon!, transport_lepton!
 export simulate_event, simulate_event_photon_only
 export PropagationResult, EventProcessingResult
+export GammaPropagationResult
 export propagate_to_fiducial, propagate_to_lxe
 export process_event
 export classify_lxe_region, veto_threshold

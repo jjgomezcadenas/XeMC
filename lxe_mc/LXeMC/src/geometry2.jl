@@ -1,10 +1,10 @@
 """
-Geometry V2: explicit detector hierarchy and semantic metadata.
+Tracking geometry tree: explicit detector hierarchy and semantic metadata.
 
-This file adds a second geometry representation alongside the current
-flat `Detector` model. It is loader-focused for now: it parses the
-V2 JSON schema, builds parent/child relationships, and exposes basic
-inspection helpers. Transport integration comes later.
+This file defines the canonical tracking-geometry representation used by
+the current fast-kernel workflow. It parses the tracking JSON schema,
+builds parent/child relationships, and exposes inspection and compiled
+geometry helpers.
 """
 
 
@@ -176,55 +176,6 @@ ecut_keV(node::DetectorNode)::Float64 = node.lv.ecut_keV
 dz_mm(node::DetectorNode)::Float64 = node.lv.dz_mm
 
 
-function classify_runtime_v2(det::DetectorV2, pos::NTuple{3,<:Real})
-    node = find_node_v2(det, pos)
-    node === nothing && return nothing
-    (
-        node = node,
-        name = node.lv.name,
-        sensitive = is_sensitive(node),
-        ecut_keV = ecut_keV(node),
-        dz_mm = dz_mm(node),
-        fv_target = is_fv_target(node)
-    )
-end
-
-
-function select_interaction(result, det::DetectorV2)
-    cls = classify_runtime_v2(det, (result.position[1], result.position[2], result.position[3]))
-    cls === nothing && return (
-        class = :other,
-        sensitive = false,
-        passes_threshold = false,
-        ecut_keV = 0.0,
-        region = "MARS",
-        interaction_type = result.interaction_type
-    )
-
-    class = if cls.fv_target
-        :fv
-    elseif cls.name == "LXeTPC" || cls.name in ("TopActive", "BarrelActive", "BottomActive")
-        :tpc
-    elseif cls.name == "Skin"
-        :skin
-    else
-        :other
-    end
-
-    dep_keV = 1000.0 * result.deposit_E_MeV
-    passes_threshold = cls.sensitive && dep_keV >= cls.ecut_keV
-
-    (
-        class = class,
-        sensitive = cls.sensitive,
-        passes_threshold = passes_threshold,
-        ecut_keV = cls.ecut_keV,
-        region = cls.name,
-        interaction_type = result.interaction_type
-    )
-end
-
-
 function select_interaction_fastkernel(result, fk::FastKernelGeometry)
     idx = get(fk.name_to_index, result.region, 0)
     idx == 0 && return (
@@ -261,68 +212,6 @@ function select_interaction_fastkernel(result, fk::FastKernelGeometry)
 end
 
 
-function _same_runtime_node(a, b)::Bool
-    a === nothing && return b === nothing
-    b === nothing && return false
-    a.node.id == b.node.id
-end
-
-
-function _runtime_node_id(det::DetectorV2, x::Float64, y::Float64, z::Float64)
-    node = find_node_v2(det, (x, y, z))
-    node === nothing ? 0 : node.id
-end
-
-
-function distance_to_node_change_v2(det::DetectorV2,
-                                    pos::Vector{Float64},
-                                    dir::Vector{Float64};
-                                    step_cm::Float64=0.05,
-                                    max_cm::Float64=400.0,
-                                    tol_cm::Float64=1e-4)
-    x0, y0, z0 = pos
-    dx, dy, dz = dir
-    current_id = _runtime_node_id(det, x0, y0, z0)
-    t_lo = 0.0
-    t_hi = step_cm
-
-    while t_lo < max_cm
-        thi = min(t_hi, max_cm)
-        cls_hi_id = _runtime_node_id(det, x0 + dx * thi, y0 + dy * thi, z0 + dz * thi)
-
-        if cls_hi_id != current_id
-            lo = t_lo
-            hi = thi
-            while hi - lo > tol_cm
-                mid = 0.5 * (lo + hi)
-                cls_mid_id = _runtime_node_id(det, x0 + dx * mid, y0 + dy * mid, z0 + dz * mid)
-                if cls_mid_id == current_id
-                    lo = mid
-                else
-                    hi = mid
-                end
-            end
-            next_cls = classify_runtime_v2(det, (x0 + dx * hi, y0 + dy * hi, z0 + dz * hi))
-            return hi, next_cls
-        end
-
-        t_lo = t_hi
-        t_hi += step_cm
-    end
-
-    Inf, nothing
-end
-
-
-function geometric_prefilter_v2(det::DetectorV2, gammas;
-                                cfg::SimConfig=default_config(),
-                                rng::AbstractRNG=Random.default_rng())::Bool
-    isempty(gammas) && return false
-    any(g -> begin
-        result = propagate_gamma_v2(g, det, cfg, rng)
-        result.status == :entered_fv || result.region == "FV"
-    end, gammas)
-end
 
 
 function veto_threshold(tag::RegionTag, cfg::SimConfig)::Float64
@@ -930,7 +819,7 @@ function sibling_overlaps(det::DetectorV2; exact_only::Bool=true)
 end
 
 
-function validate_detector_v2(det::DetectorV2)::Bool
+function validate_tracking_detector(det::DetectorV2)::Bool
     root = root_node(det)
     root.parent_id == 0 || error("Root node '$(root.lv.name)' must have parent_id = 0")
     root.lv.tag == TAG_WORLD || error("Root node '$(root.lv.name)' must have tag TAG_WORLD")
@@ -957,14 +846,14 @@ end
 
 
 """
-    load_detector_v2(path, materials) -> DetectorV2
+    _load_tracking_tree(path, materials) -> DetectorV2
 
-Load a Geometry V2 detector JSON. The file defines a unique `world`
-entry and a flat list of volumes with explicit `parent` links.
+Load the canonical tracking detector JSON. The file defines a unique
+`world` entry and a flat list of volumes with explicit `parent` links.
 """
-function load_detector_v2(path::AbstractString,
-                          materials::Dict{String,Material};
-                          validate::Bool=true)::DetectorV2
+function _load_tracking_tree(path::AbstractString,
+                             materials::Dict{String,Material};
+                             validate::Bool=true)::DetectorV2
     raw = open(path, "r") do io
         JSON.parse(io)
     end
@@ -972,8 +861,8 @@ function load_detector_v2(path::AbstractString,
     det_name = String(raw["name"])
     version = Int(get(raw, "version", 2))
 
-    haskey(raw, "world") || error("Geometry V2 file '$path' is missing 'world'")
-    haskey(raw, "volumes") || error("Geometry V2 file '$path' is missing 'volumes'")
+    haskey(raw, "world") || error("Tracking geometry file '$path' is missing 'world'")
+    haskey(raw, "volumes") || error("Tracking geometry file '$path' is missing 'volumes'")
 
     nodes = DetectorNode[]
     name_to_id = Dict{String,Int}()
@@ -999,7 +888,7 @@ function load_detector_v2(path::AbstractString,
 
         id = length(nodes) + 1
         node, parent_name = _build_node_v2(id, d, materials[mat_name]; version=version)
-        isempty(parent_name) && error("Geometry V2 node '$name' is missing 'parent'")
+        isempty(parent_name) && error("Tracking geometry node '$name' is missing 'parent'")
 
         push!(nodes, node)
         name_to_id[name] = id
@@ -1009,13 +898,13 @@ function load_detector_v2(path::AbstractString,
     for node in nodes[2:end]
         parent_name = parent_names[node.id]
         parent_id = get(name_to_id, parent_name, 0)
-        parent_id == 0 && error("Geometry V2 node '$(node.lv.name)' references unknown parent '$parent_name'")
+        parent_id == 0 && error("Tracking geometry node '$(node.lv.name)' references unknown parent '$parent_name'")
         node.parent_id = parent_id
         push!(nodes[parent_id].children_ids, node.id)
     end
 
     det = DetectorV2(det_name, nodes, name_to_id, 1)
-    validate && validate_detector_v2(det)
+    validate && validate_tracking_detector(det)
     det
 end
 
@@ -1030,7 +919,7 @@ expects the explicit partitioned tracking schema used by
 function load_tracking_detector(path::AbstractString,
                                materials::Dict{String,Material};
                                validate::Bool=true)::DetectorV2
-    load_detector_v2(path, materials; validate=validate)
+    _load_tracking_tree(path, materials; validate=validate)
 end
 
 
@@ -1056,7 +945,7 @@ end
 
 function detector_summary(det::DetectorV2)::String
     root = root_node(det)
-    "DetectorV2($(det.name)): $(length(det.nodes)) nodes, root=$(root.lv.name)"
+    "TrackingDetector($(det.name)): $(length(det.nodes)) nodes, root=$(root.lv.name)"
 end
 
 
@@ -1575,7 +1464,7 @@ function _child_preference(a::DetectorNode, b::DetectorNode)::DetectorNode
 end
 
 
-function find_node_v2(det::DetectorV2, pos::Vector{Float64})::Union{DetectorNode,Nothing}
+function find_tracking_node(det::DetectorV2, pos::Vector{Float64})::Union{DetectorNode,Nothing}
     root = det.nodes[det.root_id]
     is_inside(root, pos) || return nothing
 
@@ -1594,4 +1483,4 @@ function find_node_v2(det::DetectorV2, pos::Vector{Float64})::Union{DetectorNode
 end
 
 
-find_node_v2(det::DetectorV2, pos::NTuple{3,<:Real}) = find_node_v2(det, Float64[pos...])
+find_tracking_node(det::DetectorV2, pos::NTuple{3,<:Real}) = find_tracking_node(det, Float64[pos...])
