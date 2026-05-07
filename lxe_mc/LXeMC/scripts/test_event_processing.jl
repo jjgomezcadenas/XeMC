@@ -14,7 +14,7 @@ Options:
   --n N          Number of events to process (default: 1000)
   --seed SEED    RNG seed (default: 20260507)
   --calib BOOL   Calibration sampling mode: true or false (default: true)
-  --path NAME    Event-processing path: v2, fastkernel, or fastkernel_fused (default: v2)
+  --path NAME    Event-processing path: v2, fastkernel, or fastkernel_fused (default: fastkernel_fused)
   --energy E     Calibration gamma energy in MeV (default: 2.615)
   --x X          Calibration source x in cm (default: 0.0)
   --y Y          Calibration source y in cm (default: 0.0)
@@ -26,7 +26,7 @@ Options:
 
 Examples:
   julia --project=. scripts/test_event_processing.jl
-  julia --project=. scripts/test_event_processing.jl --n 10000 --seed 42 --calib true --path fastkernel --outdir /tmp/event_proc
+  julia --project=. scripts/test_event_processing.jl --n 10000 --seed 42 --calib true --path fastkernel_fused --outdir /tmp/event_proc
   julia --project=. scripts/test_event_processing.jl 10000 42
 """)
 end
@@ -44,7 +44,7 @@ function parse_cli(args)
     N = 1000
     seed = 20260507
     calib = true
-    path = "v2"
+    path = "fastkernel_fused"
     energy = 2.615
     x_cm = 0.0
     y_cm = 0.0
@@ -186,7 +186,7 @@ function main()
     cfg = default_config()
     mats = load_materials(cfg)
     det_legacy = load_detector(default_detector_path(), mats)
-    det = load_detector_v2(default_detector_v2_path(), mats)
+    det = load_detector_v2(default_tracking_detector_path(), mats)
     fk = path in ("fastkernel", "fastkernel_fused") ? compile_fastkernel_geometry(det) : nothing
     rng = MersenneTwister(seed)
 

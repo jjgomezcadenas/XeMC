@@ -203,7 +203,7 @@ function select_interaction(result, det::DetectorV2)
 
     class = if cls.fv_target
         :fv
-    elseif cls.name == "LXeTPC"
+    elseif cls.name == "LXeTPC" || cls.name in ("TopActive", "BarrelActive", "BottomActive")
         :tpc
     elseif cls.name == "Skin"
         :skin
@@ -403,17 +403,38 @@ function _build_solid_v2(name::String, d)
 end
 
 
-function _build_node_v2(id::Int, d, material::Material)::Tuple{DetectorNode,String}
+function _default_semantics_v3(name::String)
+    if name == "MARS"
+        return (tag=TAG_WORLD, role="world", inFastKernel=false, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+    elseif name in ("LZ_detector", "AirDome")
+        return (tag=TAG_VACUUM, role=lowercase(name), inFastKernel=true, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+    elseif name == "LXe_passive"
+        return (tag=TAG_PASSIVE_LXE, role="lxe_passive", inFastKernel=true, isXe=true, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+    elseif name in ("TopActive", "BarrelActive", "BottomActive")
+        return (tag=TAG_TPC_ACTIVE, role=lowercase(name), inFastKernel=true, isXe=true, sensitive=true, ecut_keV=10.0, dz_mm=0.0, fv_target=false)
+    elseif name == "FV"
+        return (tag=TAG_FV, role="fiducial_region", inFastKernel=true, isXe=true, sensitive=true, ecut_keV=10.0, dz_mm=3.0, fv_target=true)
+    elseif name == "Skin"
+        return (tag=TAG_SKIN, role="veto_region", inFastKernel=true, isXe=true, sensitive=true, ecut_keV=100.0, dz_mm=0.0, fv_target=false)
+    elseif name in ("FC_PTFE", "FC_rings")
+        return (tag=TAG_STRUCTURAL, role=lowercase(name), inFastKernel=true, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+    end
+    return (tag=TAG_STRUCTURAL, role=lowercase(name), inFastKernel=false, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+end
+
+
+function _build_node_v2(id::Int, d, material::Material; version::Int=2)::Tuple{DetectorNode,String}
     name = String(d["name"])
     solid = _build_solid_v2(name, d)
-    tag = _parse_region_tag(d["tag"])
-    role = String(get(d, "role", ""))
-    inFastKernel = Bool(get(d, "inFastKernel", false))
-    isXe = Bool(get(d, "isXe", false))
-    sensitive = Bool(get(d, "sensitive", false))
-    ecut_keV = Float64(get(d, "ecut_keV", 0.0))
-    dz_mm = Float64(get(d, "dz_mm", 0.0))
-    fv_target = Bool(get(d, "fv_target", false))
+    defaults = version >= 3 ? _default_semantics_v3(name) : nothing
+    tag = haskey(d, "tag") ? _parse_region_tag(d["tag"]) : defaults.tag
+    role = String(get(d, "role", defaults === nothing ? "" : defaults.role))
+    inFastKernel = Bool(get(d, "inFastKernel", defaults === nothing ? false : defaults.inFastKernel))
+    isXe = Bool(get(d, "isXe", defaults === nothing ? false : defaults.isXe))
+    sensitive = Bool(get(d, "sensitive", defaults === nothing ? false : defaults.sensitive))
+    ecut_keV = Float64(get(d, "ecut_keV", defaults === nothing ? 0.0 : defaults.ecut_keV))
+    dz_mm = Float64(get(d, "dz_mm", defaults === nothing ? 0.0 : defaults.dz_mm))
+    fv_target = Bool(get(d, "fv_target", defaults === nothing ? false : defaults.fv_target))
     approximation = String(get(d, "approximation", "exact"))
     activity = _parse_activity(d)
     lv = LogicalVolumeV2(name, solid, material, tag, role, inFastKernel, isXe, sensitive, ecut_keV, dz_mm, fv_target, approximation, activity)
@@ -949,6 +970,7 @@ function load_detector_v2(path::AbstractString,
     end
 
     det_name = String(raw["name"])
+    version = Int(get(raw, "version", 2))
 
     haskey(raw, "world") || error("Geometry V2 file '$path' is missing 'world'")
     haskey(raw, "volumes") || error("Geometry V2 file '$path' is missing 'volumes'")
@@ -961,7 +983,7 @@ function load_detector_v2(path::AbstractString,
     world_name = String(world_raw["name"])
     world_mat_name = String(world_raw["material"])
     haskey(materials, world_mat_name) || error("Unknown material '$world_mat_name' for world '$world_name'")
-    world_node, world_parent = _build_node_v2(1, world_raw, materials[world_mat_name])
+    world_node, world_parent = _build_node_v2(1, world_raw, materials[world_mat_name]; version=version)
     world_node.lv.tag == TAG_WORLD || error("World node '$world_name' must have tag 'world'")
     isempty(world_parent) || error("World node '$world_name' cannot define a parent")
     push!(nodes, world_node)
@@ -976,7 +998,7 @@ function load_detector_v2(path::AbstractString,
         haskey(materials, mat_name) || error("Unknown material '$mat_name' for node '$name'")
 
         id = length(nodes) + 1
-        node, parent_name = _build_node_v2(id, d, materials[mat_name])
+        node, parent_name = _build_node_v2(id, d, materials[mat_name]; version=version)
         isempty(parent_name) && error("Geometry V2 node '$name' is missing 'parent'")
 
         push!(nodes, node)
@@ -1184,92 +1206,100 @@ function compile_fastkernel_geometry(det::DetectorV2)::FastKernelGeometry
         raw_regions[region.name] = region
     end
 
-    haskey(raw_regions, "LZ_detector") || error("FastKernelGeometry is missing LZ_detector")
-    haskey(raw_regions, "AirDome") || error("FastKernelGeometry is missing AirDome")
-    haskey(raw_regions, "FC_PTFE") || error("FastKernelGeometry is missing FC_PTFE")
-    haskey(raw_regions, "FC_rings") || error("FastKernelGeometry is missing FC_rings")
-    haskey(raw_regions, "LXe_det") || error("FastKernelGeometry is missing LXe_det")
-    haskey(raw_regions, "LXeTPC") || error("FastKernelGeometry is missing LXeTPC")
-    haskey(raw_regions, "FV") || error("FastKernelGeometry is missing FV")
-    haskey(raw_regions, "Skin") || error("FastKernelGeometry is missing Skin")
-
-    det_region_raw = raw_regions["LZ_detector"]
-    air_region_raw = raw_regions["AirDome"]
-    ptfe_region_raw = raw_regions["FC_PTFE"]
-    rings_region_raw = raw_regions["FC_rings"]
-    passive_region_raw = raw_regions["LXe_det"]
-    tpc_region_raw = raw_regions["LXeTPC"]
-    fv_region_raw = raw_regions["FV"]
-    skin_region_raw = raw_regions["Skin"]
-
     regions = FastKernelRegion[]
     name_to_index = Dict{String,Int}()
+    if haskey(raw_regions, "TopActive")
+        for (idx, name) in enumerate(("LZ_detector", "AirDome", "FC_PTFE", "FC_rings", "FV", "TopActive", "BarrelActive", "BottomActive", "Skin", "LXe_passive"))
+            haskey(raw_regions, name) || error("FastKernelGeometry is missing $name")
+            region = raw_regions[name]
+            _push_fastkernel_region!(regions, name_to_index,
+                _with_fastkernel_identity(idx, name, region.role, region))
+        end
+    else
+        haskey(raw_regions, "LZ_detector") || error("FastKernelGeometry is missing LZ_detector")
+        haskey(raw_regions, "AirDome") || error("FastKernelGeometry is missing AirDome")
+        haskey(raw_regions, "FC_PTFE") || error("FastKernelGeometry is missing FC_PTFE")
+        haskey(raw_regions, "FC_rings") || error("FastKernelGeometry is missing FC_rings")
+        haskey(raw_regions, "LXe_det") || error("FastKernelGeometry is missing LXe_det")
+        haskey(raw_regions, "LXeTPC") || error("FastKernelGeometry is missing LXeTPC")
+        haskey(raw_regions, "FV") || error("FastKernelGeometry is missing FV")
+        haskey(raw_regions, "Skin") || error("FastKernelGeometry is missing Skin")
 
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(1, "LZ_detector", det_region_raw.role, det_region_raw))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(2, "AirDome", air_region_raw.role, air_region_raw))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(3, "FC_PTFE", ptfe_region_raw.role, ptfe_region_raw))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(4, "FC_rings", rings_region_raw.role, rings_region_raw))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(5, "FV", fv_region_raw.role, fv_region_raw))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(6, "TopActive", "top_active", tpc_region_raw;
-            kind=:cylinder,
-            sensitive=true,
-            ecut_keV=tpc_region_raw.ecut_keV,
-            fv_target=false,
-            rmin_cm=0.0,
-            rmax_cm=tpc_region_raw.rmax_cm,
-            zmin_cm=fv_region_raw.zmax_cm,
-            zmax_cm=tpc_region_raw.zmax_cm,
-            has_top_cap=false,
-            has_bottom_cap=false,
-            top_cap_radius_cm=0.0,
-            top_cap_aspect_ratio=0.0,
-            bottom_cap_radius_cm=0.0,
-            bottom_cap_aspect_ratio=0.0))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(7, "BarrelActive", "barrel_active", tpc_region_raw;
-            kind=:cylinder_shell,
-            sensitive=true,
-            ecut_keV=tpc_region_raw.ecut_keV,
-            fv_target=false,
-            rmin_cm=fv_region_raw.rmax_cm,
-            rmax_cm=tpc_region_raw.rmax_cm,
-            zmin_cm=fv_region_raw.zmin_cm,
-            zmax_cm=fv_region_raw.zmax_cm,
-            has_top_cap=false,
-            has_bottom_cap=false,
-            top_cap_radius_cm=0.0,
-            top_cap_aspect_ratio=0.0,
-            bottom_cap_radius_cm=0.0,
-            bottom_cap_aspect_ratio=0.0))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(8, "BottomActive", "bottom_active", tpc_region_raw;
-            kind=:cylinder,
-            sensitive=true,
-            ecut_keV=tpc_region_raw.ecut_keV,
-            fv_target=false,
-            rmin_cm=0.0,
-            rmax_cm=tpc_region_raw.rmax_cm,
-            zmin_cm=tpc_region_raw.zmin_cm,
-            zmax_cm=fv_region_raw.zmin_cm,
-            has_top_cap=false,
-            has_bottom_cap=false,
-            top_cap_radius_cm=0.0,
-            top_cap_aspect_ratio=0.0,
-            bottom_cap_radius_cm=0.0,
-            bottom_cap_aspect_ratio=0.0))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(9, "Skin", skin_region_raw.role, skin_region_raw))
-    _push_fastkernel_region!(regions, name_to_index,
-        _with_fastkernel_identity(10, "LXe_passive", "lxe_passive", passive_region_raw;
-            sensitive=false,
-            ecut_keV=0.0,
-            fv_target=false))
+        det_region_raw = raw_regions["LZ_detector"]
+        air_region_raw = raw_regions["AirDome"]
+        ptfe_region_raw = raw_regions["FC_PTFE"]
+        rings_region_raw = raw_regions["FC_rings"]
+        passive_region_raw = raw_regions["LXe_det"]
+        tpc_region_raw = raw_regions["LXeTPC"]
+        fv_region_raw = raw_regions["FV"]
+        skin_region_raw = raw_regions["Skin"]
+
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(1, "LZ_detector", det_region_raw.role, det_region_raw))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(2, "AirDome", air_region_raw.role, air_region_raw))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(3, "FC_PTFE", ptfe_region_raw.role, ptfe_region_raw))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(4, "FC_rings", rings_region_raw.role, rings_region_raw))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(5, "FV", fv_region_raw.role, fv_region_raw))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(6, "TopActive", "top_active", tpc_region_raw;
+                kind=:cylinder,
+                sensitive=true,
+                ecut_keV=tpc_region_raw.ecut_keV,
+                fv_target=false,
+                rmin_cm=0.0,
+                rmax_cm=tpc_region_raw.rmax_cm,
+                zmin_cm=fv_region_raw.zmax_cm,
+                zmax_cm=tpc_region_raw.zmax_cm,
+                has_top_cap=false,
+                has_bottom_cap=false,
+                top_cap_radius_cm=0.0,
+                top_cap_aspect_ratio=0.0,
+                bottom_cap_radius_cm=0.0,
+                bottom_cap_aspect_ratio=0.0))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(7, "BarrelActive", "barrel_active", tpc_region_raw;
+                kind=:cylinder_shell,
+                sensitive=true,
+                ecut_keV=tpc_region_raw.ecut_keV,
+                fv_target=false,
+                rmin_cm=fv_region_raw.rmax_cm,
+                rmax_cm=tpc_region_raw.rmax_cm,
+                zmin_cm=fv_region_raw.zmin_cm,
+                zmax_cm=fv_region_raw.zmax_cm,
+                has_top_cap=false,
+                has_bottom_cap=false,
+                top_cap_radius_cm=0.0,
+                top_cap_aspect_ratio=0.0,
+                bottom_cap_radius_cm=0.0,
+                bottom_cap_aspect_ratio=0.0))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(8, "BottomActive", "bottom_active", tpc_region_raw;
+                kind=:cylinder,
+                sensitive=true,
+                ecut_keV=tpc_region_raw.ecut_keV,
+                fv_target=false,
+                rmin_cm=0.0,
+                rmax_cm=tpc_region_raw.rmax_cm,
+                zmin_cm=tpc_region_raw.zmin_cm,
+                zmax_cm=fv_region_raw.zmin_cm,
+                has_top_cap=false,
+                has_bottom_cap=false,
+                top_cap_radius_cm=0.0,
+                top_cap_aspect_ratio=0.0,
+                bottom_cap_radius_cm=0.0,
+                bottom_cap_aspect_ratio=0.0))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(9, "Skin", skin_region_raw.role, skin_region_raw))
+        _push_fastkernel_region!(regions, name_to_index,
+            _with_fastkernel_identity(10, "LXe_passive", "lxe_passive", passive_region_raw;
+                sensitive=false,
+                ecut_keV=0.0,
+                fv_target=false))
+    end
 
     FastKernelGeometry(
         regions,

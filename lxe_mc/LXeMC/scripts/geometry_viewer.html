@@ -230,7 +230,7 @@
 
   <script>
     const cacheBust = `?v=${Date.now()}`;
-    const trackingPath = `../../data/detector_lz_v2.json${cacheBust}`;
+    const trackingPath = `../../data/detector_lz_v3.json${cacheBust}`;
     const sourcePath = `../../data/source_geometry_lz_v1.json${cacheBust}`;
     const pad = 28;
     const width = 700;
@@ -251,75 +251,6 @@
       if (v.name === "LXe_passive" || v.tag === "passive_lxe") return { fill: "#e2e8fb", stroke: "#7b89bd" };
       if (["FC_PTFE", "FC_rings"].includes(v.name) || v.tag === "structural") return { fill: "#7b7266", stroke: "#2b2824" };
       return { fill: "#f4efe4", stroke: "#8a8175" };
-    }
-
-    function cloneVolume(v, patch = {}) {
-      return JSON.parse(JSON.stringify({ ...v, ...patch }));
-    }
-
-    function deriveFastKernelTrackingVolumes(volumes) {
-      const byName = new Map(volumes.map(v => [v.name, v]));
-      const detector = byName.get("LZ_detector");
-      const air = byName.get("AirDome");
-      const fv = byName.get("FV");
-      const tpc = byName.get("LXeTPC");
-      const skin = byName.get("Skin");
-      const ptfe = byName.get("FC_PTFE");
-      const rings = byName.get("FC_rings");
-      const lxe = byName.get("LXe_det");
-      if (![detector, air, fv, tpc, skin, ptfe, rings, lxe].every(Boolean)) return volumes;
-
-      const fvZ0 = fv.position_cm[2];
-      const fvHalf = fv.half_height_cm;
-      const fvBottom = fvZ0 - fvHalf;
-      const fvTop = fvZ0 + fvHalf;
-      const tpcZ0 = tpc.position_cm[2];
-      const tpcHalf = tpc.half_height_cm;
-      const tpcBottom = tpcZ0 - tpcHalf;
-      const tpcTop = tpcZ0 + tpcHalf;
-
-      const topActive = cloneVolume(tpc, {
-        name: "TopActive",
-        tag: "tpc_active",
-        half_height_cm: (tpcTop - fvTop) / 2,
-        position_cm: [0, 0, (tpcTop + fvTop) / 2],
-        _doc: "Fast-kernel active Xe region between the FV top and the gate plane."
-      });
-      const barrelActive = cloneVolume(fv, {
-        name: "BarrelActive",
-        shape: "cylinder_shell",
-        tag: "tpc_active",
-        R_inner_cm: fv.radius_cm,
-        wall_thickness_cm: tpc.radius_cm - fv.radius_cm,
-        half_height_cm: fvHalf,
-        position_cm: [0, 0, fvZ0],
-        _doc: "Fast-kernel active Xe shell surrounding the FV barrel."
-      });
-      const bottomActive = cloneVolume(tpc, {
-        name: "BottomActive",
-        tag: "tpc_active",
-        half_height_cm: (fvBottom - tpcBottom) / 2,
-        position_cm: [0, 0, (fvBottom + tpcBottom) / 2],
-        _doc: "Fast-kernel active Xe region between the FV bottom and the cathode."
-      });
-      const passiveLXe = cloneVolume(lxe, {
-        name: "LXe_passive",
-        tag: "passive_lxe",
-        _doc: "Fast-kernel passive Xe region below the cathode and outside the active Xe split."
-      });
-
-      return [
-        detector,
-        air,
-        passiveLXe,
-        topActive,
-        barrelActive,
-        bottomActive,
-        fv,
-        ptfe,
-        rings,
-        skin
-      ];
     }
 
     function sourceStyle(v) {
@@ -667,7 +598,7 @@
     }
 
     function drawSourceGuide(svg, trackingVolumes, projSource) {
-      const lxe = trackingVolumes.find(v => v.name === "LXe_det");
+      const lxe = trackingVolumes.find(v => v.name === "LXe_passive");
       if (!lxe) return;
       const guide = { fill: "rgba(133, 170, 239, 0.12)", stroke: "#7b9fdd" };
       drawVolume(svg, lxe, projSource, guide, "guide");
@@ -697,7 +628,7 @@
         fetch(trackingPath).then(r => r.json()),
         fetch(sourcePath).then(r => r.json())
       ]);
-      const trackingVolumes = deriveFastKernelTrackingVolumes(tracking.volumes);
+      const trackingVolumes = tracking.volumes;
       window._trackingVolumes = trackingVolumes;
       window._sourceVolumes = source.sources;
 

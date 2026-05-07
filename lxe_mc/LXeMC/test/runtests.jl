@@ -8,6 +8,7 @@ const CFG  = default_config()
 const MATS = load_materials(CFG)
 const DET  = load_detector(default_detector_path(), MATS)
 const DET2 = load_detector_v2(default_detector_v2_path(), MATS)
+const DET3 = load_detector_v2(default_detector_v3_path(), MATS)
 const SOURCE_GEOM = JSON.parsefile(normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json")))
 const VOL  = active_volume(DET)
 const MAT  = VOL.material
@@ -395,6 +396,76 @@ end
             @test cls_out === nothing || cls_out.name != region.name
         end
     end
+end
+
+@testset "Detector geometry V3" begin
+    @test DET3.name == "LZ"
+
+    names3 = sort([n.lv.name for n in DET3.nodes])
+    @test names3 == ["AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "MARS", "Skin", "TopActive"]
+
+    root3 = root_node(DET3)
+    lz3 = node_by_name(DET3, "LZ_detector")
+    air3 = node_by_name(DET3, "AirDome")
+    passive3 = node_by_name(DET3, "LXe_passive")
+    top3 = node_by_name(DET3, "TopActive")
+    barrel3 = node_by_name(DET3, "BarrelActive")
+    bottom3 = node_by_name(DET3, "BottomActive")
+    fv3 = node_by_name(DET3, "FV")
+    ptfe3 = node_by_name(DET3, "FC_PTFE")
+    rings3 = node_by_name(DET3, "FC_rings")
+    skin3 = node_by_name(DET3, "Skin")
+
+    @test is_vacuum(root3)
+    @test is_vacuum(lz3)
+    @test is_vacuum(air3)
+    @test is_passive_lxe(passive3)
+    @test is_active_lxe(top3)
+    @test is_active_lxe(barrel3)
+    @test is_active_lxe(bottom3)
+    @test is_fv(fv3)
+    @test is_structural(ptfe3)
+    @test is_structural(rings3)
+    @test is_veto_lxe(skin3)
+
+    @test !is_sensitive(passive3)
+    @test is_sensitive(top3)
+    @test is_sensitive(barrel3)
+    @test is_sensitive(bottom3)
+    @test is_sensitive(fv3)
+    @test is_sensitive(skin3)
+    @test !is_sensitive(ptfe3)
+    @test !is_sensitive(rings3)
+
+    @test top3.lv.ecut_keV ≈ 10.0 atol=GEOM_TOL
+    @test barrel3.lv.ecut_keV ≈ 10.0 atol=GEOM_TOL
+    @test bottom3.lv.ecut_keV ≈ 10.0 atol=GEOM_TOL
+    @test fv3.lv.ecut_keV ≈ 10.0 atol=GEOM_TOL
+    @test fv3.lv.dz_mm ≈ 3.0 atol=GEOM_TOL
+    @test skin3.lv.ecut_keV ≈ 100.0 atol=GEOM_TOL
+    @test skin3.lv.dz_mm ≈ 0.0 atol=GEOM_TOL
+
+    @test find_node_v2(DET3, (0.0, 0.0, 120.0)).lv.name == "TopActive"
+    @test find_node_v2(DET3, (60.0, 0.0, 61.0)).lv.name == "BarrelActive"
+    @test find_node_v2(DET3, (0.0, 0.0, 10.0)).lv.name == "BottomActive"
+    @test find_node_v2(DET3, (0.0, 0.0, 61.0)).lv.name == "FV"
+    @test find_node_v2(DET3, (73.55, 0.0, 100.0)).lv.name == "FC_PTFE"
+    @test find_node_v2(DET3, (74.45, 0.0, 100.0)).lv.name == "FC_rings"
+    @test find_node_v2(DET3, (78.0, 0.0, 100.0)).lv.name == "Skin"
+    @test find_node_v2(DET3, (0.0, 0.0, -20.0)).lv.name == "LXe_passive"
+    @test find_node_v2(DET3, (0.0, 0.0, 160.0)).lv.name == "AirDome"
+
+    fk3 = compile_fastkernel_geometry(DET3)
+    @test sort([r.name for r in fk3.regions]) == ["AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "Skin", "TopActive"]
+    @test fk3.top_active_region == fk3.name_to_index["TopActive"]
+    @test fk3.barrel_active_region == fk3.name_to_index["BarrelActive"]
+    @test fk3.bottom_active_region == fk3.name_to_index["BottomActive"]
+    @test fk3.passive_region == fk3.name_to_index["LXe_passive"]
+    @test classify_fastkernel(fk3, (0.0, 0.0, 120.0)).name == "TopActive"
+    @test classify_fastkernel(fk3, (60.0, 0.0, 61.0)).name == "BarrelActive"
+    @test classify_fastkernel(fk3, (0.0, 0.0, 10.0)).name == "BottomActive"
+    @test classify_fastkernel(fk3, (0.0, 0.0, 61.0)).name == "FV"
+    @test classify_fastkernel(fk3, (0.0, 0.0, -20.0)).name == "LXe_passive"
 end
 
 @testset "Source geometry schema" begin

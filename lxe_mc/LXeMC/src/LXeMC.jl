@@ -125,6 +125,18 @@ function default_detector_v2_path()
 end
 export default_detector_v2_path
 
+"""Path to the Geometry V3 detector JSON (LZ)."""
+function default_detector_v3_path()
+    normpath(joinpath(@__DIR__, "..", "..", "data", "detector_lz_v3.json"))
+end
+export default_detector_v3_path
+
+"""Path to the preferred canonical tracking detector JSON (currently V3)."""
+function default_tracking_detector_path()
+    default_detector_v3_path()
+end
+export default_tracking_detector_path
+
 """Path to the default data directory."""
 function default_data_dir()
     normpath(joinpath(@__DIR__, "..", "..", "data"))
