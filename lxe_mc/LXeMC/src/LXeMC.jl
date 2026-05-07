@@ -26,7 +26,7 @@ ss = is_single_site(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
 - `config.jl`: `SimConfig` — transport parameters
 - `nist_data.jl`: XCOM/ESTAR CSV loaders, log-log interpolation
 - `materials.jl`: `Material` — material properties + physics methods
-- `geometry.jl`: legacy stack geometry helpers
+- `geometry.jl`: legacy flat detector / stack-source geometry helpers
 - `geometry2.jl`: canonical tracking detector + fast-kernel geometry
 - `physics_utils.jl`: bremsstrahlung differential cross section
 - `sampling.jl`: MC samplers for all interaction channels
@@ -66,6 +66,7 @@ export csda_range_g_per_cm2, csda_range_mm, sigma_brems, brems_rejection_M
 export coulomb_correction_fc, dsigma_dk_brems
 
 # --- Geometry ---
+# Legacy flat detector geometry plus shared primitive solids.
 export Cyl, CylShell, Box, Disk
 export volume, volume_inner, surface_area, surface_area_inner, surface_area_outer
 export R_outer, depth, is_flat
@@ -73,6 +74,7 @@ export LCyl, LCylShell, LBox, LDisk, is_inside
 export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
 export Detector, active_volume, fiducial_volume, find_volume, load_detector
 export distance_to_entry, distance_to_exit, next_volume
+# Canonical tracking geometry and compiled fast-kernel support.
 export RegionTag, Placement, LogicalVolume, DetectorNode, TrackingDetector
 export FastKernelRegion, FastKernelGeometry, FVGeometry
 export Cap, DomedContainer, CappedCylinder

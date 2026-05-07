@@ -1,8 +1,9 @@
 #!/usr/bin/env julia
 """
-run_source_flux.jl — Generate background gamma flux from a source volume.
+run_source_flux.jl — Legacy flat-detector source-flux generation.
 
-Runs Stage 1: decays in source material → photon-only propagation →
+Runs Stage 1 on the historical flat detector model:
+decays in source material → photon-only propagation →
 veto logic → binned flux table in (E, cos θ).
 
 Outputs:

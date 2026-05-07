@@ -1,9 +1,13 @@
 #!/usr/bin/env julia
 """
-run_test.jl — Driver script for LXeMC simulation.
+run_test.jl — Legacy flat-detector driver for stack simulations.
 
-Simulates N gamma-ray events in the active volume of a detector and
+Simulates N gamma-ray events in the active volume of a legacy flat
+detector and
 reports summary statistics. Optionally saves per-event data in CSV.
+
+This script uses the old `Detector`/`PhysicalVolume` workflow rather
+than the canonical tracking geometry path.
 
 Usage:
     julia --project=.. scripts/run_test.jl -n 1000 -e 2.615

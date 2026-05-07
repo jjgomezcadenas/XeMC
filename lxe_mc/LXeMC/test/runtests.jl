@@ -57,7 +57,7 @@ end
 # =====================================================================
 # Test 3: Detector geometry
 # =====================================================================
-@testset "Detector geometry" begin
+@testset "Legacy stack geometry" begin
     @test DET.name == "LZ"
     @test length(DET.volumes) == 21  # legacy geometry plus 5 added field-cage/grid-holder proxy volumes (FV separate)
     @test VOL.name == "LXeTPC"

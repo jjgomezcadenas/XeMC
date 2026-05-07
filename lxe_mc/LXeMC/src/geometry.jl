@@ -1,7 +1,16 @@
 """
-Geometry module for the LXe Monte Carlo.
+Legacy stack/source geometry module for the LXe Monte Carlo.
 
-Follows a Geant4-inspired hierarchy:
+This file still supports:
+- the legacy flat `Detector` model used by source-transport utilities
+- low-level geometry primitive tests
+- historical stack-facing helpers that predate the canonical tracking
+  geometry
+
+The canonical detector workflow now lives in `geometry2.jl`, while this
+module remains the support layer for the old flat detector representation.
+
+It follows a Geant4-inspired hierarchy:
 
 1. **Geometric solids** (`Cyl`, `CylShell`, `Box`): dimensions only.
 2. **Logical volumes** (`LCyl`, `LCylShell`, `LBox`): solid + placement (position in MARS).
@@ -370,7 +379,7 @@ is_inside(pd::PDisk, pos::Vector{Float64}) = is_inside(pd.logical, pos)
 
 
 # =====================================================================
-# Detector: MARS + volumes
+# Legacy flat detector: MARS + volumes
 # =====================================================================
 
 """

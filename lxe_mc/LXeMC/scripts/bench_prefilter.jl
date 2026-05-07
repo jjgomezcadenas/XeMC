@@ -1,9 +1,12 @@
 #!/usr/bin/env julia
 """
-bench_prefilter.jl — Benchmark the veto pre-filter from all TPC surfaces.
+bench_prefilter.jl — Legacy flat-detector benchmark for the old veto pre-filter.
 
 Shoots gammas radially inward from the wall, downward from the top, and
 upward from the bottom. Reports veto/acceptance rates and throughput.
+
+This script exercises the historical `propagate_to_fiducial(...)` path,
+not the canonical fast-kernel event workflow.
 
 Usage:
     julia --project=.. scripts/bench_prefilter.jl
