@@ -7,6 +7,7 @@ __pycache__/
 lxe_mc/LXeMC/results/
 lxe_mc/LXeMC/test_run/
 lxe_manual.pdf
+lxe_mc/LXeMC/histos/
 lxe_mc/LXeMC/design/latex/*.aux
 lxe_mc/LXeMC/design/latex/*.log
 lxe_mc/LXeMC/design/latex/*.pdf
