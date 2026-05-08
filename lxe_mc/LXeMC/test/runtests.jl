@@ -109,10 +109,12 @@ end
 
     fk3 = compile_fastkernel_geometry(DET3)
     @test sort([r.name for r in fk3.regions]) == ["AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "Skin", "TopActive"]
-    @test fk3.top_active_region == fk3.name_to_index["TopActive"]
-    @test fk3.barrel_active_region == fk3.name_to_index["BarrelActive"]
-    @test fk3.bottom_active_region == fk3.name_to_index["BottomActive"]
-    @test fk3.passive_region == fk3.name_to_index["LXe_passive"]
+    @test fk3.envelope_index != 0
+    @test fk3.fallback_index != 0
+    @test fk3.regions[fk3.envelope_index].role == "tracking_envelope"
+    @test fk3.regions[fk3.fallback_index].tag == TAG_PASSIVE_LXE
+    @test count(r -> r.tag == TAG_FV, fk3.regions) == 1
+    @test count(r -> r.tag == TAG_TPC_ACTIVE, fk3.regions) >= 1
     @test classify_fastkernel(fk3, (0.0, 0.0, 120.0)).name == "TopActive"
     @test classify_fastkernel(fk3, (60.0, 0.0, 61.0)).name == "BarrelActive"
     @test classify_fastkernel(fk3, (0.0, 0.0, 10.0)).name == "BottomActive"

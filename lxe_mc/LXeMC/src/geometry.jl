@@ -62,6 +62,7 @@ struct FastKernelRegion
     id::Int
     name::String
     role::String
+    tag::RegionTag
     kind::Symbol
     material::Material
     isXe::Bool
@@ -84,16 +85,8 @@ end
 struct FastKernelGeometry
     regions::Vector{FastKernelRegion}
     name_to_index::Dict{String,Int}
-    detector_region::Int
-    air_region::Int
-    ptfe_region::Int
-    rings_region::Int
-    fv_region::Int
-    top_active_region::Int
-    barrel_active_region::Int
-    bottom_active_region::Int
-    skin_region::Int
-    passive_region::Int
+    envelope_index::Int
+    fallback_index::Int
 end
 
 
@@ -142,11 +135,11 @@ function select_interaction_fastkernel(result, fk::FastKernelGeometry)
     )
 
     region = fk.regions[idx]
-    class = if region.name == "FV"
+    class = if region.tag === TAG_FV
         :fv
-    elseif region.name in ("TopActive", "BarrelActive", "BottomActive")
+    elseif region.tag === TAG_TPC_ACTIVE
         :tpc
-    elseif region.name == "Skin"
+    elseif region.tag === TAG_SKIN
         :skin
     else
         :other
@@ -246,38 +239,40 @@ function _build_tracking_solid(name::String, d)
 end
 
 
-function _default_tracking_semantics(name::String)
-    if name == "MARS"
-        return (tag=TAG_WORLD, role="world", inFastKernel=false, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
-    elseif name in ("LZ_detector", "AirDome")
-        return (tag=TAG_VACUUM, role=lowercase(name), inFastKernel=true, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
-    elseif name == "LXe_passive"
-        return (tag=TAG_PASSIVE_LXE, role="lxe_passive", inFastKernel=true, isXe=true, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
-    elseif name in ("TopActive", "BarrelActive", "BottomActive")
-        return (tag=TAG_TPC_ACTIVE, role=lowercase(name), inFastKernel=true, isXe=true, sensitive=true, ecut_keV=10.0, dz_mm=0.0, fv_target=false)
-    elseif name == "FV"
-        return (tag=TAG_FV, role="fiducial_region", inFastKernel=true, isXe=true, sensitive=true, ecut_keV=10.0, dz_mm=3.0, fv_target=true)
-    elseif name == "Skin"
-        return (tag=TAG_SKIN, role="veto_region", inFastKernel=true, isXe=true, sensitive=true, ecut_keV=100.0, dz_mm=0.0, fv_target=false)
-    elseif name in ("FC_PTFE", "FC_rings")
-        return (tag=TAG_STRUCTURAL, role=lowercase(name), inFastKernel=true, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+function _capabilities_for_tag(tag::RegionTag)
+    if tag == TAG_WORLD
+        return (inFastKernel=false, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+    elseif tag == TAG_VACUUM
+        return (inFastKernel=true, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+    elseif tag == TAG_PASSIVE_LXE
+        return (inFastKernel=true, isXe=true, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+    elseif tag == TAG_TPC_ACTIVE
+        return (inFastKernel=true, isXe=true, sensitive=true, ecut_keV=10.0, dz_mm=0.0, fv_target=false)
+    elseif tag == TAG_FV
+        return (inFastKernel=true, isXe=true, sensitive=true, ecut_keV=10.0, dz_mm=3.0, fv_target=true)
+    elseif tag == TAG_SKIN
+        return (inFastKernel=true, isXe=true, sensitive=true, ecut_keV=100.0, dz_mm=0.0, fv_target=false)
+    elseif tag == TAG_STRUCTURAL
+        return (inFastKernel=true, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
     end
-    return (tag=TAG_STRUCTURAL, role=lowercase(name), inFastKernel=false, isXe=false, sensitive=false, ecut_keV=0.0, dz_mm=0.0, fv_target=false)
+    error("Unknown RegionTag $tag")
 end
 
 
 function _build_tracking_node(id::Int, d, material::Material; version::Int=2)::Tuple{DetectorNode,String}
     name = String(d["name"])
     solid = _build_tracking_solid(name, d)
-    defaults = version >= 3 ? _default_tracking_semantics(name) : nothing
-    tag = haskey(d, "tag") ? _parse_region_tag(d["tag"]) : defaults.tag
-    role = String(get(d, "role", defaults === nothing ? "" : defaults.role))
-    inFastKernel = Bool(get(d, "inFastKernel", defaults === nothing ? false : defaults.inFastKernel))
-    isXe = Bool(get(d, "isXe", defaults === nothing ? false : defaults.isXe))
-    sensitive = Bool(get(d, "sensitive", defaults === nothing ? false : defaults.sensitive))
-    ecut_keV = Float64(get(d, "ecut_keV", defaults === nothing ? 0.0 : defaults.ecut_keV))
-    dz_mm = Float64(get(d, "dz_mm", defaults === nothing ? 0.0 : defaults.dz_mm))
-    fv_target = Bool(get(d, "fv_target", defaults === nothing ? false : defaults.fv_target))
+    haskey(d, "tag") || error("Volume '$name' is missing required field 'tag'")
+    haskey(d, "role") || error("Volume '$name' is missing required field 'role'")
+    tag = _parse_region_tag(d["tag"])
+    role = String(d["role"])
+    caps = _capabilities_for_tag(tag)
+    inFastKernel = Bool(get(d, "inFastKernel", caps.inFastKernel))
+    isXe = Bool(get(d, "isXe", caps.isXe))
+    sensitive = Bool(get(d, "sensitive", caps.sensitive))
+    ecut_keV = Float64(get(d, "ecut_keV", caps.ecut_keV))
+    dz_mm = Float64(get(d, "dz_mm", caps.dz_mm))
+    fv_target = Bool(get(d, "fv_target", caps.fv_target))
     approximation = String(get(d, "approximation", "exact"))
     activity = _parse_activity(d)
     lv = LogicalVolume(name, solid, material, tag, role, inFastKernel, isXe, sensitive, ecut_keV, dz_mm, fv_target, approximation, activity)
@@ -984,6 +979,7 @@ function _compile_fastkernel_region(id::Int, node::DetectorNode)::FastKernelRegi
         id,
         node.lv.name,
         node.lv.role,
+        node.lv.tag,
         kind,
         node.lv.material,
         node.lv.isXe,
@@ -1024,6 +1020,7 @@ function _with_fastkernel_identity(id::Int, name::String, role::String,
         id,
         name,
         role,
+        region.tag,
         kind,
         region.material,
         region.isXe,
@@ -1054,37 +1051,31 @@ end
 
 
 function compile_fastkernel_geometry(det::TrackingDetector)::FastKernelGeometry
-    raw_regions = Dict{String,FastKernelRegion}()
+    regions = FastKernelRegion[]
+    name_to_index = Dict{String,Int}()
+    envelope_index = 0
+    fallback_index = 0
 
     for node in det.nodes
         node.lv.inFastKernel || continue
-        region = _compile_fastkernel_region(length(raw_regions) + 1, node)
-        raw_regions[region.name] = region
+        idx = length(regions) + 1
+        region = _compile_fastkernel_region(idx, node)
+        region = _with_fastkernel_identity(idx, region.name, region.role, region)
+        _push_fastkernel_region!(regions, name_to_index, region)
+        if node.lv.role == "tracking_envelope"
+            envelope_index != 0 && error("Multiple regions with role 'tracking_envelope': '$(regions[envelope_index].name)' and '$(region.name)'")
+            envelope_index = idx
+        end
+        if node.lv.tag == TAG_PASSIVE_LXE
+            fallback_index != 0 && error("Multiple regions with tag TAG_PASSIVE_LXE: '$(regions[fallback_index].name)' and '$(region.name)'")
+            fallback_index = idx
+        end
     end
 
-    regions = FastKernelRegion[]
-    name_to_index = Dict{String,Int}()
-    for (idx, name) in enumerate(("LZ_detector", "AirDome", "FC_PTFE", "FC_rings", "FV", "TopActive", "BarrelActive", "BottomActive", "Skin", "LXe_passive"))
-        haskey(raw_regions, name) || error("FastKernelGeometry requires canonical tracking region '$name'")
-        region = raw_regions[name]
-        _push_fastkernel_region!(regions, name_to_index,
-            _with_fastkernel_identity(idx, name, region.role, region))
-    end
+    envelope_index != 0 || error("No region with role 'tracking_envelope' found")
+    fallback_index != 0 || error("No region with tag TAG_PASSIVE_LXE found")
 
-    FastKernelGeometry(
-        regions,
-        name_to_index,
-        name_to_index["LZ_detector"],
-        name_to_index["AirDome"],
-        name_to_index["FC_PTFE"],
-        name_to_index["FC_rings"],
-        name_to_index["FV"],
-        name_to_index["TopActive"],
-        name_to_index["BarrelActive"],
-        name_to_index["BottomActive"],
-        name_to_index["Skin"],
-        name_to_index["LXe_passive"]
-    )
+    FastKernelGeometry(regions, name_to_index, envelope_index, fallback_index)
 end
 
 
@@ -1188,37 +1179,19 @@ function classify_fastkernel(fk::FastKernelGeometry, pos::NTuple{3,<:Real})
     y = Float64(pos[2])
     z = Float64(pos[3])
 
-    det_region = fk.regions[fk.detector_region]
-    _is_inside_fastkernel_region(det_region, x, y, z) || return nothing
+    envelope = fk.regions[fk.envelope_index]
+    _is_inside_fastkernel_region(envelope, x, y, z) || return nothing
 
-    air_region = fk.regions[fk.air_region]
-    _is_inside_fastkernel_region(air_region, x, y, z) && return air_region
+    @inbounds for i in eachindex(fk.regions)
+        i == fk.envelope_index && continue
+        i == fk.fallback_index && continue
+        region = fk.regions[i]
+        _is_inside_fastkernel_region(region, x, y, z) && return region
+    end
 
-    ptfe_region = fk.regions[fk.ptfe_region]
-    _is_inside_fastkernel_region(ptfe_region, x, y, z) && return ptfe_region
-
-    rings_region = fk.regions[fk.rings_region]
-    _is_inside_fastkernel_region(rings_region, x, y, z) && return rings_region
-
-    skin_region = fk.regions[fk.skin_region]
-    _is_inside_fastkernel_region(skin_region, x, y, z) && return skin_region
-
-    fv_region = fk.regions[fk.fv_region]
-    _is_inside_fastkernel_region(fv_region, x, y, z) && return fv_region
-
-    top_active_region = fk.regions[fk.top_active_region]
-    _is_inside_fastkernel_region(top_active_region, x, y, z) && return top_active_region
-
-    barrel_active_region = fk.regions[fk.barrel_active_region]
-    _is_inside_fastkernel_region(barrel_active_region, x, y, z) && return barrel_active_region
-
-    bottom_active_region = fk.regions[fk.bottom_active_region]
-    _is_inside_fastkernel_region(bottom_active_region, x, y, z) && return bottom_active_region
-
-    passive_region = fk.regions[fk.passive_region]
-    _is_inside_fastkernel_region(passive_region, x, y, z) && return passive_region
-
-    det_region
+    fallback = fk.regions[fk.fallback_index]
+    _is_inside_fastkernel_region(fallback, x, y, z) && return fallback
+    envelope
 end
 
 
@@ -1390,7 +1363,7 @@ function distance_to_boundary_fastkernel(region::FastKernelRegion,
         t_top = Inf
         if region.has_top_cap
             top_region = FastKernelRegion(
-                0, "", "", :cap, region.material, region.isXe, region.sensitive, region.ecut_keV, region.fv_target,
+                0, "", "", region.tag, :cap, region.material, region.isXe, region.sensitive, region.ecut_keV, region.fv_target,
                 0.0, region.top_cap_radius_cm, barrel_zmax, barrel_zmax + top_depth,
                 true, false, region.top_cap_radius_cm, region.top_cap_aspect_ratio, 0.0, 0.0
             )
@@ -1402,7 +1375,7 @@ function distance_to_boundary_fastkernel(region::FastKernelRegion,
         t_bottom = Inf
         if region.has_bottom_cap
             bottom_region = FastKernelRegion(
-                0, "", "", :cap, region.material, region.isXe, region.sensitive, region.ecut_keV, region.fv_target,
+                0, "", "", region.tag, :cap, region.material, region.isXe, region.sensitive, region.ecut_keV, region.fv_target,
                 0.0, region.bottom_cap_radius_cm, barrel_zmin - bottom_depth, barrel_zmin,
                 false, true, 0.0, 0.0, region.bottom_cap_radius_cm, region.bottom_cap_aspect_ratio
             )
