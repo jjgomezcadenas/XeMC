@@ -150,27 +150,28 @@ just inside the tracking detector boundary, extracted from the compiled
 function make_surface_sampler(source::String,
                                fk::FastKernelGeometry)::Function
     if source == "cryostat_barrel"
-        # Barrel envelope: Skin outer boundary
-        skin = fk.regions[fk.name_to_index["Skin"]]
-        R = skin.rmax_cm       # 82.1 cm
-        z_min = skin.zmin_cm   # -13.75 cm
-        z_max = skin.zmax_cm   # 145.6 cm
+        # Barrel envelope: LZ_detector barrel region (between top and bottom caps)
+        lz = fk.regions[fk.name_to_index["LZ_detector"]]
+        top_depth = lz.has_top_cap ? lz.top_cap_radius_cm / lz.top_cap_aspect_ratio : 0.0
+        bot_depth = lz.has_bottom_cap ? lz.bottom_cap_radius_cm / lz.bottom_cap_aspect_ratio : 0.0
+        R = lz.rmax_cm - 0.01     # slightly inside boundary (82.09 cm)
+        z_min = lz.zmin_cm + bot_depth  # top of bottom cap
+        z_max = lz.zmax_cm - top_depth  # bottom of top cap
         return rng -> sample_barrel_point(R, z_min, z_max, rng)
     elseif source == "cryostat_top"
-        # Top envelope: AirDome cap
+        # Top envelope: AirDome cap, slightly inside boundary
         air = fk.regions[fk.name_to_index["AirDome"]]
-        R = air.top_cap_radius_cm       # 82.1 cm
-        ar = air.top_cap_aspect_ratio   # 2.0
-        z_eq = air.zmin_cm              # 145.6 cm (equator of the cap)
+        R = air.top_cap_radius_cm - 0.01   # slightly inside (82.09 cm)
+        ar = air.top_cap_aspect_ratio      # 2.0
+        z_eq = air.zmin_cm                 # 145.6 cm (equator of the cap)
         return rng -> sample_cap_point(R, ar, z_eq, :up, rng)
     elseif source == "cryostat_bottom"
-        # Bottom envelope: LXe_passive bottom cap
+        # Bottom envelope: LXe_passive bottom cap, slightly inside boundary
         passive = fk.regions[fk.name_to_index["LXe_passive"]]
-        R = passive.bottom_cap_radius_cm       # 82.1 cm
-        ar = passive.bottom_cap_aspect_ratio   # 3.0
-        # Equator of bottom cap: zmin + cap_depth
-        cap_depth = R / ar
-        z_eq = passive.zmin_cm + cap_depth     # -68.70 + 27.37 = -41.33
+        R = passive.bottom_cap_radius_cm - 0.01   # slightly inside (82.09 cm)
+        ar = passive.bottom_cap_aspect_ratio       # 3.0
+        cap_depth = passive.bottom_cap_radius_cm / ar  # use full R for depth calc
+        z_eq = passive.zmin_cm + cap_depth
         return rng -> sample_cap_point(R, ar, z_eq, :down, rng)
     else
         error("No surface sampler for source '$source'")

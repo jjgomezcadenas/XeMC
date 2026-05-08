@@ -1382,3 +1382,47 @@ end
 
     rm(path)
 end
+
+
+@testset "Gammas from surface sampler reach detector" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    fk3 = compile_fastkernel_geometry(DET3)
+    fv3 = compile_fv_geometry(DET3)
+
+    for (source_name, isotope) in [("cryostat_barrel", "Bi214"),
+                                    ("cryostat_top", "Bi214"),
+                                    ("cryostat_bottom", "Bi214")]
+        # Generate a small flux table
+        icv_key = source_name == "cryostat_barrel" ? "ICV_barrel" :
+                  source_name == "cryostat_top" ? "ICV_top" : "ICV_bottom"
+        icv_vol = sg[icv_key].volume
+        ft = generate_flux_bi214(5_000, icv_vol, CFG, MersenneTwister(42))
+
+        # Build sampler from tracking detector (not source geometry)
+        sampler = make_surface_sampler(source_name, fk3)
+        rng = MersenneTwister(99)
+
+        # All sampled gammas should land inside the detector envelope
+        n_inside = 0
+        for _ in 1:100
+            g = sample_gamma_from_flux(ft, sampler, rng)
+            region = classify_fastkernel(fk3, (g.position[1], g.position[2], g.position[3]))
+            region !== nothing && (n_inside += 1)
+        end
+        @test n_inside == 100  # all inside
+
+        # For barrel and top: at least some should be vetoed
+        # Bottom is very well shielded (~7 mfp of passive LXe), skip veto check
+        if source_name != "cryostat_bottom"
+            n_vetoed = 0
+            rng2 = MersenneTwister(42)
+            for _ in 1:500
+                g = sample_gamma_from_flux(ft, sampler, rng2)
+                r = process_event([g], fk3, fv3, CFG, rng2)
+                r.status == :vetoed && (n_vetoed += 1)
+            end
+            @test n_vetoed > 0
+        end
+    end
+end
