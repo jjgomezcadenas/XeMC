@@ -611,3 +611,96 @@ end
     end
 end
 
+
+# =====================================================================
+# Source flux data structures
+# =====================================================================
+@testset "SourceFluxBi214 construction" begin
+    n_E, n_u = 25, 10
+    pdf = zeros(n_E, n_u)
+    pdf[20, 5] = 0.30   # peak bin
+    pdf[19, 5] = 0.02   # scattered
+    flux = SourceFluxBi214(
+        "ICV_barrel",
+        pdf,
+        2.200, 2.500, n_E, n_u,
+        100_000, 32_000, 50_000, 48_000, 2_000
+    )
+    @test flux isa SourceFlux
+    @test flux.source_name == "ICV_barrel"
+    @test size(flux.pdf) == (25, 10)
+    @test flux.E_min == 2.200
+    @test flux.E_max == 2.500
+    @test flux.n_E == 25
+    @test flux.n_u == 10
+    @test flux.N_generated == 100_000
+    @test flux.N_surviving == 32_000
+    @test flux.N_absorbed == 50_000
+    @test flux.N_backward == 48_000
+    @test flux.N_low_energy == 2_000
+    @test sum(flux.pdf) ≈ 0.32 atol=1e-10
+end
+
+@testset "SourceFluxTl208 construction" begin
+    n_E_main, n_u = 25, 10
+    pdf_main = zeros(n_E_main, n_u)
+    pdf_main[24, 5] = 0.18
+
+    n_E_comp = [20, 20, 20]
+    pdf_c1 = zeros(20, 10)
+    pdf_c1[15, 5] = 0.10
+    pdf_c2 = zeros(20, 10)
+    pdf_c2[12, 5] = 0.05
+    pdf_c3 = zeros(20, 10)
+    pdf_c3[18, 5] = 0.08
+
+    flux = SourceFluxTl208(
+        "ICV_barrel",
+        pdf_main, 2.370, 2.620, n_E_main,
+        [pdf_c1, pdf_c2, pdf_c3],
+        [0.583, 0.511, 0.861],
+        [0.85, 0.23, 0.12],
+        [0.25, 0.20, 0.30],
+        [0.400, 0.350, 0.700],
+        [0.650, 0.600, 0.950],
+        n_E_comp,
+        n_u,
+        100_000, 20_000, 60_000, 48_000, 5_000
+    )
+    @test flux isa SourceFlux
+    @test flux.source_name == "ICV_barrel"
+    @test size(flux.pdf_main) == (25, 10)
+    @test length(flux.pdf_companion) == 3
+    @test size(flux.pdf_companion[1]) == (20, 10)
+    @test flux.companion_E_line == [0.583, 0.511, 0.861]
+    @test flux.companion_BR == [0.85, 0.23, 0.12]
+    @test flux.companion_f == [0.25, 0.20, 0.30]
+    @test flux.n_u == 10
+    @test flux.N_generated == 100_000
+    @test flux.N_surviving_main == 20_000
+end
+
+@testset "SourceRateTable construction" begin
+    n_E, n_u = 25, 10
+    pdf_rate = zeros(n_E, n_u)
+    pdf_rate[20, 5] = 1.5e-3   # gammas/sec in this bin
+
+    rate = SourceRateTable(
+        :barrel,
+        pdf_rate,
+        2.200, 2.500, n_E, n_u,
+        ["OCV", "MLI", "ICV"],
+        [0.5e-3, 0.3e-3, 0.7e-3],
+        1.5e-3
+    )
+    @test rate.surface == :barrel
+    @test size(rate.pdf_rate) == (25, 10)
+    @test rate.E_min == 2.200
+    @test rate.E_max == 2.500
+    @test rate.n_E == 25
+    @test rate.n_u == 10
+    @test rate.component_names == ["OCV", "MLI", "ICV"]
+    @test rate.total_rate ≈ 1.5e-3
+    @test sum(rate.component_rates) ≈ rate.total_rate atol=1e-10
+end
+

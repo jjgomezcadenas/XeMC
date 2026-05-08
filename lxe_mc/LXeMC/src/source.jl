@@ -166,3 +166,113 @@ function cos_theta_to_lxe(pos::Vector{Float64}, dir::Vector{Float64},
     -(dx * dir[1] + dy * dir[2]) / r
 end
 
+
+# =====================================================================
+# Source flux tables
+# =====================================================================
+
+"""
+    SourceFlux
+
+Abstract type for source flux tables. A flux table stores the (E, u)
+probability distribution of gammas exiting a radioactive source volume,
+where u = cos θ to the inward surface normal (toward the LXe).
+
+Concrete subtypes:
+- [`SourceFluxBi214`](@ref): single gamma per decay.
+- [`SourceFluxTl208`](@ref): main gamma + up to 3 independent companions.
+"""
+abstract type SourceFlux end
+
+
+"""
+    SourceFluxBi214 <: SourceFlux
+
+Flux table for Bi-214 (U-238 late chain): one 2.448 MeV gamma per decay.
+
+The `pdf` matrix is normalized so that `sum(pdf) = N_surviving / N_generated`.
+Each bin `pdf[i,j]` gives the probability per generated decay that a gamma
+exits the source with energy in bin `i` and cos θ in bin `j`.
+"""
+struct SourceFluxBi214 <: SourceFlux
+    source_name::String
+    pdf::Matrix{Float64}        # n_E × n_u
+    E_min::Float64
+    E_max::Float64
+    n_E::Int
+    n_u::Int
+    N_generated::Int
+    N_surviving::Int
+    N_absorbed::Int
+    N_backward::Int
+    N_low_energy::Int
+end
+
+
+"""
+    SourceFluxTl208 <: SourceFlux
+
+Flux table for Tl-208 (Th-232 late chain): one 2.615 MeV main gamma
+plus up to three independent companion gammas per decay.
+
+Companion lines (583 keV at 85%, 511 keV at 23%, 861 keV at 12%) are
+sampled as independent Bernoulli trials. Each companion has its own
+(E, u) table and survival fraction through the source material.
+
+At sampling time, the main gamma always fires. Each companion i fires
+independently with probability `companion_BR[i] × companion_f[i]`,
+producing 1–4 gammas per event.
+"""
+struct SourceFluxTl208 <: SourceFlux
+    source_name::String
+
+    # Main gamma table
+    pdf_main::Matrix{Float64}   # n_E_main × n_u
+    E_min_main::Float64
+    E_max_main::Float64
+    n_E_main::Int
+
+    # Companion tables (one per line: 583, 511, 861 keV)
+    pdf_companion::Vector{Matrix{Float64}}  # 3 tables, each n_E_comp[i] × n_u
+    companion_E_line::Vector{Float64}       # [0.583, 0.511, 0.861]
+    companion_BR::Vector{Float64}           # [0.85, 0.23, 0.12]
+    companion_f::Vector{Float64}            # survival fraction per line
+    E_min_companion::Vector{Float64}
+    E_max_companion::Vector{Float64}
+    n_E_companion::Vector{Int}
+
+    # Shared
+    n_u::Int
+
+    # Generation statistics
+    N_generated::Int
+    N_surviving_main::Int
+    N_absorbed_main::Int
+    N_backward_main::Int
+    N_low_energy_main::Int
+end
+
+
+"""
+    SourceRateTable
+
+Activity-weighted sum of component flux tables for one ICV surface,
+in units of gammas/sec per (E, u) bin.
+
+    pdf_rate[i,j] = sum_k ( A_k [Bq/kg] × m_k [kg] × pdf_k[i,j] )
+
+Used for sampling the combined cryostat flux from all contributing
+source layers (OCV, MLI, ICV).
+"""
+struct SourceRateTable
+    surface::Symbol             # :barrel, :top, or :bottom
+    pdf_rate::Matrix{Float64}   # n_E × n_u, gammas/sec/bin
+    E_min::Float64
+    E_max::Float64
+    n_E::Int
+    n_u::Int
+    component_names::Vector{String}
+    component_rates::Vector{Float64}  # total rate per component [gammas/sec]
+    total_rate::Float64               # sum of component_rates [gammas/sec]
+end
+
