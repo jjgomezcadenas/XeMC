@@ -114,6 +114,8 @@ export propagate_in_source, random_position_in_volume
 export SourceFlux, SourceFluxBi214, SourceFluxTl208, SourceRateTable
 export SourceVolumeInfo, load_source_geometry
 export generate_flux_bi214, generate_flux_tl208
+export propagate_through_layers
+export generate_flux_compound_bi214, generate_flux_compound_tl208
 
 # --- Convenience paths ---
 """Path to the canonical detector-geometry JSON file."""

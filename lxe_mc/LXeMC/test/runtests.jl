@@ -902,3 +902,81 @@ end
     @test ft.companion_E_line == [0.583, 0.511, 0.861]
 end
 
+
+@testset "propagate_through_layers" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"].volume
+    rng = MersenneTwister(42)
+
+    # A 2.6 MeV gamma starting just outside the ICV barrel, aimed inward
+    R_outer_icv = 82.1 + 0.9  # R_inner + wall_thickness
+    pos = Float64[R_outer_icv + 0.1, 0.0, 53.585]
+    dir = Float64[-1.0, 0.0, 0.0]
+
+    status, E_out, pos_out, dir_out = propagate_through_layers(
+        2.615, pos, dir, [icv], CFG, rng)
+
+    # Should either exit or be absorbed
+    @test status in (:exited, :absorbed)
+    if status === :exited
+        @test E_out > 0.0
+        @test E_out <= 2.615
+    end
+end
+
+@testset "generate_flux_compound_bi214" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    ocv_barrel = sg["OCV_barrel"].volume
+    icv_barrel = sg["ICV_barrel"].volume
+    rng = MersenneTwister(42)
+    N = 5_000
+
+    ft = generate_flux_compound_bi214(N, ocv_barrel, [icv_barrel], icv_barrel, CFG, rng)
+    @test ft isa SourceFluxBi214
+    @test ft.source_name == "OCV_barrel"
+    @test ft.N_generated == N
+    @test size(ft.pdf) == (25, 10)
+
+    # PDF normalization
+    @test sum(ft.pdf) ≈ ft.N_surviving / ft.N_generated rtol=1e-10
+
+    # Bookkeeping
+    @test ft.N_surviving + ft.N_absorbed + ft.N_backward + ft.N_low_energy == N
+
+    # OCV->ICV survival should be lower than ICV-only (extra material)
+    ft_icv = generate_flux_bi214(N, icv_barrel, CFG, MersenneTwister(42))
+    @test sum(ft.pdf) < sum(ft_icv.pdf)
+end
+
+@testset "generate_flux_compound_tl208" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    ocv_barrel = sg["OCV_barrel"].volume
+    icv_barrel = sg["ICV_barrel"].volume
+    rng = MersenneTwister(42)
+    N = 5_000
+
+    ft = generate_flux_compound_tl208(N, ocv_barrel, [icv_barrel], icv_barrel, CFG, rng)
+    @test ft isa SourceFluxTl208
+    @test ft.source_name == "OCV_barrel"
+    @test ft.N_generated == N
+    @test size(ft.pdf_main) == (25, 10)
+
+    # Main PDF normalization
+    @test sum(ft.pdf_main) ≈ ft.N_surviving_main / ft.N_generated rtol=1e-10
+
+    # Main bookkeeping
+    @test ft.N_surviving_main + ft.N_absorbed_main + ft.N_backward_main + ft.N_low_energy_main == N
+
+    # 3 companion tables
+    @test length(ft.pdf_companion) == 3
+    for i in 1:3
+        @test 0.0 <= ft.companion_f[i] <= 1.0
+    end
+
+    # OCV->ICV main survival lower than ICV-only
+    ft_icv = generate_flux_tl208(N, icv_barrel, CFG, MersenneTwister(42))
+    @test sum(ft.pdf_main) < sum(ft_icv.pdf_main)
+end
