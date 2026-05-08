@@ -482,6 +482,7 @@ struct EventProcessingResult
     has_tpc_veto::Bool
     has_skin_veto::Bool
     n_processed::Int
+    deposits::Vector{Deposit}  # FV deposits for :accepted events; empty otherwise
 end
 
 
@@ -846,6 +847,9 @@ function process_event(gammas, fk::FastKernelGeometry, fv::FVGeometry,
     has_skin_veto = false
     fv_z_ref = NaN
     n_processed = 0
+    fv_deposits = Deposit[]
+
+    empty_deps = Deposit[]
 
     for gamma in gammas
         result = transport_gamma_fastkernel(gamma, fk, cfg, rng)
@@ -858,7 +862,7 @@ function process_event(gammas, fk::FastKernelGeometry, fv::FVGeometry,
             has_skin_veto = state.has_skin_veto
             fv_z_ref = state.fv_z_ref
             if state.vetoed
-                return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+                return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
             end
         end
 
@@ -874,22 +878,23 @@ function process_event(gammas, fk::FastKernelGeometry, fv::FVGeometry,
             fv_status = _classify_fv_stack_result(deps, cfg)
             if fv_status == :accepted
                 has_fv = true
+                append!(fv_deposits, deps)
             elseif fv_status == :ms_rejected
-                return EventProcessingResult(:ms_rejected, true, has_tpc_veto, has_skin_veto, n_processed)
+                return EventProcessingResult(:ms_rejected, true, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
             end
         elseif result.status == :vetoed_tpc
             has_tpc_veto = true
-            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
         elseif result.status == :vetoed_skin
             has_skin_veto = true
-            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
         end
     end
 
     if has_fv
-        return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+        return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, n_processed, fv_deposits)
     end
-    EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, n_processed)
+    EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
 end
 
 

@@ -372,6 +372,7 @@ end
     empty_fk = process_event(SampledGamma[], fk, fvgeom, CFG, MersenneTwister(1))
     @test empty_fk.status == :no_fv
     @test empty_fk.n_processed == 0
+    @test isempty(empty_fk.deposits)
 
     miss_gamma = SampledGamma(2.615, Float64[120.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
     miss_res = LXeMC.transport_gamma_fastkernel(miss_gamma, fk, CFG, MersenneTwister(1))
@@ -423,6 +424,18 @@ end
         E2 = length(energies) >= 2 ? energies[2] : 0.0
         @test fused_res.E1_MeV == E1
         @test fused_res.E2_MeV == E2
+    end
+
+    # Accepted events carry FV deposits; rejected events don't
+    fv_gamma = SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])
+    for seed in (100, 200, 300, 400, 500)
+        res = process_event([fv_gamma], fk, fvgeom, CFG, MersenneTwister(seed))
+        if res.status == :accepted
+            @test !isempty(res.deposits)
+            @test sum(d.energy for d in res.deposits) > 0.0
+        else
+            @test isempty(res.deposits)
+        end
     end
 end
 
