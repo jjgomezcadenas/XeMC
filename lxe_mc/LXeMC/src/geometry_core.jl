@@ -498,16 +498,100 @@ function distance_to_entry(pos::Vector{Float64}, dir::Vector{Float64}, lv::LBox)
 end
 
 
+"""
+    distance_to_entry(pos, dir, ld::LDisk) -> Float64
+
+Analytic ray-entry for an ellipsoidal disk shell. The outer surface is
+an ellipsoid with semi-axes (R, R, c_outer) where c_outer = depth + thickness.
+For flat disks, the entry is through the flat face (plane intersection).
+
+Solves the ray-ellipsoid quadratic and checks the hit is on the dome side
+and within the shell (outside the inner ellipsoid).
+"""
 function distance_to_entry(pos::Vector{Float64}, dir::Vector{Float64}, ld::LDisk)::Float64
-    ds = 0.1
-    for i in 1:10000
-        t = i * ds
-        test_pos = pos .+ dir .* t
-        if is_inside(ld, test_pos)
-            return t
+    R = ld.solid.radius_cm
+    cx, cy, cz = ld.position
+    sgn = ld.orientation === :up ? 1.0 : -1.0
+
+    dx = pos[1] - cx
+    dy = pos[2] - cy
+    dz = pos[3] - cz
+
+    if is_flat(ld.solid)
+        # Flat disk: slab at z = cz (for :up, slab extends in +z by thickness)
+        # Entry through the face at z = cz (:up) or z = cz (:down)
+        abs(dir[3]) < 1e-20 && return Inf
+        t_face = -dz / dir[3]  # for :up, face at dz=0
+        if sgn < 0
+            t_face = -dz / dir[3]
+        end
+        t_face <= 1e-10 && return Inf
+        rx = dx + t_face * dir[1]
+        ry = dy + t_face * dir[2]
+        rx^2 + ry^2 <= R^2 || return Inf
+        rz = dz + t_face * dir[3]
+        dz_rel = sgn * rz
+        0.0 <= dz_rel <= ld.solid.wall_thickness_cm || return Inf
+        return t_face
+    end
+
+    # Ellipsoidal: try outer ellipsoid first, then equatorial plane
+    c_inner = depth(ld.solid)
+    c_outer = c_inner + ld.solid.wall_thickness_cm
+
+    t_min = Inf
+
+    # Ray-ellipsoid intersection: (dx+t*ux)^2/R^2 + (dy+t*uy)^2/R^2 + (sgn*(dz+t*uz))^2/c^2 = 1
+    # Since sgn only flips sign of dz, and we square it, we can use dz_rel = sgn*dz, uz_rel = sgn*uz
+    dz_rel = sgn * dz
+    uz_rel = sgn * dir[3]
+
+    for c in (c_outer, c_inner)
+        a_coeff = (dir[1]^2 + dir[2]^2) / R^2 + uz_rel^2 / c^2
+        a_coeff <= 1e-20 && continue
+        b_coeff = 2.0 * ((dx * dir[1] + dy * dir[2]) / R^2 + dz_rel * uz_rel / c^2)
+        c_coeff = (dx^2 + dy^2) / R^2 + dz_rel^2 / c^2 - 1.0
+        disc = b_coeff^2 - 4.0 * a_coeff * c_coeff
+        disc < 0.0 && continue
+
+        sq = sqrt(disc)
+        for t in ((-b_coeff - sq) / (2.0 * a_coeff), (-b_coeff + sq) / (2.0 * a_coeff))
+            t <= 1e-10 && continue
+            t >= t_min && continue
+            # Check hit is on dome side (dz_rel >= 0)
+            hit_dz_rel = dz_rel + t * uz_rel
+            hit_dz_rel < -1e-10 && continue
+            # Check hit is in the shell (between inner and outer)
+            hit_r2 = (dx + t * dir[1])^2 + (dy + t * dir[2])^2
+            hit_frac_r2 = hit_r2 / R^2
+            # For outer ellipsoid hit: must be outside inner
+            if c == c_outer
+                inner_test = hit_frac_r2 + (hit_dz_rel / c_inner)^2
+                inner_test < 1.0 - 1e-6 && continue  # inside inner ellipsoid, not in shell
+            end
+            t_min = t
         end
     end
-    Inf
+
+    # Also check equatorial plane (dz_rel = 0): entry through the base
+    if abs(uz_rel) > 1e-20
+        t_plane = -dz_rel / uz_rel
+        if t_plane > 1e-10 && t_plane < t_min
+            hit_r2 = (dx + t_plane * dir[1])^2 + (dy + t_plane * dir[2])^2
+            if hit_r2 <= R^2
+                # Check it's in the shell annulus at equator
+                # At equator, inner ellipsoid has r = R (full radius), so shell thickness is 0 there
+                # Actually at equator the shell exists if wall_thickness > 0
+                # Verify with is_inside
+                test_pos = pos .+ dir .* t_plane
+                if is_inside(ld, test_pos)
+                    t_min = t_plane
+                end
+            end
+        end
+    end
+
+    t_min
 end
 
 

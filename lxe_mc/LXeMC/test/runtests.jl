@@ -589,6 +589,51 @@ end
     t_exit = distance_to_exit([51.0, 0.0, 0.0], [-1.0, 0.0, 0.0], lcs)
     @test t_exit ≈ 1.0  atol=0.1  # exits through inner surface
 
+    # --- LDisk (ellipsoidal) ray-entry ---
+    # 2:1 ellipsoidal disk, R=50, t=2, pointing up at origin
+    # Inner ellipsoid: a=50, c=25. Outer: a=50, c=27.
+    lde = LDisk(Disk(50.0, 2.0, 2.0), [0.0, 0.0, 0.0], :up)
+
+    # Ray from above along -z toward apex: should hit outer ellipsoid
+    # Apex of outer ellipsoid is at z = c_outer = 27
+    t_apex = distance_to_entry([0.0, 0.0, 40.0], [0.0, 0.0, -1.0], lde)
+    @test t_apex ≈ 13.0  atol=0.2  # 40 - 27 = 13
+
+    # Verify the hit point is inside the disk shell
+    hit_pos = [0.0, 0.0, 40.0] .+ [0.0, 0.0, -1.0] .* t_apex
+    @test is_inside(lde, hit_pos)
+
+    # Ray from side along -x at z=10: should hit the outer ellipsoid side
+    t_side = distance_to_entry([60.0, 0.0, 10.0], [-1.0, 0.0, 0.0], lde)
+    @test isfinite(t_side)
+    hit_side = [60.0, 0.0, 10.0] .+ [-1.0, 0.0, 0.0] .* t_side
+    @test is_inside(lde, hit_side)
+
+    # Ray missing: going away from disk
+    t_miss = distance_to_entry([0.0, 0.0, 40.0], [0.0, 0.0, 1.0], lde)
+    @test t_miss == Inf
+
+    # Ray below equator going down: misses :up disk
+    t_below = distance_to_entry([0.0, 0.0, -10.0], [0.0, 0.0, -1.0], lde)
+    @test t_below == Inf
+
+    # :down disk at z=0, 3:1 aspect ratio (like ICV bottom)
+    ldd = LDisk(Disk(50.0, 2.0, 3.0), [0.0, 0.0, 0.0], :down)
+    # Inner c = 50/3 ≈ 16.67, outer c ≈ 18.67
+    # Ray from below along +z toward nadir
+    c_outer_down = 50.0 / 3.0 + 2.0
+    t_nadir = distance_to_entry([0.0, 0.0, -30.0], [0.0, 0.0, 1.0], ldd)
+    @test t_nadir ≈ (30.0 - c_outer_down)  atol=0.2
+    hit_nadir = [0.0, 0.0, -30.0] .+ [0.0, 0.0, 1.0] .* t_nadir
+    @test is_inside(ldd, hit_nadir)
+
+    # Flat disk: R=50, t=2, pointing up
+    ldf = LDisk(Disk(50.0, 2.0, Inf), [0.0, 0.0, 10.0], :up)
+    # Ray from above along -z
+    t_flat = distance_to_entry([0.0, 0.0, 20.0], [0.0, 0.0, -1.0], ldf)
+    @test t_flat ≈ 10.0  atol=0.1  # hits z=10 face
+    @test is_inside(ldf, [0.0, 0.0, 20.0] .+ [0.0, 0.0, -1.0] .* t_flat)
+
 end
 
 
