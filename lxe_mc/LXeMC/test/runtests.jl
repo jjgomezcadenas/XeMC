@@ -1096,3 +1096,130 @@ end
         @test 0.0 <= u <= 1.0
     end
 end
+
+
+@testset "sample_barrel_point" begin
+    rng = MersenneTwister(42)
+    R = 82.1
+    z_min = 53.585 - 94.915
+    z_max = 53.585 + 94.915
+
+    for _ in 1:100
+        pos, normal = sample_barrel_point(R, z_min, z_max, rng)
+        # Position on barrel surface
+        r = sqrt(pos[1]^2 + pos[2]^2)
+        @test r ≈ R atol=1e-10
+        @test z_min <= pos[3] <= z_max
+        # Normal is unit vector pointing inward
+        @test sqrt(normal[1]^2 + normal[2]^2 + normal[3]^2) ≈ 1.0 atol=1e-10
+        @test normal[3] ≈ 0.0 atol=1e-10  # no z component
+        # Normal points inward (opposite to position radial direction)
+        @test normal[1] * pos[1] + normal[2] * pos[2] < 0.0
+    end
+end
+
+@testset "sample_cap_point" begin
+    rng = MersenneTwister(42)
+    R = 83.0
+    ar = 2.0
+    z_eq = 148.5
+
+    for _ in 1:100
+        pos, normal = sample_cap_point(R, ar, z_eq, :up, rng)
+        r = sqrt(pos[1]^2 + pos[2]^2)
+        @test r <= R + 1e-6
+        @test pos[3] >= z_eq - 1e-6  # above equator for :up
+        # Normal is unit vector
+        @test sqrt(normal[1]^2 + normal[2]^2 + normal[3]^2) ≈ 1.0 atol=1e-10
+        # Inward normal for :up cap points downward (z < 0)
+        @test normal[3] < 0.0
+    end
+
+    # :down cap
+    z_eq_bot = -41.33
+    for _ in 1:50
+        pos, normal = sample_cap_point(R, 3.0, z_eq_bot, :down, rng)
+        r = sqrt(pos[1]^2 + pos[2]^2)
+        @test r <= R + 1e-6
+        @test pos[3] <= z_eq_bot + 1e-6  # below equator for :down
+        # Inward normal for :down cap points upward (z > 0)
+        @test normal[3] > 0.0
+    end
+end
+
+@testset "reconstruct_direction" begin
+    rng = MersenneTwister(42)
+
+    # u=1 along normal → direction = normal
+    normal = Float64[0.0, 0.0, 1.0]
+    for _ in 1:50
+        dir = reconstruct_direction(1.0, normal, rng)
+        @test dir[3] ≈ 1.0 atol=1e-10
+        @test sqrt(dir[1]^2 + dir[2]^2 + dir[3]^2) ≈ 1.0 atol=1e-10
+    end
+
+    # u=0 → perpendicular to normal
+    for _ in 1:50
+        dir = reconstruct_direction(0.0, normal, rng)
+        @test abs(dir[3]) < 1e-10
+        @test sqrt(dir[1]^2 + dir[2]^2 + dir[3]^2) ≈ 1.0 atol=1e-10
+    end
+
+    # General normal: direction is unit vector
+    normal2 = Float64[-1.0 / sqrt(2.0), 0.0, -1.0 / sqrt(2.0)]
+    for _ in 1:50
+        dir = reconstruct_direction(0.5, normal2, rng)
+        @test sqrt(dir[1]^2 + dir[2]^2 + dir[3]^2) ≈ 1.0 atol=1e-10
+    end
+end
+
+@testset "sample_gamma_from_flux Bi214" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"]
+    ft = generate_flux_bi214(5_000, icv.volume, CFG, MersenneTwister(42))
+    rng = MersenneTwister(99)
+
+    R_inner = 82.1
+    z_min = 53.585 - 94.915
+    z_max = 53.585 + 94.915
+    barrel_sampler = rng -> sample_barrel_point(R_inner, z_min, z_max, rng)
+
+    for _ in 1:50
+        g = sample_gamma_from_flux(ft, barrel_sampler, rng)
+        @test g isa SampledGamma
+        @test ft.E_min <= g.E_MeV <= ft.E_max
+        @test length(g.position) == 3
+        @test length(g.direction) == 3
+        @test sqrt(sum(g.direction .^ 2)) ≈ 1.0 atol=1e-10
+    end
+end
+
+@testset "sample_gamma_from_flux Tl208" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"]
+    ft = generate_flux_tl208(5_000, icv.volume, CFG, MersenneTwister(42))
+    rng = MersenneTwister(99)
+
+    R_inner = 82.1
+    z_min = 53.585 - 94.915
+    z_max = 53.585 + 94.915
+    barrel_sampler = rng -> sample_barrel_point(R_inner, z_min, z_max, rng)
+
+    n_multi = 0
+    for _ in 1:100
+        gammas = sample_gamma_from_flux(ft, barrel_sampler, rng)
+        @test length(gammas) >= 1
+        @test length(gammas) <= 4
+
+        # All gammas share the same position (same decay location)
+        for g in gammas
+            @test g.position == gammas[1].position
+            @test sqrt(sum(g.direction .^ 2)) ≈ 1.0 atol=1e-10
+        end
+
+        length(gammas) > 1 && (n_multi += 1)
+    end
+    @test n_multi > 0
+end
