@@ -778,3 +778,50 @@ end
     @test sum(rate.component_rates) ≈ rate.total_rate atol=1e-10
 end
 
+@testset "load_source_geometry" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+
+    # All sources loaded
+    @test length(sg) >= 21
+
+    # ICV barrel
+    icv = sg["ICV_barrel"]
+    @test icv isa SourceVolumeInfo
+    @test icv.volume isa PCylShell
+    @test icv.material.name == "Ti"
+    @test icv.transport == :kn
+    @test icv.source_class == "shell_source"
+    @test icv.activity["Bi214_mBq_per_kg"] ≈ 0.08
+    @test icv.activity["Tl208_mBq_per_kg"] ≈ 0.22
+    @test icv.mass_kg > 0.0
+
+    # OCV top head
+    ocv_top = sg["OCV_top"]
+    @test ocv_top.volume isa PDisk
+    @test ocv_top.material.name == "Ti"
+    @test ocv_top.transport == :kn
+
+    # MLI is transparent virtual source with equivalent mass
+    mli = sg["MLI"]
+    @test mli.transport == :transparent
+    @test mli.source_class == "virtual_source"
+    @test mli.material.name == "Vacuum"
+    @test mli.mass_kg ≈ 13.8
+
+    # PMT sources are cylinders
+    pmt_top = sg["PMT_TOP_PMTs"]
+    @test pmt_top.volume isa PCyl
+    @test pmt_top.transport == :transparent
+    @test pmt_top.mass_kg ≈ 47.07
+
+    # Shell source mass computed from geometry
+    icv_geom_mass = mass(icv.volume) / 1000.0  # g -> kg
+    @test icv.mass_kg ≈ icv_geom_mass atol=0.1
+
+    # All sources have valid transport mode
+    for (name, sv) in sg
+        @test sv.transport in (:kn, :transparent)
+    end
+end
+

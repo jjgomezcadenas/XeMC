@@ -276,3 +276,93 @@ struct SourceRateTable
     total_rate::Float64               # sum of component_rates [gammas/sec]
 end
 
+
+# =====================================================================
+# Source volume loader
+# =====================================================================
+
+"""
+    SourceVolumeInfo
+
+Loaded source volume with geometry, material, activity, and transport metadata.
+Built by `load_source_geometry` from the source geometry JSON.
+"""
+struct SourceVolumeInfo
+    name::String
+    volume::PhysicalVolume
+    material::Material
+    activity::Dict{String,Float64}  # e.g. "Bi214_mBq_per_kg" => 0.08
+    mass_kg::Float64                # from geometry or equivalent_mass_kg
+    transport::Symbol               # :KN or :transparent
+    source_class::String            # "shell_source" or "virtual_source"
+    approximation::String
+end
+
+
+"""
+    load_source_geometry(path, materials) -> Dict{String, SourceVolumeInfo}
+
+Load source volumes from a source geometry JSON file. Builds a
+`PhysicalVolume` for each entry and computes mass from geometry
+(for shell sources) or from `equivalent_mass_kg` (for virtual sources).
+"""
+function load_source_geometry(path::AbstractString,
+                              materials::Dict{String,Material})::Dict{String,SourceVolumeInfo}
+    raw = open(path, "r") do io
+        JSON.parse(io)
+    end
+
+    result = Dict{String,SourceVolumeInfo}()
+    for d in raw["sources"]
+        name = String(d["name"])
+        mat_name = String(d["material"])
+        haskey(materials, mat_name) || error("Unknown material '$mat_name' for source '$name'")
+        mat = materials[mat_name]
+
+        shape = lowercase(String(d["shape"]))
+        pos = Float64.(d["position_cm"])
+
+        vol = if shape == "cylinder_shell"
+            solid = CylShell(Float64(d["R_inner_cm"]),
+                             Float64(d["wall_thickness_cm"]),
+                             Float64(d["half_height_cm"]))
+            PCylShell(name, LCylShell(solid, pos), mat)
+        elseif shape == "disk"
+            solid = Disk(Float64(d["radius_cm"]),
+                         Float64(d["wall_thickness_cm"]),
+                         Float64(get(d, "aspect_ratio", Inf)))
+            orient = Symbol(get(d, "orientation", "up"))
+            PDisk(name, LDisk(solid, pos, orient), mat)
+        elseif shape == "cylinder"
+            solid = Cyl(Float64(d["radius_cm"]),
+                        Float64(d["half_height_cm"]))
+            PCyl(name, LCyl(solid, pos), mat)
+        else
+            error("Unsupported source shape '$shape' for '$name'")
+        end
+
+        transport = Symbol(lowercase(String(d["transport_source"])))
+        source_class = String(d["source_class"])
+        approximation = String(get(d, "approximation", "exact"))
+
+        eq_mass = Float64(get(d, "equivalent_mass_kg", 0.0))
+        mass_kg = if eq_mass > 0.0
+            eq_mass
+        else
+            mass(vol) / 1000.0  # g -> kg
+        end
+
+        activity = Dict{String,Float64}()
+        raw_act = get(d, "activity", nothing)
+        if raw_act !== nothing
+            for (k, v) in raw_act
+                v !== nothing && (activity[String(k)] = Float64(v))
+            end
+        end
+
+        result[name] = SourceVolumeInfo(name, vol, mat, activity, mass_kg,
+                                        transport, source_class, approximation)
+    end
+    result
+end
+

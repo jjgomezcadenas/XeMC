@@ -112,6 +112,7 @@ export DecayGamma, DecayScheme, GammaEmission, SampledGamma
 export load_decays, sample_decay, sample_event, sample_gammas, sample_isotropic_direction
 export propagate_in_source, random_position_in_volume
 export SourceFlux, SourceFluxBi214, SourceFluxTl208, SourceRateTable
+export SourceVolumeInfo, load_source_geometry
 
 # --- Convenience paths ---
 """Path to the canonical detector-geometry JSON file."""
