@@ -146,6 +146,15 @@ def plot_statistics_table(stats: dict, indir: str, save: bool, display: bool):
         else:
             rows.append([label, "—"])
 
+    # SS and MS fractions among FV events
+    f_acc = float(stats.get("f_accepted", 0))
+    f_ms = float(stats.get("f_ms_rejected", 0))
+    f_fv = f_acc + f_ms
+    if f_fv > 0:
+        rows.append(["", ""])
+        rows.append(["SS fraction (in FV)", f"{f_acc / f_fv:.4f}"])
+        rows.append(["MS fraction (in FV)", f"{f_ms / f_fv:.4f}"])
+
     fig, ax = plt.subplots(figsize=(5, 3))
     ax.axis("off")
 
