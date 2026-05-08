@@ -19,13 +19,14 @@ Supported isotopes:
 """
 function dispatch_source_flux(source::String, isotope::String,
                                N::Int, sg::Dict{String,SourceVolumeInfo},
-                               cfg::SimConfig, rng::AbstractRNG)
+                               cfg::SimConfig, rng::AbstractRNG;
+                               verbose::Bool=false)
     if source == "cryostat_barrel"
-        result = cryostat_barrel_flux(N, sg, cfg, rng)
+        result = cryostat_barrel_flux(N, sg, cfg, rng; verbose=verbose)
     elseif source == "cryostat_top"
-        result = cryostat_top_flux(N, sg, cfg, rng)
+        result = cryostat_top_flux(N, sg, cfg, rng; verbose=verbose)
     elseif source == "cryostat_bottom"
-        result = cryostat_bottom_flux(N, sg, cfg, rng)
+        result = cryostat_bottom_flux(N, sg, cfg, rng; verbose=verbose)
     else
         error("Unknown source '$source'. Supported: cryostat_barrel, cryostat_top, cryostat_bottom")
     end

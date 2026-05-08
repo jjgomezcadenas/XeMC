@@ -55,22 +55,26 @@ Returns named tuple with component tables and summed rate tables.
 """
 function cryostat_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
                                cfg::SimConfig, rng::AbstractRNG;
-                               kwargs...)
+                               verbose::Bool=false, kwargs...)
     ocv = sg["OCV_barrel"]
     mli = sg["MLI"]
     icv = sg["ICV_barrel"]
     layers_icv = PhysicalVolume[icv.volume]
 
+    t0 = time()
     bi_ocv = generate_flux_compound_bi214(N, ocv.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
     tl_ocv = generate_flux_compound_tl208(N, ocv.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
+    verbose && @printf("  [barrel] OCV compound done (%.1fs)\n", time() - t0)
 
-    # MLI is transparent — gammas originate at ICV outer surface.
-    # Use ICV volume for propagation with MLI mass/activity for weighting.
+    t1 = time()
     bi_mli = generate_flux_bi214(N, icv.volume, cfg, rng; kwargs...)
     tl_mli = generate_flux_tl208(N, icv.volume, cfg, rng; kwargs...)
+    verbose && @printf("  [barrel] MLI done (%.1fs)\n", time() - t1)
 
+    t2 = time()
     bi_icv = generate_flux_bi214(N, icv.volume, cfg, rng; kwargs...)
     tl_icv = generate_flux_tl208(N, icv.volume, cfg, rng; kwargs...)
+    verbose && @printf("  [barrel] ICV done (%.1fs)\n", time() - t2)
 
     A_bi = "Bi214_mBq_per_kg"
     A_tl = "Tl208_mBq_per_kg"
@@ -101,16 +105,20 @@ Compute top head flux tables. Two contributing sources:
 """
 function cryostat_top_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
                             cfg::SimConfig, rng::AbstractRNG;
-                            kwargs...)
+                            verbose::Bool=false, kwargs...)
     ocv = sg["OCV_top"]
     icv = sg["ICV_top"]
     layers_icv = PhysicalVolume[icv.volume]
 
+    t0 = time()
     bi_ocv = generate_flux_compound_bi214(N, ocv.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
     tl_ocv = generate_flux_compound_tl208(N, ocv.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
+    verbose && @printf("  [top] OCV compound done (%.1fs)\n", time() - t0)
 
+    t1 = time()
     bi_icv = generate_flux_bi214(N, icv.volume, cfg, rng; kwargs...)
     tl_icv = generate_flux_tl208(N, icv.volume, cfg, rng; kwargs...)
+    verbose && @printf("  [top] ICV done (%.1fs)\n", time() - t1)
 
     A_bi = "Bi214_mBq_per_kg"
     A_tl = "Tl208_mBq_per_kg"
@@ -139,16 +147,20 @@ Compute bottom head flux tables. Two contributing sources:
 """
 function cryostat_bottom_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
                                cfg::SimConfig, rng::AbstractRNG;
-                               kwargs...)
+                               verbose::Bool=false, kwargs...)
     ocv = sg["OCV_bottom"]
     icv = sg["ICV_bottom"]
     layers_icv = PhysicalVolume[icv.volume]
 
+    t0 = time()
     bi_ocv = generate_flux_compound_bi214(N, ocv.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
     tl_ocv = generate_flux_compound_tl208(N, ocv.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
+    verbose && @printf("  [bottom] OCV compound done (%.1fs)\n", time() - t0)
 
+    t1 = time()
     bi_icv = generate_flux_bi214(N, icv.volume, cfg, rng; kwargs...)
     tl_icv = generate_flux_tl208(N, icv.volume, cfg, rng; kwargs...)
+    verbose && @printf("  [bottom] ICV done (%.1fs)\n", time() - t1)
 
     A_bi = "Bi214_mBq_per_kg"
     A_tl = "Tl208_mBq_per_kg"
