@@ -1223,3 +1223,94 @@ end
     end
     @test n_multi > 0
 end
+
+
+@testset "merge_flux_bi214" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"].volume
+
+    # Generate two halves with different seeds
+    ft1 = generate_flux_bi214(3_000, icv, CFG, MersenneTwister(10))
+    ft2 = generate_flux_bi214(3_000, icv, CFG, MersenneTwister(20))
+
+    merged = merge_flux_bi214([ft1, ft2])
+    @test merged.N_generated == ft1.N_generated + ft2.N_generated
+    @test merged.N_surviving == ft1.N_surviving + ft2.N_surviving
+    @test merged.N_absorbed == ft1.N_absorbed + ft2.N_absorbed
+    @test merged.N_backward == ft1.N_backward + ft2.N_backward
+    @test merged.N_low_energy == ft1.N_low_energy + ft2.N_low_energy
+    @test size(merged.pdf) == size(ft1.pdf)
+
+    # Weighted average: merged survival should be between the two
+    s1 = sum(ft1.pdf)
+    s2 = sum(ft2.pdf)
+    sm = sum(merged.pdf)
+    @test sm ≈ (s1 * ft1.N_generated + s2 * ft2.N_generated) / merged.N_generated atol=1e-12
+
+    # Single-element merge is identity
+    single = merge_flux_bi214([ft1])
+    @test single === ft1
+end
+
+@testset "merge_flux_tl208" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"].volume
+
+    ft1 = generate_flux_tl208(3_000, icv, CFG, MersenneTwister(10))
+    ft2 = generate_flux_tl208(3_000, icv, CFG, MersenneTwister(20))
+
+    merged = merge_flux_tl208([ft1, ft2])
+    @test merged.N_generated == ft1.N_generated + ft2.N_generated
+    @test merged.N_surviving_main == ft1.N_surviving_main + ft2.N_surviving_main
+    @test merged.N_absorbed_main == ft1.N_absorbed_main + ft2.N_absorbed_main
+    @test size(merged.pdf_main) == size(ft1.pdf_main)
+    @test length(merged.pdf_companion) == 3
+
+    # Main PDF weighted average
+    s1 = sum(ft1.pdf_main)
+    s2 = sum(ft2.pdf_main)
+    sm = sum(merged.pdf_main)
+    @test sm ≈ (s1 * ft1.N_generated + s2 * ft2.N_generated) / merged.N_generated atol=1e-12
+
+    # Companion survival fractions are weighted averages
+    for ic in 1:3
+        expected = (ft1.companion_f[ic] * ft1.N_generated + ft2.companion_f[ic] * ft2.N_generated) / merged.N_generated
+        @test merged.companion_f[ic] ≈ expected atol=1e-12
+    end
+
+    # Single-element merge is identity
+    single = merge_flux_tl208([ft1])
+    @test single === ft1
+end
+
+@testset "write_pdf_csv round-trip" begin
+    n_E, n_u = 5, 3
+    pdf = rand(MersenneTwister(42), n_E, n_u)
+    E_min, E_max = 2.2, 2.5
+    path = joinpath(tempdir(), "test_pdf_roundtrip.csv")
+
+    write_pdf_csv(path, pdf, E_min, E_max, n_E, n_u)
+
+    # Read back and verify
+    lines = readlines(path)
+    @test length(lines) == n_E + 1  # header + data rows
+
+    # Header has n_u + 1 columns (E_MeV + u bins)
+    header_cols = split(lines[1], ",")
+    @test length(header_cols) == n_u + 1
+    @test header_cols[1] == "E_MeV"
+
+    # Check data values
+    for i in 1:n_E
+        cols = split(lines[i+1], ",")
+        @test length(cols) == n_u + 1
+        for j in 1:n_u
+            val = parse(Float64, cols[j+1])
+            @test val ≈ pdf[i, j] atol=1e-6
+        end
+    end
+
+    rm(path)
+end
