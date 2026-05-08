@@ -276,9 +276,25 @@ function main()
 
     @threads for tid in 1:nt
         rng = MersenneTwister(cli.seed + tid)
-        thread_results[tid] = process_batch(flux, surface_sampler, fk, fv,
-                                             cfg, rng, N_per_thread, cli.isotope)
-        tid == 1 && @printf("  Thread 1 done (%.1fs)\n", time() - t1)
+        if tid == 1
+            # Thread 1: run in 10 sub-batches with progress
+            n_chunks = 10
+            chunk_size = cld(N_per_thread, n_chunks)
+            sub_results = ThreadResult[]
+            for chunk in 1:n_chunks
+                n_this = min(chunk_size, N_per_thread - (chunk - 1) * chunk_size)
+                n_this <= 0 && break
+                push!(sub_results, process_batch(flux, surface_sampler, fk, fv,
+                                                  cfg, rng, n_this, cli.isotope))
+                done = min(chunk * chunk_size, N_per_thread)
+                @printf("  Progress: %d/%d (%.0f%%) [%.1fs]\n",
+                        done, N_per_thread, 100.0 * done / N_per_thread, time() - t1)
+            end
+            thread_results[tid] = merge_thread_results(sub_results)
+        else
+            thread_results[tid] = process_batch(flux, surface_sampler, fk, fv,
+                                                 cfg, rng, N_per_thread, cli.isotope)
+        end
     end
 
     merged = merge_thread_results(thread_results)
