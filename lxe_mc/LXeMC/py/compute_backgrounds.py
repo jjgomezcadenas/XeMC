@@ -259,6 +259,88 @@ def main():
     else:
         plt.close(fig)
 
+    # --- Summary table figure ---
+    fwhm_keV = 2.355 * sigma_keV
+    fv_R = 39.0  # cm
+    fv_z_lo = 26.0  # cm
+    fv_z_hi = 96.0  # cm
+    fv_height = fv_z_hi - fv_z_lo
+    fv_mass_kg = 2.953 * np.pi * (fv_R / 100)**2 * (fv_height / 100) * 1000  # kg
+
+    rows = [
+        ["Source", source],
+        ["Isotope", isotope],
+        ["FV radius", f"{fv_R:.1f} cm"],
+        ["FV z range", f"[{fv_z_lo:.1f}, {fv_z_hi:.1f}] cm"],
+        ["FV mass", f"{fv_mass_kg:.1f} kg"],
+        ["", ""],
+        ["Sigma", f"{sigma_keV:.1f} keV"],
+        ["FWHM", f"{fwhm_keV:.1f} keV"],
+        ["ROI window", f"Q_bb +/- {roi_keV:.1f} keV"],
+        ["ROI range", f"[{roi_lo*1000:.1f}, {roi_hi*1000:.1f}] keV"],
+        ["", ""],
+        ["Gamma flux (ICV surface)", f"{gamma_rate:.4e} gammas/s"],
+        ["Gammas per year", f"{gammas_per_year:.4e}"],
+        ["", ""],
+        ["N sampled", f"{N_sampled:,}"],
+        ["N reaching FV (SS+MS)", f"{n_fv_total:,}"],
+        ["N single-site (SS)", f"{n_accepted_ss:,}"],
+        ["N multi-site (MS)", f"{n_ms_rejected:,}"],
+        ["SS fraction in FV", f"{ss_fraction_in_fv:.4f}"],
+        ["", ""],
+        ["BG in FV", f"{bg_fv_per_year:.4e} events/yr"],
+        ["BG SS", f"{bg_ss_per_year:.4e} events/yr"],
+        ["BG MS", f"{bg_ms_per_year:.4e} events/yr"],
+        ["N SS in ROI (smeared)", f"{n_roi:,}"],
+        ["BG SS in ROI", f"{bg_roi_per_year:.4e} events/yr"],
+    ]
+
+    fig2, ax = plt.subplots(figsize=(7, 9))
+    ax.axis("off")
+
+    table = ax.table(
+        cellText=rows,
+        colLabels=["Quantity", "Value"],
+        cellLoc="left",
+        colLoc="left",
+        loc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.0, 1.35)
+
+    # Style header
+    for j in range(2):
+        cell = table[0, j]
+        cell.set_facecolor("#4472C4")
+        cell.set_text_props(color="white", fontweight="bold")
+
+    # Alternate row colors, highlight separator rows
+    for i in range(len(rows)):
+        for j in range(2):
+            cell = table[i + 1, j]
+            if rows[i][0] == "":
+                cell.set_facecolor("#F2F2F2")
+                cell.set_edgecolor("#F2F2F2")
+            elif rows[i][0].startswith("BG SS in ROI"):
+                cell.set_facecolor("#FFF2CC")
+                cell.set_text_props(fontweight="bold")
+            else:
+                cell.set_facecolor("#D9E2F3" if i % 2 == 0 else "white")
+
+    fig2.suptitle(f"{source} / {isotope} — Background Summary",
+                  fontsize=13, fontweight="bold")
+    fig2.tight_layout(rect=[0, 0, 1, 0.96])
+
+    if opts["save"]:
+        outpath2 = os.path.join(opts["bgdir"], "background_table.png")
+        fig2.savefig(outpath2, dpi=150, bbox_inches="tight")
+        print(f"Saved: {outpath2}")
+    if opts["display"]:
+        plt.show()
+    else:
+        plt.close(fig2)
+
 
 if __name__ == "__main__":
     main()
