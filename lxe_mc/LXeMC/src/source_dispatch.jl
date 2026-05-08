@@ -133,3 +133,38 @@ List of currently supported isotope identifiers.
 function supported_isotopes()::Vector{String}
     ["Bi214", "Tl208"]
 end
+
+
+"""
+    make_surface_sampler(source, sg) -> Function
+
+Return a surface sampler function `rng -> (position, normal)` for the
+given source. The sampler places gammas on the ICV inner surface
+appropriate for the source geometry.
+"""
+function make_surface_sampler(source::String,
+                               sg::Dict{String,SourceVolumeInfo})::Function
+    if source == "cryostat_barrel"
+        icv = sg["ICV_barrel"]
+        s = icv.volume.logical.solid
+        c = icv.volume.logical.position
+        R_inner = s.R_inner_cm
+        z_min = c[3] - s.half_height_cm
+        z_max = c[3] + s.half_height_cm
+        return rng -> sample_barrel_point(R_inner, z_min, z_max, rng)
+    elseif source == "cryostat_top"
+        icv = sg["ICV_top"]
+        s = icv.volume.logical.solid
+        c = icv.volume.logical.position
+        return rng -> sample_cap_point(s.radius_cm, s.aspect_ratio,
+                                        c[3], :up, rng)
+    elseif source == "cryostat_bottom"
+        icv = sg["ICV_bottom"]
+        s = icv.volume.logical.solid
+        c = icv.volume.logical.position
+        return rng -> sample_cap_point(s.radius_cm, s.aspect_ratio,
+                                        c[3], :down, rng)
+    else
+        error("No surface sampler for source '$source'")
+    end
+end
