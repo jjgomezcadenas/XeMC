@@ -46,7 +46,8 @@ include("geometry.jl")
 include("sampling.jl")
 include("tracking.jl")
 include("decays.jl")
-include("source.jl")
+include("source_propagation.jl")
+include("source_flux.jl")
 include("cryostat_sources.jl")
 
 # --- Config ---
