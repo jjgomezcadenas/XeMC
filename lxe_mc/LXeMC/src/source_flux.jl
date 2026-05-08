@@ -225,7 +225,7 @@ Gammas that degrade below `E_min` are counted as `N_low_energy`.
 function generate_flux_bi214(N::Int, source_vol::PhysicalVolume,
                               cfg::SimConfig, rng::AbstractRNG;
                               E_gamma::Float64=2.448,
-                              E_min::Float64=2.200, E_max::Float64=2.500,
+                              E_min::Float64=2.200, E_max::Float64=2.458,
                               n_E::Int=25, n_u::Int=10)::SourceFluxBi214
     dE = (E_max - E_min) / n_E
     counts = zeros(Int, n_E, n_u)
@@ -286,12 +286,12 @@ for the ROI. Companion energy windows are set independently.
 function generate_flux_tl208(N::Int, source_vol::PhysicalVolume,
                               cfg::SimConfig, rng::AbstractRNG;
                               E_main::Float64=2.615,
-                              E_min_main::Float64=2.200, E_max_main::Float64=2.620,
+                              E_min_main::Float64=2.200, E_max_main::Float64=2.625,
                               n_E_main::Int=25,
                               companion_lines::Vector{Float64}=Float64[0.583, 0.511, 0.861],
                               companion_BRs::Vector{Float64}=Float64[0.85, 0.23, 0.12],
                               E_min_comp::Vector{Float64}=Float64[0.400, 0.350, 0.700],
-                              E_max_comp::Vector{Float64}=Float64[0.650, 0.600, 0.950],
+                              E_max_comp::Vector{Float64}=Float64[0.593, 0.521, 0.871],
                               n_E_comp::Vector{Int}=Int[25, 25, 25],
                               n_u::Int=10)::SourceFluxTl208
     n_comp = length(companion_lines)
@@ -425,7 +425,7 @@ function generate_flux_compound_bi214(N::Int, source_vol::PhysicalVolume,
                                        exit_vol::PhysicalVolume,
                                        cfg::SimConfig, rng::AbstractRNG;
                                        E_gamma::Float64=2.448,
-                                       E_min::Float64=2.200, E_max::Float64=2.500,
+                                       E_min::Float64=2.200, E_max::Float64=2.458,
                                        n_E::Int=25, n_u::Int=10)::SourceFluxBi214
     dE = (E_max - E_min) / n_E
     counts = zeros(Int, n_E, n_u)
@@ -496,12 +496,12 @@ function generate_flux_compound_tl208(N::Int, source_vol::PhysicalVolume,
                                        exit_vol::PhysicalVolume,
                                        cfg::SimConfig, rng::AbstractRNG;
                                        E_main::Float64=2.615,
-                                       E_min_main::Float64=2.200, E_max_main::Float64=2.620,
+                                       E_min_main::Float64=2.200, E_max_main::Float64=2.625,
                                        n_E_main::Int=25,
                                        companion_lines::Vector{Float64}=Float64[0.583, 0.511, 0.861],
                                        companion_BRs::Vector{Float64}=Float64[0.85, 0.23, 0.12],
                                        E_min_comp::Vector{Float64}=Float64[0.400, 0.350, 0.700],
-                                       E_max_comp::Vector{Float64}=Float64[0.650, 0.600, 0.950],
+                                       E_max_comp::Vector{Float64}=Float64[0.593, 0.521, 0.871],
                                        n_E_comp::Vector{Int}=Int[25, 25, 25],
                                        n_u::Int=10)::SourceFluxTl208
     n_comp = length(companion_lines)
