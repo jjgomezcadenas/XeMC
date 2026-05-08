@@ -48,6 +48,7 @@ include("tracking.jl")
 include("decays.jl")
 include("source_propagation.jl")
 include("source_flux.jl")
+include("source_sampling.jl")
 include("cryostat_sources.jl")
 
 # --- Config ---
@@ -119,6 +120,7 @@ export generate_flux_bi214, generate_flux_tl208
 export propagate_through_layers
 export generate_flux_compound_bi214, generate_flux_compound_tl208
 export cryostat_barrel_flux, cryostat_top_flux, cryostat_bottom_flux
+export sample_from_flux, sample_from_rate_table
 
 # --- Convenience paths ---
 """Path to the canonical detector-geometry JSON file."""

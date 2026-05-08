@@ -1037,3 +1037,62 @@ end
     @test result.bi214_rate.component_names == ["OCV_bottom", "ICV_bottom"]
     @test result.bi214_rate.total_rate ≈ sum(result.bi214_rate.component_rates) atol=1e-15
 end
+
+
+@testset "sample_from_flux Bi214" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"]
+    ft = generate_flux_bi214(5_000, icv.volume, CFG, MersenneTwister(42))
+    rng = MersenneTwister(99)
+
+    for _ in 1:100
+        E, u = sample_from_flux(ft, rng)
+        @test ft.E_min <= E <= ft.E_max
+        @test 0.0 <= u <= 1.0
+    end
+end
+
+@testset "sample_from_flux Tl208" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"]
+    ft = generate_flux_tl208(5_000, icv.volume, CFG, MersenneTwister(42))
+    rng = MersenneTwister(99)
+
+    n_with_companion = 0
+    for _ in 1:200
+        gammas = sample_from_flux(ft, rng)
+        @test length(gammas) >= 1
+        @test length(gammas) <= 4
+
+        # Main gamma in range
+        E_main, u_main = gammas[1]
+        @test ft.E_min_main <= E_main <= ft.E_max_main
+        @test 0.0 <= u_main <= 1.0
+
+        # Companions have valid u
+        for j in 2:length(gammas)
+            _, u_c = gammas[j]
+            @test 0.0 <= u_c <= 1.0
+        end
+
+        length(gammas) > 1 && (n_with_companion += 1)
+    end
+
+    # Should get some companions
+    @test n_with_companion > 0
+end
+
+@testset "sample_from_rate_table" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    result = cryostat_barrel_flux(2_000, sg, CFG, MersenneTwister(42))
+    rng = MersenneTwister(99)
+
+    for _ in 1:100
+        E, u = sample_from_rate_table(result.bi214_rate, rng)
+        @test result.bi214_rate.E_min <= E <= result.bi214_rate.E_max
+        @test 0.0 <= u <= 1.0
+    end
+end
