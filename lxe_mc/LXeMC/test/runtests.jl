@@ -599,15 +599,19 @@ end
     t_apex = distance_to_entry([0.0, 0.0, 40.0], [0.0, 0.0, -1.0], lde)
     @test t_apex ≈ 13.0  atol=0.2  # 40 - 27 = 13
 
-    # Verify the hit point is inside the disk shell
+    # Verify the hit point is inside the disk shell, and just before is outside
     hit_pos = [0.0, 0.0, 40.0] .+ [0.0, 0.0, -1.0] .* t_apex
     @test is_inside(lde, hit_pos)
+    before_pos = [0.0, 0.0, 40.0] .+ [0.0, 0.0, -1.0] .* (t_apex - 0.5)
+    @test !is_inside(lde, before_pos)
 
     # Ray from side along -x at z=10: should hit the outer ellipsoid side
     t_side = distance_to_entry([60.0, 0.0, 10.0], [-1.0, 0.0, 0.0], lde)
     @test isfinite(t_side)
     hit_side = [60.0, 0.0, 10.0] .+ [-1.0, 0.0, 0.0] .* t_side
     @test is_inside(lde, hit_side)
+    before_side = [60.0, 0.0, 10.0] .+ [-1.0, 0.0, 0.0] .* (t_side - 0.5)
+    @test !is_inside(lde, before_side)
 
     # Ray missing: going away from disk
     t_miss = distance_to_entry([0.0, 0.0, 40.0], [0.0, 0.0, 1.0], lde)
@@ -626,13 +630,19 @@ end
     @test t_nadir ≈ (30.0 - c_outer_down)  atol=0.2
     hit_nadir = [0.0, 0.0, -30.0] .+ [0.0, 0.0, 1.0] .* t_nadir
     @test is_inside(ldd, hit_nadir)
+    before_nadir = [0.0, 0.0, -30.0] .+ [0.0, 0.0, 1.0] .* (t_nadir - 0.5)
+    @test !is_inside(ldd, before_nadir)
 
     # Flat disk: R=50, t=2, pointing up
     ldf = LDisk(Disk(50.0, 2.0, Inf), [0.0, 0.0, 10.0], :up)
     # Ray from above along -z
     t_flat = distance_to_entry([0.0, 0.0, 20.0], [0.0, 0.0, -1.0], ldf)
     @test t_flat ≈ 10.0  atol=0.1  # hits z=10 face
-    @test is_inside(ldf, [0.0, 0.0, 20.0] .+ [0.0, 0.0, -1.0] .* t_flat)
+    hit_flat = [0.0, 0.0, 20.0] .+ [0.0, 0.0, -1.0] .* t_flat
+    @test is_inside(ldf, hit_flat)
+    # Point before hit is above the slab (z > 12), so outside
+    before_flat = [0.0, 0.0, 20.0] .+ [0.0, 0.0, -1.0] .* (t_flat * 0.5)
+    @test !is_inside(ldf, before_flat)
 
 end
 
