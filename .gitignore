@@ -12,3 +12,8 @@ lxe_mc/LXeMC/design/latex/*.aux
 lxe_mc/LXeMC/design/latex/*.log
 lxe_mc/LXeMC/design/latex/*.pdf
 lxe_mc/LXeMC/design/latex/*.synctex.gz
+lxe_mc/LXeMC/design/*.aux
+lxe_mc/LXeMC/design/*.log
+lxe_mc/LXeMC/design/*.out
+lxe_mc/LXeMC/design/*.synctex.gz
+lxe_mc/LXeMC/design/*.pdf
