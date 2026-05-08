@@ -76,8 +76,8 @@
             "equivalent_mass_kg": 13.8,
             "approximation": "mass_equivalent_shell",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 11.1,
+                "Tl208_mBq_per_kg": 7.79
             }
         },
         {
@@ -137,39 +137,39 @@
             }
         },
         {
-            "_doc": "TPC PTFE walls source. Real PTFE source and KN source-side transport. Tracking-consistent z extent from cathode to gate.",
+            "_doc": "TPC PTFE walls source. Real PTFE source and KN source-side transport. Source z extends through the full FC envelope (drift + RFR, z=[-13.75, 145.6]) — wider than the tracking FC_PTFE (drift only) on purpose, so RFR-emitted gammas are sampled and source-side KN self-shielding handles their long grazing paths. wall_thickness 1.147 cm back-derived from bb0nu 184 kg / (rho_PTFE x 2pi x R x H) so geometric mass matches the measured PTFE total.",
             "name": "FC_PTFE",
             "shape": "cylinder_shell",
             "R_inner_cm": 72.8,
-            "wall_thickness_cm": 1.5,
-            "half_height_cm": 72.8,
-            "position_cm": [0.0, 0.0, 72.8],
+            "wall_thickness_cm": 1.147,
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
             "material": "PTFE",
             "source_class": "shell_source",
             "transport_source": "KN",
             "equivalent_mass_kg": 0.0,
             "approximation": "exact",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 0.04,
+                "Tl208_mBq_per_kg": 0.01
             }
         },
         {
-            "_doc": "Field-cage titanium rings source. Real internal Ti source and KN source-side transport. Tracking-consistent z extent from cathode to gate.",
+            "_doc": "Field-cage titanium rings source. Real internal Ti source and KN source-side transport. Source z extends through the full FC envelope (drift + RFR, z=[-13.75, 145.6]) — wider than the tracking FC_rings (drift only) on purpose. wall_thickness 0.277 cm was already back-derived from bb0nu 93 kg over the full envelope, so geometric mass = 93 kg here and approximation can be exact.",
             "name": "FC_rings",
             "shape": "cylinder_shell",
             "R_inner_cm": 74.3,
             "wall_thickness_cm": 0.277,
-            "half_height_cm": 72.8,
-            "position_cm": [0.0, 0.0, 72.8],
+            "half_height_cm": 79.675,
+            "position_cm": [0.0, 0.0, 65.925],
             "material": "Ti",
             "source_class": "shell_source",
             "transport_source": "KN",
             "equivalent_mass_kg": 0.0,
-            "approximation": "mass_equivalent_shell",
+            "approximation": "exact",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 0.35,
+                "Tl208_mBq_per_kg": 0.24
             }
         },
         {
@@ -186,8 +186,8 @@
             "equivalent_mass_kg": 0.06,
             "approximation": "mass_equivalent_shell",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 1350.0,
+                "Tl208_mBq_per_kg": 2010.0
             }
         },
         {
@@ -204,8 +204,8 @@
             "equivalent_mass_kg": 5.02,
             "approximation": "mass_equivalent_shell",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 5.82,
+                "Tl208_mBq_per_kg": 1.88
             }
         },
         {
@@ -222,8 +222,8 @@
             "equivalent_mass_kg": 44.55,
             "approximation": "mass_equivalent_slab",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 2.63,
+                "Tl208_mBq_per_kg": 1.46
             }
         },
         {
@@ -240,8 +240,8 @@
             "equivalent_mass_kg": 22.275,
             "approximation": "mass_equivalent_slab",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 2.63,
+                "Tl208_mBq_per_kg": 1.46
             }
         },
         {
@@ -257,8 +257,8 @@
             "equivalent_mass_kg": 47.07,
             "approximation": "mass_equivalent_disk",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 3.22,
+                "Tl208_mBq_per_kg": 1.61
             }
         },
         {
@@ -274,8 +274,8 @@
             "equivalent_mass_kg": 1.434,
             "approximation": "mass_equivalent_disk",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 75.9,
+                "Tl208_mBq_per_kg": 33.1
             }
         },
         {
@@ -291,8 +291,8 @@
             "equivalent_mass_kg": 83.0,
             "approximation": "mass_equivalent_disk",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 1.60,
+                "Tl208_mBq_per_kg": 1.06
             }
         },
         {
@@ -308,8 +308,8 @@
             "equivalent_mass_kg": 44.83,
             "approximation": "mass_equivalent_disk",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 3.22,
+                "Tl208_mBq_per_kg": 1.61
             }
         },
         {
@@ -325,8 +325,8 @@
             "equivalent_mass_kg": 1.366,
             "approximation": "mass_equivalent_disk",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 75.9,
+                "Tl208_mBq_per_kg": 33.1
             }
         },
         {
@@ -342,8 +342,8 @@
             "equivalent_mass_kg": 83.0,
             "approximation": "mass_equivalent_disk",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 1.60,
+                "Tl208_mBq_per_kg": 1.06
             }
         },
         {
@@ -359,8 +359,8 @@
             "equivalent_mass_kg": 1.18,
             "approximation": "mass_equivalent_disk",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 46.0,
+                "Tl208_mBq_per_kg": 14.9
             }
         },
         {
@@ -377,8 +377,8 @@
             "equivalent_mass_kg": 88.7,
             "approximation": "mass_equivalent_shell",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 4.31,
+                "Tl208_mBq_per_kg": 0.82
             }
         },
         {
@@ -395,8 +395,8 @@
             "equivalent_mass_kg": 6.10,
             "approximation": "mass_equivalent_shell",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 46.0,
+                "Tl208_mBq_per_kg": 14.9
             }
         },
         {
@@ -413,8 +413,8 @@
             "equivalent_mass_kg": 1.31,
             "approximation": "mass_equivalent_shell",
             "activity": {
-                "Bi214_mBq_per_kg": null,
-                "Tl208_mBq_per_kg": null
+                "Bi214_mBq_per_kg": 46.0,
+                "Tl208_mBq_per_kg": 14.9
             }
         }
     ]

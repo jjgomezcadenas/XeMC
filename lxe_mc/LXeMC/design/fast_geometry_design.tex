@@ -1,0 +1,416 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!50!black,
+  citecolor=blue!50!black
+}
+
+\title{Fast Geometry and Staged Transport for Large LXe TPC Simulation}
+\author{LXeMC Design Note}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note documents the current design of the LXeMC detector and transport
+model, using the LZ detector as a concrete example of a large liquid-xenon
+time projection chamber (LXe TPC). The design goal is not maximal generality.
+The goal is to simulate very large event samples quickly while retaining the
+physics that matters for rejection and classification. The resulting approach is
+a staged simulation: a specialized fast kernel performs most of the transport
+outside the fiducial volume (FV), where most events are rejected quickly, while
+a full photon/electron stack is retained only inside the FV, where detailed
+single-site versus multi-site behavior matters.
+\end{abstract}
+
+\section{Introduction}
+
+Large LXe TPCs are designed to reject backgrounds aggressively. In a detector
+such as LZ, most external gammas are rejected by active veto regions before they
+reach the fiducial volume. This observation drives the central design choice of
+the present simulation: the transport outside the FV should be optimized for
+speed and early rejection, while the transport inside the FV should preserve the
+detailed cascade structure needed for event topology studies.
+
+The code therefore does not attempt to use one uniform transport model
+everywhere. Instead, it exploits the detector semantics directly. Outside the
+FV, the simulation only needs enough geometry and physics to decide whether a
+gamma is vetoed, absorbed in passive material, or survives into the FV. Inside
+the FV, the simulation keeps the full stack of photons and charged particles
+because the event classification depends on the spatial pattern of energy
+depositions.
+
+\section{Problem Statement}
+
+The practical task is to simulate a very large number of gamma events in a large
+LXe detector. In the intended use case, the number of events is so large that a
+uniform full simulation everywhere in the detector is too expensive. This is not
+primarily a software-engineering inconvenience; it is a physics-rate problem.
+The simulation must be fast enough to process event counts large enough to
+support background studies at the level of interest.
+
+The immediate consequence is that the dominant cost must be spent only on the
+small subset of trajectories that can still affect the final physics observable.
+Any cost spent on fully tracking obviously rejected events is wasted.
+
+\section{Constraints and Boundary Conditions}
+
+The design is shaped by the following constraints.
+
+\begin{enumerate}[label=\arabic*.]
+\item \textbf{Speed is dominant.} The simulation must run at the level of
+millions of events per second on representative benchmark configurations.
+
+\item \textbf{Most events are rejected early.} For many source configurations,
+gammas are vetoed in active xenon outside the FV, absorbed in passive material,
+or degraded to energies irrelevant for the region of interest.
+
+\item \textbf{Detailed transport is only needed locally.} The expensive part of
+the physics---full photon/electron cascades and cluster structure---matters
+primarily inside the FV.
+
+\item \textbf{The detector partition is physically meaningful.} The geometry is
+not arbitrary. It should reflect the detector regions that carry distinct
+transport or classification meaning.
+\end{enumerate}
+
+\section{Design Philosophy}
+
+The design is based on a simple principle: use detector semantics to reduce the
+cost of transport.
+
+The detector is partitioned into regions that matter for either material
+transport or event classification. The transport kernel is then compiled
+\emph{ad hoc} from that partition. This is intentionally specialized. The
+detector geometry is not interpreted as a fully generic tree at runtime in the
+hot path. Instead, the canonical geometry is loaded once and transformed into a
+compact fast-kernel representation with explicit scalar region parameters.
+
+This leads to three consequences.
+
+\begin{enumerate}[label=\arabic*.]
+\item The geometry used by the fast kernel is chosen for speed rather than for
+maximal abstraction.
+
+\item The detector partition is explicit and canonical. It is not inferred
+dynamically from overlapping semantic flags at runtime.
+
+\item The full transport stack is retained only where the physics demands it,
+namely inside the FV.
+\end{enumerate}
+
+\section{Simulation Strategy}
+
+The current simulation strategy has three stages.
+
+\subsection{Fast rejection}
+
+The first goal is to reject events as soon as they become irrelevant. If a gamma
+deposits visible energy above the veto threshold in the active xenon outside the
+FV, the event is rejected immediately. If a gamma degrades below the configured
+ROI floor in passive material, it is terminated locally because it can no longer
+produce an FV event in the energy region of interest.
+
+\subsection{Fast transport outside the FV}
+
+Outside the FV, a specialized fast kernel handles gamma transport using a small
+set of canonical detector regions. This kernel performs:
+
+\begin{itemize}
+\item point classification into canonical detector regions,
+\item analytic distance-to-boundary calculations,
+\item material-aware interaction sampling,
+\item immediate veto and ROI-floor decisions.
+\end{itemize}
+
+This stage is optimized for the common case in which the gamma is rejected or
+absorbed before it can matter to the final physics analysis.
+
+\subsection{Full transport inside the FV}
+
+If a gamma survives into the FV, the fast kernel hands off its state to a
+full photon/electron transport stack restricted to the FV geometry. This stack
+retains:
+
+\begin{itemize}
+\item photon propagation,
+\item lepton propagation,
+\item secondaries through the particle stack,
+\item deposit clustering relevant to event topology.
+\end{itemize}
+
+Inside the FV, the geometry is simple: a homogeneous LXe cylinder bounded by the
+fiducial radial and longitudinal cuts. The expensive part is therefore not the
+geometric navigation but the cascade physics itself.
+
+\section{Current Status and Benchmark}
+
+The current code implements the staged architecture described above.
+
+\begin{itemize}
+\item The canonical detector geometry is defined explicitly in
+\texttt{detector\_lz\_v3.json}.
+\item The fast kernel uses the canonical detector partition outside the FV.
+\item The FV transport uses a dedicated \texttt{FVGeometry} plus a full
+particle stack.
+\item The legacy flat-detector workflow has been removed from the canonical
+code path.
+\end{itemize}
+
+Representative benchmarks place the simulation in the target regime of roughly
+$10^6$ events per second for the fast calibration workflow, with exact values
+depending on source position and direction. Configurations aimed directly toward
+the FV are naturally slower than configurations rejected promptly in outer veto
+regions, but the code remains in the intended high-throughput regime.
+
+\section{Geometry Model}
+
+\subsection{Shared geometric primitives}
+
+The file \texttt{geometry\_core.jl} contains the shared shape and wrapper layer.
+It provides:
+
+\begin{itemize}
+\item primitive solids:
+  \texttt{Cyl}, \texttt{CylShell}, \texttt{Box}, \texttt{Disk},
+  \texttt{Cap}, \texttt{DomedContainer}, \texttt{CappedCylinder};
+\item logical wrappers:
+  \texttt{LCyl}, \texttt{LCylShell}, \texttt{LBox}, \texttt{LDisk};
+\item materialized wrappers:
+  \texttt{PhysicalVolume}, \texttt{PCyl}, \texttt{PCylShell},
+  \texttt{PBox}, \texttt{PDisk};
+\item common geometric operations such as containment tests, masses, and
+ray entry/exit distances.
+\end{itemize}
+
+These are general geometry tools. They are not tied to the fast kernel or to the
+FV stack specifically.
+
+\subsection{Canonical detector geometry}
+
+The file \texttt{geometry.jl} now contains the canonical detector geometry
+representation. It loads the tracking detector from JSON into a tree of
+\texttt{TrackingDetector} nodes, with explicit region semantics and geometry.
+
+The canonical LZ tracking geometry is partitioned into the following regions:
+
+\begin{itemize}
+\item \texttt{AirDome}
+\item \texttt{LXe\_passive}
+\item \texttt{TopActive}
+\item \texttt{BarrelActive}
+\item \texttt{BottomActive}
+\item \texttt{FV}
+\item \texttt{Skin}
+\item \texttt{FC\_PTFE}
+\item \texttt{FC\_rings}
+\end{itemize}
+
+This partition is exhaustive for the intended detector model and reflects the
+physics logic directly.
+
+\subsection{Meaning of the canonical regions}
+
+\begin{description}[leftmargin=2.0cm,style=nextline]
+\item[\texttt{AirDome}] Gas region above the liquid xenon.
+\item[\texttt{LXe\_passive}] Passive liquid xenon outside the active veto
+regions and below the cathode.
+\item[\texttt{TopActive}] Active xenon cylinder between the gate and the top of
+the FV.
+\item[\texttt{BarrelActive}] Active xenon shell around the FV over the FV
+longitudinal span.
+\item[\texttt{BottomActive}] Active xenon cylinder between the bottom of the FV
+and the cathode.
+\item[\texttt{FV}] Fiducial xenon volume used for event selection and topology.
+\item[\texttt{Skin}] Active xenon skin outside the field-cage region.
+\item[\texttt{FC\_PTFE}] PTFE part of the field cage.
+\item[\texttt{FC\_rings}] Titanium ring part of the field cage.
+\end{description}
+
+\subsection{Source geometry}
+
+The source geometry is described in a separate JSON file from the detector
+tracking geometry. The separation is by \emph{contents}, not by dimensions:
+
+\begin{itemize}
+\item Source geometry hosts radioactive emission locations and source-side
+      transport. It includes the cryostat Ti shells, MLI insulation, and the
+      PMT structures whose effect is absorbed into the source-flux step before
+      tracking begins.
+\item Tracking geometry contains only what affects per-step photon transport
+      after the source-flux step: the detector envelope, sensitive LXe regions,
+      veto regions, and the field-cage structures that obstruct photons in
+      transit.
+\end{itemize}
+
+When a volume appears in both files (\texttt{FC\_PTFE}, \texttt{FC\_rings},
+\texttt{Skin}), it carries identical geometric dimensions on the two sides:
+the source side is anchored to the bb0nu measured mass, and the tracking side
+inherits the same R, z, and wall thickness. This means the fast-kernel
+point-in-volume tests use anatomically correct dimensions and the
+geometric-mass invariant is validated against the same reference on both
+sides. Strict source/tracking dimensional consistency is enforced by the test
+suite.
+
+The split is therefore a \emph{subset} relation: tracking geometry is a subset
+of source geometry, restricted to volumes the per-step transport actually
+needs to see. It is not a license to draw the same volume with different
+dimensions on the two sides.
+
+\section{Transport Model}
+
+\subsection{Fast kernel outside the FV}
+
+The fast kernel operates on a compiled geometry representation generated from the
+canonical detector tree. It performs:
+
+\begin{enumerate}[label=\arabic*.]
+\item region classification,
+\item analytic distance-to-boundary calculation,
+\item material lookup,
+\item interaction-distance sampling,
+\item immediate region-dependent decisions.
+\end{enumerate}
+
+This kernel treats transport in the outer detector as a problem of fast
+geometric and material decisions, not as a full generic cascade simulation.
+
+\subsection{Full stack inside the FV}
+
+The FV transport uses a dedicated \texttt{FVGeometry} object compiled directly
+from the canonical detector geometry. The FV stack keeps:
+
+\begin{itemize}
+\item photons,
+\item electrons and positrons,
+\item bremsstrahlung,
+\item the particle stack and deposit list.
+\end{itemize}
+
+The geometry inside the FV is reduced to what is physically needed:
+the LXe material and the cylindrical FV boundary.
+
+\subsection{Handoff logic}
+
+The fast kernel tracks a gamma until one of the following occurs:
+
+\begin{itemize}
+\item it is vetoed outside the FV,
+\item it is absorbed or terminated below the ROI floor in passive material,
+\item it escapes,
+\item it reaches the FV and remains relevant.
+\end{itemize}
+
+Only in the last case is the gamma handed to the FV transport stack.
+
+\subsection{ROI floor}
+
+The simulation uses an ROI floor in gamma energy. Once a gamma energy drops
+below this threshold, the code assumes that it can no longer generate a relevant
+contribution to the final ROI and terminates it locally. This is a deliberate
+analysis-motivated approximation used to gain speed.
+
+\subsection{Veto logic}
+
+The fast kernel uses region-dependent visible-energy thresholds:
+
+\begin{itemize}
+\item active xenon outside the FV:
+  veto at the configured TPC threshold;
+\item skin:
+  veto at the configured skin threshold;
+\item passive regions:
+  no veto, only transport and possible local termination.
+\end{itemize}
+
+\section{Event Logic}
+
+\subsection{Calibration sampling}
+
+The calibration path samples a small multiplicity of gammas and injects them
+with controlled energy, position, and direction. This path is used for
+benchmarks, controlled studies, and debugging.
+
+\subsection{Veto conditions}
+
+Deposits in active xenon outside the FV veto the event when they exceed the
+configured threshold. This allows the event to be rejected immediately without
+continuing detailed transport.
+
+\subsection{FV acceptance and multi-site rejection}
+
+Once in the FV, the event is classified using the deposit pattern returned by
+the full stack. The key observable is whether the deposit pattern is consistent
+with a single-site or multi-site event under the configured clustering model.
+
+\subsection{Role of \texttt{dz\_resolution}}
+
+The FV clustering logic uses a longitudinal clustering scale
+\texttt{dz\_resolution}. Deposits separated beyond this scale contribute to
+multi-site structure, while deposits consistent within this scale may be merged
+into a single-site candidate.
+
+\section{Code Map}
+
+The current code ownership is as follows.
+
+\begin{description}[leftmargin=2.5cm,style=nextline]
+\item[\texttt{geometry\_core.jl}] shared geometric primitives, wrappers, and
+geometric helpers.
+\item[\texttt{geometry.jl}] canonical detector geometry, tracking tree, region
+semantics, fast-kernel compilation, FV geometry compilation.
+\item[\texttt{tracking.jl}] fast transport outside the FV, FV-only full stack,
+event-level logic.
+\item[\texttt{source.jl}] source-side propagation inside source volumes.
+\item[\texttt{decays.jl}] decay and calibration sampling.
+\item[\texttt{scripts/test\_event\_processing.jl}] canonical benchmark and
+event-processing driver.
+\item[\texttt{scripts/geometry\_viewer.html}] canonical detector and source
+geometry viewer.
+\end{description}
+
+The public entry points of primary interest are:
+
+\begin{itemize}
+\item \texttt{load\_tracking\_detector}
+\item \texttt{compile\_fastkernel\_geometry}
+\item \texttt{compile\_fv\_geometry}
+\item \texttt{process\_event}
+\item \texttt{process\_event\_fastkernel\_calib}
+\item \texttt{propagate\_gamma\_in\_fv}
+\end{itemize}
+
+\section{Current Limitations}
+
+The current simulation is fast and purposeful, but it is not intended to be an
+arbitrary general detector framework. The main limitations are:
+
+\begin{enumerate}[label=\arabic*.]
+\item The fast kernel is specialized to the canonical detector partition.
+\item The ROI-floor termination is an intentional approximation.
+\item The outside-FV transport is optimized for rapid rejection rather than for
+full generic cascade tracking in every material.
+\item The benchmarked fast path is best suited to the current detector semantics
+and event logic, not to arbitrary future geometries without recompilation of the
+fast-kernel model.
+\end{enumerate}
+
+These limitations are acceptable because they follow directly from the project
+goal: simulate extremely large event samples as fast as possible while retaining
+the detailed physics only where it matters.
+
+\end{document}

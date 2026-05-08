@@ -196,6 +196,80 @@ end
     end
 end
 
+
+# =====================================================================
+# Source geometric mass vs bb0nu reference
+# =====================================================================
+#
+# For each source flagged approximation="exact" with a real material,
+# verify that the mass derived from the drawn geometry × material density
+# reproduces the bb0nu measured mass (or the TDR shell/head mass for the
+# Ti vessels). Mass-equivalent virtual carriers are skipped — their
+# absolute activity is anchored by equivalent_mass_kg, not by geometry.
+#
+# Heads use the analytic half-oblate-spheroid surface area formula,
+# matching `area_inner(::GDisk)` in the geometry primitives.
+@testset "Source geometric mass vs bb0nu" begin
+    function _geom_mass_kg(s, ρ)
+        shape = String(s["shape"])
+        if shape == "cylinder_shell"
+            R_in = Float64(s["R_inner_cm"])
+            t    = Float64(s["wall_thickness_cm"])
+            H    = 2 * Float64(s["half_height_cm"])
+            V    = π * ((R_in + t)^2 - R_in^2) * H
+            V * ρ / 1000.0
+        elseif shape == "cylinder"
+            R = Float64(s["radius_cm"])
+            H = 2 * Float64(s["half_height_cm"])
+            π * R^2 * H * ρ / 1000.0
+        elseif shape == "disk"
+            R = Float64(s["radius_cm"])
+            t = Float64(s["wall_thickness_cm"])
+            n = Float64(s["aspect_ratio"])
+            a = R
+            c = R / n
+            S_full = if c < a
+                e = sqrt(1.0 - (c/a)^2)
+                2π * a^2 + π * (c^2 / e) * log((1 + e) / (1 - e))
+            else
+                e = sqrt(1.0 - (a/c)^2)
+                2π * a^2 + 2π * a * c * asin(e) / e
+            end
+            (S_full / 2.0) * t * ρ / 1000.0
+        else
+            NaN
+        end
+    end
+
+    # Reference masses (kg). Cryostat barrels + heads from the TDR/CSV;
+    # FC_PTFE and FC_rings from bb0nu Table I. Heads computed at the
+    # CSV's aspect ratio + wall thickness × ρ_Ti so each row sums
+    # correctly to lz_cryo_geometry.csv mass_heads_kg per vessel.
+    target_mass_kg = Dict(
+        "OCV_barrel" => 385.7,
+        "OCV_top"    => 147.4,
+        "OCV_bottom" => 245.6,
+        "ICV_barrel" => 401.9,
+        "ICV_top"    => 107.8,
+        "ICV_bottom" => 141.5,
+        "FC_PTFE"    => 184.0,
+        "FC_rings"   =>  93.0,
+    )
+
+    for s in SOURCE_GEOM["sources"]
+        name     = String(s["name"])
+        approx   = String(s["approximation"])
+        material = String(s["material"])
+        approx == "exact"     || continue
+        material == "Vacuum"  && continue
+        haskey(target_mass_kg, name) || continue
+
+        ρ = MATS[material].density
+        m_geom = _geom_mass_kg(s, ρ)
+        @test isapprox(m_geom, target_mass_kg[name]; rtol=0.05)
+    end
+end
+
 @testset "Calibration sampler" begin
     for i in 1:50
         ev = sample_gammas("calib"; calib=true, rng=MersenneTwister(1234 + i))
