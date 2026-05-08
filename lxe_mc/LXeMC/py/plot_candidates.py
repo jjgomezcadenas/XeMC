@@ -122,6 +122,69 @@ def main():
     else:
         plt.close(fig)
 
+    # --- Statistics table ---
+    if stats:
+        plot_statistics_table(stats, indir, save, display)
+
+
+def plot_statistics_table(stats: dict, indir: str, save: bool, display: bool):
+    """Render a summary table of rejection fractions as a figure."""
+    fraction_keys = [
+        ("Accepted (SS)", "f_accepted"),
+        ("Vetoed (total)", "f_vetoed"),
+        ("  TPC veto", "f_vetoed_tpc"),
+        ("  Skin veto", "f_vetoed_skin"),
+        ("MS rejected", "f_ms_rejected"),
+        ("No FV", "f_no_fv"),
+    ]
+
+    rows = []
+    for label, key in fraction_keys:
+        val = stats.get(key, None)
+        if val is not None:
+            rows.append([label, f"{float(val):.6e}"])
+        else:
+            rows.append([label, "—"])
+
+    fig, ax = plt.subplots(figsize=(5, 3))
+    ax.axis("off")
+
+    table = ax.table(
+        cellText=rows,
+        colLabels=["Category", "Fraction"],
+        cellLoc="left",
+        colLoc="left",
+        loc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(11)
+    table.scale(1.0, 1.6)
+
+    # Style header
+    for j in range(2):
+        cell = table[0, j]
+        cell.set_facecolor("#4472C4")
+        cell.set_text_props(color="white", fontweight="bold")
+
+    # Alternate row colors
+    for i in range(len(rows)):
+        for j in range(2):
+            cell = table[i + 1, j]
+            cell.set_facecolor("#D9E2F3" if i % 2 == 0 else "white")
+
+    suptitle = make_suptitle(indir) + " — Rejection fractions"
+    fig.suptitle(suptitle, fontsize=12, fontweight="bold")
+    fig.tight_layout(rect=[0, 0, 1, 0.90])
+
+    if save:
+        outpath = os.path.join(indir, "statistics_table.png")
+        fig.savefig(outpath, dpi=150, bbox_inches="tight")
+        print(f"Saved: {outpath}")
+    if display:
+        plt.show()
+    else:
+        plt.close(fig)
+
 
 if __name__ == "__main__":
     main()
