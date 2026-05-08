@@ -1,0 +1,14 @@
+N = 1000000
+seed = 42
+calib = true
+path = fastkernel_fused
+energy_MeV = 2.61000000
+x_cm = 0.00000000
+y_cm = 0.00000000
+z_cm = 160.00000000
+ux = 0.00000000
+uy = 0.00000000
+uz = -1.00000000
+elapsed_s = 0.85394406
+rate_events_per_s = 1171036.89001399
+outdir = post_refactor/event_process_reference
