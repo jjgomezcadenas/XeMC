@@ -825,3 +825,78 @@ end
     end
 end
 
+
+@testset "generate_flux_bi214" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"]
+    rng = MersenneTwister(42)
+    N = 10_000
+
+    ft = generate_flux_bi214(N, icv.volume, CFG, rng)
+    @test ft isa SourceFluxBi214
+    @test ft.source_name == "ICV_barrel"
+    @test size(ft.pdf) == (25, 10)
+    @test ft.N_generated == N
+    @test ft.N_surviving > 0
+    @test ft.N_absorbed >= 0
+    @test ft.N_backward > 0
+
+    # PDF normalization: sum(pdf) = N_surviving / N_generated
+    @test sum(ft.pdf) ≈ ft.N_surviving / ft.N_generated rtol=1e-10
+
+    # Bookkeeping: all events accounted for
+    @test ft.N_surviving + ft.N_absorbed + ft.N_backward + ft.N_low_energy == N
+
+    # Survival fraction in reasonable range for thin Ti barrel (~0.9 cm)
+    # ~50% backward, small absorption, ~35-45% survive forward
+    surv = sum(ft.pdf)
+    @test 0.20 < surv < 0.50
+
+    # Backward fraction ~50%
+    @test ft.N_backward > N * 0.3
+end
+
+@testset "generate_flux_tl208" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    icv = sg["ICV_barrel"]
+    rng = MersenneTwister(42)
+    N = 10_000
+
+    ft = generate_flux_tl208(N, icv.volume, CFG, rng)
+    @test ft isa SourceFluxTl208
+    @test ft.source_name == "ICV_barrel"
+    @test size(ft.pdf_main) == (25, 10)
+    @test ft.N_generated == N
+
+    # Main gamma PDF normalization
+    @test sum(ft.pdf_main) ≈ ft.N_surviving_main / ft.N_generated rtol=1e-10
+
+    # Main bookkeeping
+    @test ft.N_surviving_main + ft.N_absorbed_main + ft.N_backward_main + ft.N_low_energy_main == N
+
+    # Main survival fraction reasonable
+    surv_main = sum(ft.pdf_main)
+    @test 0.20 < surv_main < 0.50
+
+    # 3 companion tables with correct dimensions
+    @test length(ft.pdf_companion) == 3
+    for i in 1:3
+        @test size(ft.pdf_companion[i]) == (25, 10)
+    end
+
+    # Companion survival fractions between 0 and 1
+    for i in 1:3
+        @test 0.0 <= ft.companion_f[i] <= 1.0
+    end
+
+    # 861 keV has longer mfp in Ti than 583 keV, so higher survival
+    # (companion_lines = [583, 511, 861], companion_f = [f1, f2, f3])
+    @test ft.companion_f[3] > ft.companion_f[1]  # 861 > 583
+
+    # Companion BRs preserved
+    @test ft.companion_BR == [0.85, 0.23, 0.12]
+    @test ft.companion_E_line == [0.583, 0.511, 0.861]
+end
+

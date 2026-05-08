@@ -366,3 +366,173 @@ function load_source_geometry(path::AbstractString,
     result
 end
 
+
+# =====================================================================
+# Single-source flux generation
+# =====================================================================
+
+"""
+    generate_flux_bi214(N, source_vol, cfg, rng; ...) -> SourceFluxBi214
+
+Generate N Bi-214 decays (single 2.448 MeV gamma) inside `source_vol`,
+propagate each through the source material (KN), and tally survivors
+into an (E, u) probability table.
+
+`E_min` is the minimum energy for a gamma to be relevant for the ROI.
+Gammas that degrade below `E_min` are counted as `N_low_energy`.
+`E_max` is the upper edge of the binning (no rejection).
+"""
+function generate_flux_bi214(N::Int, source_vol::PhysicalVolume,
+                              cfg::SimConfig, rng::AbstractRNG;
+                              E_gamma::Float64=2.448,
+                              E_min::Float64=2.200, E_max::Float64=2.500,
+                              n_E::Int=25, n_u::Int=10)::SourceFluxBi214
+    dE = (E_max - E_min) / n_E
+    counts = zeros(Int, n_E, n_u)
+    n_surviving = 0
+    n_absorbed = 0
+    n_backward = 0
+    n_low_energy = 0
+
+    for _ in 1:N
+        pos = random_position_in_volume(source_vol, rng)
+        dir = sample_isotropic_direction(rng)
+
+        status, E_out, pos_out, dir_out = propagate_in_source(
+            E_gamma, pos, dir, source_vol, cfg, rng)
+
+        if status === :absorbed
+            n_absorbed += 1
+            continue
+        end
+
+        u = cos_theta_to_lxe(pos_out, dir_out, source_vol)
+        if u <= 0.0
+            n_backward += 1
+            continue
+        end
+
+        if E_out < E_min
+            n_low_energy += 1
+            continue
+        end
+
+        i_E = clamp(floor(Int, (E_out - E_min) / dE) + 1, 1, n_E)
+        i_u = clamp(floor(Int, u * n_u) + 1, 1, n_u)
+        counts[i_E, i_u] += 1
+        n_surviving += 1
+    end
+
+    pdf = counts ./ N
+    SourceFluxBi214(source_vol.name, pdf, E_min, E_max, n_E, n_u,
+                    N, n_surviving, n_absorbed, n_backward, n_low_energy)
+end
+
+
+"""
+    generate_flux_tl208(N, source_vol, cfg, rng; ...) -> SourceFluxTl208
+
+Generate N Tl-208 decays inside `source_vol`. Each decay produces a
+main 2.615 MeV gamma plus up to 3 companions via independent Bernoulli
+trials (583 keV at 85%, 511 keV at 23%, 861 keV at 12%).
+
+Each gamma is propagated independently through the source material.
+The main gamma fills `pdf_main`; each companion line fills its own
+`pdf_companion[i]`. Survival fractions are computed per line.
+
+`E_min_main` is the minimum energy for the main gamma to be relevant
+for the ROI. Companion energy windows are set independently.
+"""
+function generate_flux_tl208(N::Int, source_vol::PhysicalVolume,
+                              cfg::SimConfig, rng::AbstractRNG;
+                              E_main::Float64=2.615,
+                              E_min_main::Float64=2.200, E_max_main::Float64=2.620,
+                              n_E_main::Int=25,
+                              companion_lines::Vector{Float64}=Float64[0.583, 0.511, 0.861],
+                              companion_BRs::Vector{Float64}=Float64[0.85, 0.23, 0.12],
+                              E_min_comp::Vector{Float64}=Float64[0.400, 0.350, 0.700],
+                              E_max_comp::Vector{Float64}=Float64[0.650, 0.600, 0.950],
+                              n_E_comp::Vector{Int}=Int[25, 25, 25],
+                              n_u::Int=10)::SourceFluxTl208
+    n_comp = length(companion_lines)
+    dE_main = (E_max_main - E_min_main) / n_E_main
+    dE_c = [(E_max_comp[i] - E_min_comp[i]) / n_E_comp[i] for i in 1:n_comp]
+
+    counts_main = zeros(Int, n_E_main, n_u)
+    counts_comp = [zeros(Int, n_E_comp[i], n_u) for i in 1:n_comp]
+
+    n_surviving_main = 0
+    n_absorbed_main = 0
+    n_backward_main = 0
+    n_low_energy_main = 0
+
+    n_fired_comp = zeros(Int, n_comp)
+    n_surviving_comp = zeros(Int, n_comp)
+
+    for _ in 1:N
+        origin = random_position_in_volume(source_vol, rng)
+
+        # --- Main gamma (always) ---
+        dir_main = sample_isotropic_direction(rng)
+        status, E_out, pos_out, dir_out = propagate_in_source(
+            E_main, copy(origin), dir_main, source_vol, cfg, rng)
+
+        if status === :absorbed
+            n_absorbed_main += 1
+        else
+            u = cos_theta_to_lxe(pos_out, dir_out, source_vol)
+            if u <= 0.0
+                n_backward_main += 1
+            elseif E_out < E_min_main
+                n_low_energy_main += 1
+            else
+                i_E = clamp(floor(Int, (E_out - E_min_main) / dE_main) + 1, 1, n_E_main)
+                i_u = clamp(floor(Int, u * n_u) + 1, 1, n_u)
+                counts_main[i_E, i_u] += 1
+                n_surviving_main += 1
+            end
+        end
+
+        # --- Companions (independent Bernoulli trials) ---
+        for ic in 1:n_comp
+            rand(rng) >= companion_BRs[ic] && continue
+            n_fired_comp[ic] += 1
+
+            dir_c = sample_isotropic_direction(rng)
+            status_c, E_c, pos_c, dir_c_out = propagate_in_source(
+                companion_lines[ic], copy(origin), dir_c, source_vol, cfg, rng)
+
+            status_c === :absorbed && continue
+
+            u_c = cos_theta_to_lxe(pos_c, dir_c_out, source_vol)
+            u_c <= 0.0 && continue
+
+            E_c < E_min_comp[ic] && continue
+
+            i_E = clamp(floor(Int, (E_c - E_min_comp[ic]) / dE_c[ic]) + 1, 1, n_E_comp[ic])
+            i_u = clamp(floor(Int, u_c * n_u) + 1, 1, n_u)
+            counts_comp[ic][i_E, i_u] += 1
+            n_surviving_comp[ic] += 1
+        end
+    end
+
+    pdf_main = counts_main ./ N
+    pdf_comp = [counts_comp[i] ./ N for i in 1:n_comp]
+    comp_f = [n_fired_comp[i] > 0 ? n_surviving_comp[i] / n_fired_comp[i] : 0.0
+              for i in 1:n_comp]
+
+    SourceFluxTl208(
+        source_vol.name,
+        pdf_main, E_min_main, E_max_main, n_E_main,
+        pdf_comp,
+        companion_lines,
+        companion_BRs,
+        comp_f,
+        E_min_comp,
+        E_max_comp,
+        n_E_comp,
+        n_u,
+        N, n_surviving_main, n_absorbed_main, n_backward_main, n_low_energy_main
+    )
+end
+

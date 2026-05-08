@@ -113,6 +113,7 @@ export load_decays, sample_decay, sample_event, sample_gammas, sample_isotropic_
 export propagate_in_source, random_position_in_volume
 export SourceFlux, SourceFluxBi214, SourceFluxTl208, SourceRateTable
 export SourceVolumeInfo, load_source_geometry
+export generate_flux_bi214, generate_flux_tl208
 
 # --- Convenience paths ---
 """Path to the canonical detector-geometry JSON file."""
