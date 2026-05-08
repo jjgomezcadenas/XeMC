@@ -136,34 +136,42 @@ end
 
 
 """
-    make_surface_sampler(source, sg) -> Function
+    make_surface_sampler(source, fk) -> Function
 
 Return a surface sampler function `rng -> (position, normal)` for the
-given source. The sampler places gammas on the ICV inner surface
-appropriate for the source geometry.
+given source. The sampler places gammas on a virtual envelope that sits
+just inside the tracking detector boundary, extracted from the compiled
+`FastKernelGeometry`.
+
+- **Barrel**: cylindrical shell at R = detector rmax, z from Skin region.
+- **Top**: ellipsoidal cap matching the AirDome geometry.
+- **Bottom**: ellipsoidal cap matching the LXe_passive bottom cap.
 """
 function make_surface_sampler(source::String,
-                               sg::Dict{String,SourceVolumeInfo})::Function
+                               fk::FastKernelGeometry)::Function
     if source == "cryostat_barrel"
-        icv = sg["ICV_barrel"]
-        s = icv.volume.logical.solid
-        c = icv.volume.logical.position
-        R_inner = s.R_inner_cm
-        z_min = c[3] - s.half_height_cm
-        z_max = c[3] + s.half_height_cm
-        return rng -> sample_barrel_point(R_inner, z_min, z_max, rng)
+        # Barrel envelope: Skin outer boundary
+        skin = fk.regions[fk.name_to_index["Skin"]]
+        R = skin.rmax_cm       # 82.1 cm
+        z_min = skin.zmin_cm   # -13.75 cm
+        z_max = skin.zmax_cm   # 145.6 cm
+        return rng -> sample_barrel_point(R, z_min, z_max, rng)
     elseif source == "cryostat_top"
-        icv = sg["ICV_top"]
-        s = icv.volume.logical.solid
-        c = icv.volume.logical.position
-        return rng -> sample_cap_point(s.radius_cm, s.aspect_ratio,
-                                        c[3], :up, rng)
+        # Top envelope: AirDome cap
+        air = fk.regions[fk.name_to_index["AirDome"]]
+        R = air.top_cap_radius_cm       # 82.1 cm
+        ar = air.top_cap_aspect_ratio   # 2.0
+        z_eq = air.zmin_cm              # 145.6 cm (equator of the cap)
+        return rng -> sample_cap_point(R, ar, z_eq, :up, rng)
     elseif source == "cryostat_bottom"
-        icv = sg["ICV_bottom"]
-        s = icv.volume.logical.solid
-        c = icv.volume.logical.position
-        return rng -> sample_cap_point(s.radius_cm, s.aspect_ratio,
-                                        c[3], :down, rng)
+        # Bottom envelope: LXe_passive bottom cap
+        passive = fk.regions[fk.name_to_index["LXe_passive"]]
+        R = passive.bottom_cap_radius_cm       # 82.1 cm
+        ar = passive.bottom_cap_aspect_ratio   # 3.0
+        # Equator of bottom cap: zmin + cap_depth
+        cap_depth = R / ar
+        z_eq = passive.zmin_cm + cap_depth     # -68.70 + 27.37 = -41.33
+        return rng -> sample_cap_point(R, ar, z_eq, :down, rng)
     else
         error("No surface sampler for source '$source'")
     end

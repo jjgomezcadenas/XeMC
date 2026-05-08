@@ -233,10 +233,7 @@ function main()
     fk = compile_fastkernel_geometry(det)
     fv = compile_fv_geometry(det)
 
-    src_path = normpath(joinpath(dirname(pathof(LXeMC)), "..", "..", "data",
-                                 "source_geometry_lz_v1.json"))
-    sg = load_source_geometry(src_path, mats)
-    surface_sampler = make_surface_sampler(cli.source, sg)
+    surface_sampler = make_surface_sampler(cli.source, fk)
 
     # --- Load flux tables ---
     isotope_prefix = cli.isotope == "Bi214" ? "bi214" : "tl208"
