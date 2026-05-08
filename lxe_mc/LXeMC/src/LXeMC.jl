@@ -47,6 +47,7 @@ include("sampling.jl")
 include("tracking.jl")
 include("decays.jl")
 include("source.jl")
+include("cryostat_sources.jl")
 
 # --- Config ---
 export SimConfig, load_config, default_config
@@ -116,6 +117,7 @@ export SourceVolumeInfo, load_source_geometry
 export generate_flux_bi214, generate_flux_tl208
 export propagate_through_layers
 export generate_flux_compound_bi214, generate_flux_compound_tl208
+export cryostat_barrel_flux, cryostat_top_flux, cryostat_bottom_flux
 
 # --- Convenience paths ---
 """Path to the canonical detector-geometry JSON file."""

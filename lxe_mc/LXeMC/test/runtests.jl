@@ -980,3 +980,60 @@ end
     ft_icv = generate_flux_tl208(N, icv_barrel, CFG, MersenneTwister(42))
     @test sum(ft.pdf_main) < sum(ft_icv.pdf_main)
 end
+
+
+@testset "cryostat_barrel_flux" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    N = 2_000
+    result = cryostat_barrel_flux(N, sg, CFG, MersenneTwister(42))
+
+    # Structure: 8 tables (4 per isotope)
+    @test result.bi214_ocv isa SourceFluxBi214
+    @test result.bi214_mli isa SourceFluxBi214
+    @test result.bi214_icv isa SourceFluxBi214
+    @test result.bi214_rate isa SourceRateTable
+    @test result.tl208_ocv isa SourceFluxTl208
+    @test result.tl208_mli isa SourceFluxTl208
+    @test result.tl208_icv isa SourceFluxTl208
+    @test result.tl208_rate isa SourceRateTable
+
+    # Rate tables have correct surface
+    @test result.bi214_rate.surface == :barrel
+    @test result.tl208_rate.surface == :barrel
+
+    # 3 components for barrel
+    @test length(result.bi214_rate.component_names) == 3
+    @test result.bi214_rate.component_names == ["OCV_barrel", "MLI", "ICV_barrel"]
+
+    # Total rate is sum of components
+    @test result.bi214_rate.total_rate ≈ sum(result.bi214_rate.component_rates) atol=1e-15
+    @test result.tl208_rate.total_rate ≈ sum(result.tl208_rate.component_rates) atol=1e-15
+
+    # OCV survival < ICV survival (more material)
+    @test sum(result.bi214_ocv.pdf) < sum(result.bi214_icv.pdf)
+end
+
+@testset "cryostat_top_flux" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    N = 2_000
+    result = cryostat_top_flux(N, sg, CFG, MersenneTwister(42))
+
+    @test result.bi214_rate.surface == :top
+    @test length(result.bi214_rate.component_names) == 2
+    @test result.bi214_rate.component_names == ["OCV_top", "ICV_top"]
+    @test result.bi214_rate.total_rate ≈ sum(result.bi214_rate.component_rates) atol=1e-15
+end
+
+@testset "cryostat_bottom_flux" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    N = 2_000
+    result = cryostat_bottom_flux(N, sg, CFG, MersenneTwister(42))
+
+    @test result.bi214_rate.surface == :bottom
+    @test length(result.bi214_rate.component_names) == 2
+    @test result.bi214_rate.component_names == ["OCV_bottom", "ICV_bottom"]
+    @test result.bi214_rate.total_rate ≈ sum(result.bi214_rate.component_rates) atol=1e-15
+end
