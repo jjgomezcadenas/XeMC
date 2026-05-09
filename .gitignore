@@ -17,3 +17,8 @@ lxe_mc/LXeMC/design/*.log
 lxe_mc/LXeMC/design/*.out
 lxe_mc/LXeMC/design/*.synctex.gz
 lxe_mc/LXeMC/design/*.pdf
+lxe_mc/LXeMC/docs/*.aux
+lxe_mc/LXeMC/docs/*.log
+lxe_mc/LXeMC/docs/*.out
+lxe_mc/LXeMC/docs/*.synctex.gz
+lxe_mc/LXeMC/docs/*.pdf
