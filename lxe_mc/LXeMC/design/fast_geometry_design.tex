@@ -455,10 +455,10 @@ analytic solutions for cylinders, cylindrical shells, and ellipsoidal disks.
 For the LZ cryostat, three independent surface fluxes are computed:
 
 \begin{description}[leftmargin=2.0cm,style=nextline]
-\item[Barrel] Three contributing sources: OCV barrel $\to$ vacuum $\to$ ICV
-barrel (compound), MLI insulation $\to$ ICV barrel (transparent source,
-propagated through ICV only), and ICV barrel self-emission. Each produces its
-own flux table; an activity-weighted sum gives the combined rate.
+\item[Barrel] Three contributing sources: OCV barrel $\to$ ICV
+barrel (compound), MLI insulation $\to$ MLI (vacuum, straight-line) $\to$ ICV
+barrel (compound), and ICV barrel self-emission. Each produces its own flux
+table; an activity-weighted sum gives the combined rate.
 \item[Top head] Two sources: OCV top $\to$ vacuum $\to$ ICV top (compound) and
 ICV top self-emission.
 \item[Bottom head] Two sources: OCV bottom $\to$ vacuum $\to$ ICV bottom
@@ -471,26 +471,41 @@ Cross-contributions (e.g., OCV barrel $\to$ ICV top) are neglected.
 
 Gammas sampled from the flux tables must be placed on a physical surface with a
 concrete 3D position and direction before being injected into the fast kernel.
-This surface is called the \emph{virtual envelope}. It is defined by the
-tracking detector boundary, not by the source geometry, to guarantee that every
-sampled gamma starts inside the detector's tracking volume.
+This surface is called the \emph{virtual envelope} (VE).
 
-The virtual envelope is formalized as a \texttt{VirtualEnvelope} struct with
-explicit, inspectable parameters extracted from the \texttt{FastKernelGeometry}
-at construction time. A small inset (0.01\,cm) is applied to avoid
-floating-point boundary issues with the fast-kernel region classifier.
+The VE is built from the \emph{source geometry} (\texttt{sg}), not from the
+tracking detector. A geometry fix ensures that the ICV inner surface matches
+the tracking detector boundary exactly: all three ICV surfaces (barrel, top
+head, bottom head) share $R_{\text{inner}} = 82.1$\,cm, with head wall
+thicknesses adjusted to preserve the original dome masses. This eliminates the
+geometric mismatch that previously required extracting VE parameters from
+\texttt{FastKernelGeometry}.
+
+For cryostat sources the VE sits on the ICV inner surface. For PMT sources
+(already inside the detector) the VE is the source volume itself. A small
+inset (0.01\,cm) is applied to all VEs to avoid floating-point boundary issues
+with the fast-kernel region classifier.
+
+The \texttt{VirtualEnvelope} struct supports four surface kinds:
 
 \begin{center}
 \begin{tabular}{llrl}
 \toprule
-Surface & Kind & $R$ [cm] & Reference region \\
+Surface & Kind & $R$ [cm] & Source \\
 \midrule
-Barrel & cylinder & 82.09 & \texttt{LZ\_detector} barrel \\
-Top & cap (up) & 82.09 & \texttt{AirDome} \\
-Bottom & cap (down) & 82.09 & \texttt{LXe\_passive} bottom cap \\
+Cryostat barrel & \texttt{:barrel} & 82.09 & ICV\_barrel inner \\
+Cryostat top & \texttt{:cap\_up} & 82.09 & ICV\_top inner dome \\
+Cryostat bottom & \texttt{:cap\_down} & 82.09 & ICV\_bottom inner dome \\
+PMT top & \texttt{:disk\_flat} & 72.8 & merged PMT disk \\
+PMT bottom & \texttt{:disk\_flat} & 72.8 & merged PMT disk \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+The tracking detector geometry was also updated to match: the AirDome equator
+was moved from $z = 145.6$\,cm (gate plane) to $z = 148.5$\,cm (ICV top
+equator), and a new AirCyl volume fills the gas gap between the gate and the
+dome.
 
 \subsection{Three-stage background computation}
 
@@ -520,27 +535,32 @@ This decoupling allows the flux tables to be generated once and reused with
 different analysis cuts, resolution assumptions, or ROI windows without
 regenerating the Monte Carlo.
 
-\subsection{Future: internal sources}
+\subsection{Internal sources}
 
-The cryostat sources (OCV, MLI, ICV) are the first class of sources
-implemented. The following internal sources remain:
+Internal sources sit inside the ICV and emit directly into the LXe or gas
+dome. They do not require compound propagation through cryostat layers.
 
-\begin{itemize}
-\item \textbf{Field cage}: FC\_PTFE (Teflon panels) and FC\_rings (Ti rings).
-These emit directly into the LXe with KN source-side transport.
-\item \textbf{PMT arrays}: top, bottom, and barrel PMTs plus cables, bases,
-and support structures. These are virtual (transparent) sources that emit
-at their physical locations without source-side attenuation.
-\item \textbf{Grid holders}: FC\_topgrid and FC\_botgrid (stainless steel,
-KN transport).
-\end{itemize}
+\paragraph{Implemented: PMT top and bottom.}
+The top PMT array (3 sub-components: PMTs, bases, structure) and bottom PMT
+array (4 sub-components: PMTs, bases, structure, R8778 dome) are implemented
+as merged transparent volumes. Each group is lumped into a single vacuum PDisk
+spanning the full $z$ extent of its sub-components; the orientation (\texttt{:up}
+for top, \texttt{:down} for bottom) controls the hemisphere filter. Since all
+components share the same trivial flux table ($\sim$50\% survival from the
+hemisphere cut, no material attenuation), per-component background rates are
+recovered by bookkeeping: mass $\times$ specific activity.
 
-Internal sources do not require compound propagation through cryostat layers.
-Their flux tables are generated by single-source \texttt{generate\_flux\_bi214}
-/ \texttt{generate\_flux\_tl208} and injected directly into the fast kernel via
-an appropriate virtual envelope. The existing pipeline handles them with minimal
-additional code: one new dispatch entry per source class and one virtual
-envelope definition.
+\paragraph{Remaining: PMT barrel.}
+Three transparent cylindrical-shell sources (cables, R8520 skin PMTs,
+R8778 lower-ring PMTs) at $R \approx 81.2$--$81.4$\,cm along the FC outer
+wall. Same pattern as PMT top/bottom but with a barrel VE.
+
+\paragraph{Remaining: field cage sources.}
+Six sources inside or on the field cage: FC\_PTFE and FC\_rings (dense, KN
+self-shielding), FC\_topgrid and FC\_botgrid (stainless steel, KN),
+FC\_resistors and FC\_sensors (transparent). These emit directly into the LXe
+with single-source flux generation (no compound propagation). Each source has
+its own dispatch entry and barrel-type VE.
 
 \section{Code Map}
 
@@ -555,18 +575,22 @@ semantics, fast-kernel compilation, FV geometry compilation.
 event-level logic. \texttt{process\_event} returns FV deposits for accepted
 events.
 \item[\texttt{source\_propagation.jl}] photon-only KN transport inside source
-volumes, uniform position sampling, direction classification.
+volumes (with vacuum shortcut for transparent sources), uniform position
+sampling, direction classification.
 \item[\texttt{source\_flux.jl}] flux table structs (\texttt{SourceFluxBi214},
 \texttt{SourceFluxTl208}, \texttt{SourceRateTable}), source geometry loader,
 single-source and compound flux generators.
 \item[\texttt{source\_sampling.jl}] 2D PDF sampling, surface point generation
-(barrel and ellipsoidal caps), direction reconstruction, gamma-from-flux
-sampling.
-\item[\texttt{source\_dispatch.jl}] \texttt{VirtualEnvelope},
-\texttt{make\_virtual\_envelope}, \texttt{make\_surface\_sampler}, source
-dispatch and thread-result merging.
+(barrel, ellipsoidal caps, flat disks), direction reconstruction,
+gamma-from-flux sampling.
+\item[\texttt{source\_dispatch.jl}] \texttt{VirtualEnvelope} (built from
+source geometry for all sources), \texttt{make\_surface\_sampler}, source
+dispatch (\texttt{dispatch\_source\_flux}) and thread-result merging.
 \item[\texttt{cryostat\_sources.jl}] cryostat-specific flux functions (barrel,
 top, bottom) with activity-weighted rate table construction.
+\item[\texttt{pmt\_sources.jl}] PMT flux functions (\texttt{pmt\_top\_flux},
+\texttt{pmt\_bottom\_flux}), merged transparent volume construction with
+per-component rate bookkeeping.
 \item[\texttt{flux\_utils.jl}] flux table merging, CSV I/O, JSON metadata
 helpers.
 \item[\texttt{decays.jl}] decay and calibration sampling.
@@ -583,6 +607,9 @@ The public entry points of primary interest are:
 \item \texttt{load\_source\_geometry},
       \texttt{make\_virtual\_envelope},
       \texttt{make\_surface\_sampler}
+\item \texttt{dispatch\_source\_flux},
+      \texttt{supported\_sources},
+      \texttt{supported\_isotopes}
 \item \texttt{generate\_flux\_bi214},
       \texttt{generate\_flux\_tl208},
       \texttt{generate\_flux\_compound\_bi214},
@@ -590,6 +617,8 @@ The public entry points of primary interest are:
 \item \texttt{cryostat\_barrel\_flux},
       \texttt{cryostat\_top\_flux},
       \texttt{cryostat\_bottom\_flux}
+\item \texttt{pmt\_top\_flux},
+      \texttt{pmt\_bottom\_flux}
 \item \texttt{sample\_from\_flux},
       \texttt{sample\_gamma\_from\_flux}
 \end{itemize}
