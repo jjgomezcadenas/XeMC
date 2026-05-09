@@ -162,9 +162,16 @@ geometric navigation but the cascade physics itself.
 The current code implements the staged architecture described above.
 
 \begin{itemize}
-\item The canonical detector geometry is defined explicitly in
-\texttt{detector\_lz\_v3.json}.
-\item The fast kernel uses the canonical detector partition outside the FV.
+\item The detector geometry is defined in two JSON files:
+  \texttt{detector\_lz\_v3.json} (tracking) and
+  \texttt{source\_geometry\_lz\_v1.json} (source).
+\item The fast kernel is \emph{data-driven}: it reads its region list from
+  JSON and identifies the tracking envelope and passive-LXe fallback by
+  \texttt{role} and \texttt{tag} markers, not by hard-coded volume names.
+  Adding or removing a tracked region is a JSON-only change.
+\item Region capabilities (sensitive, isXe, ecut, etc.) are derived from the
+  \texttt{RegionTag} enum via \texttt{\_capabilities\_for\_tag}, with optional
+  per-volume JSON overrides.
 \item The FV transport uses a dedicated \texttt{FVGeometry} plus a full
 particle stack.
 \item The legacy flat-detector workflow has been removed from the canonical
@@ -202,26 +209,29 @@ FV stack specifically.
 
 \subsection{Canonical detector geometry}
 
-The file \texttt{geometry.jl} now contains the canonical detector geometry
+The file \texttt{geometry.jl} contains the canonical detector geometry
 representation. It loads the tracking detector from JSON into a tree of
 \texttt{TrackingDetector} nodes, with explicit region semantics and geometry.
+Every volume in the JSON is required to declare a \texttt{tag} (simulation
+policy) and a \texttt{role} (descriptive metadata); the code derives
+per-region capabilities from the tag via \texttt{\_capabilities\_for\_tag},
+with JSON fields available as overrides.
 
-The canonical LZ tracking geometry is partitioned into the following regions:
+The current LZ tracking geometry is partitioned into the following regions
+(defined entirely in \texttt{detector\_lz\_v3.json}, not in code):
 
 \begin{itemize}
-\item \texttt{AirDome}
-\item \texttt{LXe\_passive}
-\item \texttt{TopActive}
-\item \texttt{BarrelActive}
-\item \texttt{BottomActive}
-\item \texttt{FV}
-\item \texttt{Skin}
-\item \texttt{FC\_PTFE}
-\item \texttt{FC\_rings}
+\item \texttt{LZ\_detector} — tracking envelope (\texttt{role: tracking\_envelope})
+\item \texttt{AirDome} — gas dome above the gate
+\item \texttt{LXe\_passive} — passive LXe fallback (\texttt{tag: passive\_lxe})
+\item \texttt{TopActive}, \texttt{BarrelActive}, \texttt{BottomActive} — active TPC regions (\texttt{tag: tpc\_active})
+\item \texttt{FV} — fiducial volume (\texttt{tag: fv})
+\item \texttt{Skin} — veto layer (\texttt{tag: skin})
+\item \texttt{FC\_PTFE}, \texttt{FC\_rings} — structural field-cage elements (\texttt{tag: structural})
 \end{itemize}
 
-This partition is exhaustive for the intended detector model and reflects the
-physics logic directly.
+This partition is exhaustive for the current detector model. Adding or removing
+a region requires editing only the JSON file; no code changes are needed.
 
 \subsection{Meaning of the canonical regions}
 
@@ -288,6 +298,47 @@ canonical detector tree. It performs:
 
 This kernel treats transport in the outer detector as a problem of fast
 geometric and material decisions, not as a full generic cascade simulation.
+
+\subsection{Data-driven FastKernel construction}
+
+The \texttt{FastKernelGeometry} is compiled from the tracking detector tree at
+startup. The construction is fully data-driven:
+
+\begin{enumerate}[label=\arabic*.]
+\item Every volume in the JSON declares a \texttt{tag} (one of \texttt{world},
+\texttt{vacuum}, \texttt{passive\_lxe}, \texttt{tpc\_active}, \texttt{fv},
+\texttt{skin}, \texttt{structural}) and a \texttt{role} (free-form descriptive
+string).
+
+\item The function \texttt{\_capabilities\_for\_tag(tag)} provides default
+capabilities for each tag: \texttt{inFastKernel}, \texttt{isXe},
+\texttt{sensitive}, \texttt{ecut\_keV}, \texttt{dz\_mm}, \texttt{fv\_target}.
+JSON fields can override any of these defaults per volume.
+
+\item The compiler iterates all volumes with \texttt{inFastKernel = true} and
+compiles each into a \texttt{FastKernelRegion} with precomputed scalar geometry
+(rmin, rmax, zmin, zmax, cap parameters).
+
+\item Two distinguished regions are identified by markers, not by name:
+\begin{itemize}
+\item \textbf{Envelope}: the unique region with \texttt{role = "tracking\_envelope"}.
+\item \textbf{Fallback}: the unique region with \texttt{tag = passive\_lxe}.
+\end{itemize}
+The compiler validates that exactly one of each exists.
+
+\item The \texttt{classify\_fastkernel} function tests the envelope first
+(early exit if outside), then loops over all other regions in JSON declaration
+order, and falls back to the passive LXe if no inner region matches.
+
+\item The \texttt{select\_interaction\_fastkernel} function classifies
+interactions by comparing integer \texttt{RegionTag} values, not volume name
+strings.
+\end{enumerate}
+
+Because no volume name appears in the classification or compilation logic,
+adding or removing a tracked region is a JSON-only change: add the volume entry
+with the appropriate \texttt{tag}, \texttt{role}, and shape parameters, and the
+FastKernel picks it up automatically.
 
 \subsection{Full stack inside the FV}
 
@@ -364,34 +415,183 @@ The FV clustering logic uses a longitudinal clustering scale
 multi-site structure, while deposits consistent within this scale may be merged
 into a single-site candidate.
 
+\section{Source Flux Pipeline}
+
+The source flux pipeline computes the rate and spectral distribution of
+background gammas arriving at the detector from radioactive source volumes. It
+is implemented as a three-stage process that decouples the expensive Monte Carlo
+generation from the detector-side analysis.
+
+\subsection{Factored flux tables}
+
+The central data product of the source pipeline is a set of two-dimensional
+probability tables in $(E, u)$, where $E$ is the gamma energy at the exit of the
+source material and $u = \cos\theta$ is the angle of the gamma direction to the
+inward surface normal (toward the detector).
+
+For Bi-214 (single 2.448\,MeV gamma per decay), one table suffices. For Tl-208
+(2.615\,MeV main gamma plus up to three companion lines at 583, 511, and
+861\,keV), the main gamma and each companion line have independent tables. The
+companions fire as independent Bernoulli trials with their respective branching
+ratios (85\%, 23\%, 12\%), so a single decay can produce 1--4 gammas. Each
+companion table also carries a survival fraction through the source material.
+
+The tables are normalized per generated decay: $\texttt{pdf}[i,j] =
+N_{\text{surviving in bin}}/N_{\text{generated}}$. Absolute rates are obtained
+later by multiplying by activity $\times$ mass $\times$ BR from the decay chain.
+
+\subsection{Compound propagation}
+
+Gammas from the outer cryostat (OCV) must traverse the vacuum gap and then the
+inner cryostat (ICV) before entering the detector. This is handled by
+\texttt{propagate\_through\_layers}, which takes a sequence of
+\texttt{PhysicalVolume} objects and propagates the gamma through each in order.
+Between layers the gamma travels in a straight line; within each layer it
+undergoes Klein-Nishina photon transport. Ray-volume entry distances use
+analytic solutions for cylinders, cylindrical shells, and ellipsoidal disks.
+
+\subsection{Cryostat source model}
+
+For the LZ cryostat, three independent surface fluxes are computed:
+
+\begin{description}[leftmargin=2.0cm,style=nextline]
+\item[Barrel] Three contributing sources: OCV barrel $\to$ vacuum $\to$ ICV
+barrel (compound), MLI insulation $\to$ ICV barrel (transparent source,
+propagated through ICV only), and ICV barrel self-emission. Each produces its
+own flux table; an activity-weighted sum gives the combined rate.
+\item[Top head] Two sources: OCV top $\to$ vacuum $\to$ ICV top (compound) and
+ICV top self-emission.
+\item[Bottom head] Two sources: OCV bottom $\to$ vacuum $\to$ ICV bottom
+(compound) and ICV bottom self-emission.
+\end{description}
+
+Cross-contributions (e.g., OCV barrel $\to$ ICV top) are neglected.
+
+\subsection{Virtual envelope}
+
+Gammas sampled from the flux tables must be placed on a physical surface with a
+concrete 3D position and direction before being injected into the fast kernel.
+This surface is called the \emph{virtual envelope}. It is defined by the
+tracking detector boundary, not by the source geometry, to guarantee that every
+sampled gamma starts inside the detector's tracking volume.
+
+The virtual envelope is formalized as a \texttt{VirtualEnvelope} struct with
+explicit, inspectable parameters extracted from the \texttt{FastKernelGeometry}
+at construction time. A small inset (0.01\,cm) is applied to avoid
+floating-point boundary issues with the fast-kernel region classifier.
+
+\begin{center}
+\begin{tabular}{llrl}
+\toprule
+Surface & Kind & $R$ [cm] & Reference region \\
+\midrule
+Barrel & cylinder & 82.09 & \texttt{LZ\_detector} barrel \\
+Top & cap (up) & 82.09 & \texttt{AirDome} \\
+Bottom & cap (down) & 82.09 & \texttt{LXe\_passive} bottom cap \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Three-stage background computation}
+
+The background computation is split into three stages, each handled by a
+separate script:
+
+\begin{enumerate}[label=\arabic*.]
+\item \textbf{Flux generation} (\texttt{generate\_flux\_tables.jl}). For one
+(source, isotope) pair, generates $N$ decays, propagates through source
+material, and writes $(E, u)$ flux tables as CSV files plus a
+\texttt{metadata.json}. This is the expensive MC step; parallelized via
+\texttt{julia -t N}. Run once per configuration.
+
+\item \textbf{Background preselection} (\texttt{run\_source\_backgrounds.jl}).
+Loads flux tables, samples gammas onto the virtual envelope, and processes each
+event through the fast kernel and FV stack. Single-site candidates are written
+to \texttt{candidates.csv} with columns $(x, y, z, E_{\text{deposited}})$.
+Rejection statistics are written to \texttt{statistics.csv}. Parallelized.
+
+\item \textbf{Final analysis} (\texttt{compute\_backgrounds.py}). Applies
+Gaussian energy resolution smearing and an ROI energy window cut to the
+candidates. Computes absolute background rates in counts/year. Produces summary
+plots and a background table.
+\end{enumerate}
+
+This decoupling allows the flux tables to be generated once and reused with
+different analysis cuts, resolution assumptions, or ROI windows without
+regenerating the Monte Carlo.
+
+\subsection{Future: internal sources}
+
+The cryostat sources (OCV, MLI, ICV) are the first class of sources
+implemented. The following internal sources remain:
+
+\begin{itemize}
+\item \textbf{Field cage}: FC\_PTFE (Teflon panels) and FC\_rings (Ti rings).
+These emit directly into the LXe with KN source-side transport.
+\item \textbf{PMT arrays}: top, bottom, and barrel PMTs plus cables, bases,
+and support structures. These are virtual (transparent) sources that emit
+at their physical locations without source-side attenuation.
+\item \textbf{Grid holders}: FC\_topgrid and FC\_botgrid (stainless steel,
+KN transport).
+\end{itemize}
+
+Internal sources do not require compound propagation through cryostat layers.
+Their flux tables are generated by single-source \texttt{generate\_flux\_bi214}
+/ \texttt{generate\_flux\_tl208} and injected directly into the fast kernel via
+an appropriate virtual envelope. The existing pipeline handles them with minimal
+additional code: one new dispatch entry per source class and one virtual
+envelope definition.
+
 \section{Code Map}
 
 The current code ownership is as follows.
 
 \begin{description}[leftmargin=2.5cm,style=nextline]
-\item[\texttt{geometry\_core.jl}] shared geometric primitives, wrappers, and
-geometric helpers.
+\item[\texttt{geometry\_core.jl}] shared geometric primitives, wrappers,
+ray entry/exit (analytic for Cyl, CylShell, Disk), and geometric helpers.
 \item[\texttt{geometry.jl}] canonical detector geometry, tracking tree, region
 semantics, fast-kernel compilation, FV geometry compilation.
 \item[\texttt{tracking.jl}] fast transport outside the FV, FV-only full stack,
-event-level logic.
-\item[\texttt{source.jl}] source-side propagation inside source volumes.
+event-level logic. \texttt{process\_event} returns FV deposits for accepted
+events.
+\item[\texttt{source\_propagation.jl}] photon-only KN transport inside source
+volumes, uniform position sampling, direction classification.
+\item[\texttt{source\_flux.jl}] flux table structs (\texttt{SourceFluxBi214},
+\texttt{SourceFluxTl208}, \texttt{SourceRateTable}), source geometry loader,
+single-source and compound flux generators.
+\item[\texttt{source\_sampling.jl}] 2D PDF sampling, surface point generation
+(barrel and ellipsoidal caps), direction reconstruction, gamma-from-flux
+sampling.
+\item[\texttt{source\_dispatch.jl}] \texttt{VirtualEnvelope},
+\texttt{make\_virtual\_envelope}, \texttt{make\_surface\_sampler}, source
+dispatch and thread-result merging.
+\item[\texttt{cryostat\_sources.jl}] cryostat-specific flux functions (barrel,
+top, bottom) with activity-weighted rate table construction.
+\item[\texttt{flux\_utils.jl}] flux table merging, CSV I/O, JSON metadata
+helpers.
 \item[\texttt{decays.jl}] decay and calibration sampling.
-\item[\texttt{scripts/test\_event\_processing.jl}] canonical benchmark and
-event-processing driver.
-\item[\texttt{scripts/geometry\_viewer.html}] canonical detector and source
-geometry viewer.
 \end{description}
 
 The public entry points of primary interest are:
 
 \begin{itemize}
-\item \texttt{load\_tracking\_detector}
-\item \texttt{compile\_fastkernel\_geometry}
-\item \texttt{compile\_fv\_geometry}
-\item \texttt{process\_event}
-\item \texttt{process\_event\_fastkernel\_calib}
-\item \texttt{propagate\_gamma\_in\_fv}
+\item \texttt{load\_tracking\_detector},
+      \texttt{compile\_fastkernel\_geometry},
+      \texttt{compile\_fv\_geometry}
+\item \texttt{process\_event},
+      \texttt{propagate\_gamma\_in\_fv}
+\item \texttt{load\_source\_geometry},
+      \texttt{make\_virtual\_envelope},
+      \texttt{make\_surface\_sampler}
+\item \texttt{generate\_flux\_bi214},
+      \texttt{generate\_flux\_tl208},
+      \texttt{generate\_flux\_compound\_bi214},
+      \texttt{generate\_flux\_compound\_tl208}
+\item \texttt{cryostat\_barrel\_flux},
+      \texttt{cryostat\_top\_flux},
+      \texttt{cryostat\_bottom\_flux}
+\item \texttt{sample\_from\_flux},
+      \texttt{sample\_gamma\_from\_flux}
 \end{itemize}
 
 \section{Current Limitations}
@@ -400,13 +600,17 @@ The current simulation is fast and purposeful, but it is not intended to be an
 arbitrary general detector framework. The main limitations are:
 
 \begin{enumerate}[label=\arabic*.]
-\item The fast kernel is specialized to the canonical detector partition.
+\item The fast kernel reads its region list from JSON and is data-driven, but
+it assumes coaxial cylindrical geometry (all volumes centered on the detector
+axis). Non-coaxial or non-cylindrical detector topologies would require
+extending the kernel's geometric predicates.
 \item The ROI-floor termination is an intentional approximation.
 \item The outside-FV transport is optimized for rapid rejection rather than for
 full generic cascade tracking in every material.
-\item The benchmarked fast path is best suited to the current detector semantics
-and event logic, not to arbitrary future geometries without recompilation of the
-fast-kernel model.
+\item The \texttt{RegionTag} enum defines a fixed set of simulation policies
+(\texttt{TAG\_FV}, \texttt{TAG\_TPC\_ACTIVE}, \texttt{TAG\_SKIN}, etc.). A
+detector with a genuinely new kind of sensitive region would require extending
+the enum and \texttt{\_capabilities\_for\_tag}.
 \end{enumerate}
 
 These limitations are acceptable because they follow directly from the project
