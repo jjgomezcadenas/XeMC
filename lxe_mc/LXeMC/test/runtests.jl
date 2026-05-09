@@ -1608,7 +1608,7 @@ end
     # --- TOP: 3 components ---
     merged_top, comp_top = LXeMC._merge_pmt_volume(
         sg, ["PMT_TOP_PMTs", "PMT_TOP_bases", "PMT_TOP_structure"],
-        "PMT_TOP_merged", :up, MATS)
+        "PMT_TOP_merged", :up)
 
     @test length(comp_top) == 3
     @test merged_top isa PDisk
@@ -1629,7 +1629,7 @@ end
     # --- BOTTOM: 4 components ---
     merged_bot, comp_bot = LXeMC._merge_pmt_volume(
         sg, ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
-        "PMT_BOT_merged", :down, MATS)
+        "PMT_BOT_merged", :down)
 
     @test length(comp_bot) == 4
     @test merged_bot isa PDisk
@@ -1660,7 +1660,7 @@ end
     # --- TOP PMTs: gammas going downward should enter AirDome (gas) ---
     merged_top, _ = LXeMC._merge_pmt_volume(
         sg, ["PMT_TOP_PMTs", "PMT_TOP_bases", "PMT_TOP_structure"],
-        "PMT_TOP_merged", :up, MATS)
+        "PMT_TOP_merged", :up)
 
     rng = MersenneTwister(42)
     n_in_detector = 0
@@ -1682,7 +1682,7 @@ end
     @test n_in_detector > 0
 
     # --- TOP PMTs flux: ~50% survival (hemisphere cut, no material) ---
-    result_top = pmt_top_flux(5000, sg, MATS, CFG, MersenneTwister(42))
+    result_top = pmt_top_flux(5000, sg, CFG, MersenneTwister(42))
     f_top = sum(result_top.bi214.pdf)
     # Isotropic in vacuum: ~50% go downward, all survive
     @test 0.3 < f_top < 0.7
@@ -1694,7 +1694,7 @@ end
     # --- BOTTOM PMTs: gammas going upward should enter LXe ---
     merged_bot, _ = LXeMC._merge_pmt_volume(
         sg, ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
-        "PMT_BOT_merged", :down, MATS)
+        "PMT_BOT_merged", :down)
 
     rng = MersenneTwister(42)
     n_in_detector_bot = 0
@@ -1711,7 +1711,7 @@ end
     @test n_in_detector_bot > 0
 
     # --- BOTTOM PMTs flux: ~50% survival ---
-    result_bot = pmt_bottom_flux(5000, sg, MATS, CFG, MersenneTwister(42))
+    result_bot = pmt_bottom_flux(5000, sg, CFG, MersenneTwister(42))
     f_bot = sum(result_bot.bi214.pdf)
     @test 0.3 < f_bot < 0.7
 

@@ -5,14 +5,15 @@ flux generator function. Extensible for future source types.
 
 
 """
-    dispatch_source_flux(source, isotope, N, sg, cfg, rng) -> NamedTuple
+    dispatch_source_flux(source, isotope, N, sg, cfg, rng) -> Dict
 
 Generate flux tables for one (source, isotope) pair.
-Returns a named tuple whose keys are component symbols
+Returns a Dict whose keys are component symbols
 (e.g., :bi214_ocv, :bi214_icv, :bi214_rate).
 
 Supported sources:
 - `"cryostat_barrel"`, `"cryostat_top"`, `"cryostat_bottom"`
+- `"pmt_top"`, `"pmt_bottom"`
 
 Supported isotopes:
 - `"Bi214"`, `"Tl208"`
@@ -27,8 +28,12 @@ function dispatch_source_flux(source::String, isotope::String,
         result = cryostat_top_flux(N, sg, cfg, rng; verbose=verbose)
     elseif source == "cryostat_bottom"
         result = cryostat_bottom_flux(N, sg, cfg, rng; verbose=verbose)
+    elseif source == "pmt_top"
+        result = pmt_top_flux(N, sg, cfg, rng; verbose=verbose)
+    elseif source == "pmt_bottom"
+        result = pmt_bottom_flux(N, sg, cfg, rng; verbose=verbose)
     else
-        error("Unknown source '$source'. Supported: cryostat_barrel, cryostat_top, cryostat_bottom")
+        error("Unknown source '$source'. Supported: $(join(supported_sources(), ", "))")
     end
 
     # Extract only the requested isotope's tables
@@ -50,6 +55,11 @@ function _extract_bi214(source::String, result)
             :bi214_icv => result.bi214_icv,
             :bi214_rate => result.bi214_rate
         )
+    elseif startswith(source, "pmt_")
+        Dict{Symbol,Any}(
+            :bi214 => result.bi214,
+            :bi214_rate => result.bi214_rate
+        )
     else
         Dict{Symbol,Any}(
             :bi214_ocv => result.bi214_ocv,
@@ -66,6 +76,11 @@ function _extract_tl208(source::String, result)
             :tl208_ocv => result.tl208_ocv,
             :tl208_mli => result.tl208_mli,
             :tl208_icv => result.tl208_icv,
+            :tl208_rate => result.tl208_rate
+        )
+    elseif startswith(source, "pmt_")
+        Dict{Symbol,Any}(
+            :tl208 => result.tl208,
             :tl208_rate => result.tl208_rate
         )
     else
@@ -121,7 +136,7 @@ end
 List of currently supported source identifiers.
 """
 function supported_sources()::Vector{String}
-    ["cryostat_barrel", "cryostat_top", "cryostat_bottom"]
+    ["cryostat_barrel", "cryostat_top", "cryostat_bottom", "pmt_top", "pmt_bottom"]
 end
 
 
@@ -217,6 +232,35 @@ end
 
 
 """
+    make_virtual_envelope(source, sg) -> VirtualEnvelope
+
+Build the virtual envelope for a PMT source from the source geometry.
+The VE is a flat disk at the face of the merged PMT volume closest
+to the LXe.
+"""
+function make_virtual_envelope(source::String,
+                                sg::Dict{String,SourceVolumeInfo})::VirtualEnvelope
+    if source == "pmt_top"
+        merged, _ = _merge_pmt_volume(sg,
+            ["PMT_TOP_PMTs", "PMT_TOP_bases", "PMT_TOP_structure"],
+            "PMT_TOP_merged", :up)
+        make_virtual_envelope(SourceVolumeInfo(
+            "PMT_TOP_merged", merged, merged.material,
+            Dict{String,Float64}(), 0.0, :transparent, "virtual_source", "merged"))
+    elseif source == "pmt_bottom"
+        merged, _ = _merge_pmt_volume(sg,
+            ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
+            "PMT_BOT_merged", :down)
+        make_virtual_envelope(SourceVolumeInfo(
+            "PMT_BOT_merged", merged, merged.material,
+            Dict{String,Float64}(), 0.0, :transparent, "virtual_source", "merged"))
+    else
+        error("No PMT virtual envelope for source '$source'")
+    end
+end
+
+
+"""
     make_virtual_envelope(sv::SourceVolumeInfo) -> VirtualEnvelope
 
 Build a virtual envelope directly from a source volume (ideal sources).
@@ -287,9 +331,22 @@ end
     make_surface_sampler(source, fk) -> Function
 
 Convenience: build virtual envelope and return sampler in one call.
+For cryostat sources, uses FastKernelGeometry.
 """
 function make_surface_sampler(source::String,
                                fk::FastKernelGeometry)::Function
     env = make_virtual_envelope(source, fk)
+    make_surface_sampler(env)
+end
+
+
+"""
+    make_surface_sampler(source, sg) -> Function
+
+Convenience: build virtual envelope and return sampler for PMT sources.
+"""
+function make_surface_sampler(source::String,
+                               sg::Dict{String,SourceVolumeInfo})::Function
+    env = make_virtual_envelope(source, sg)
     make_surface_sampler(env)
 end

@@ -14,12 +14,13 @@ that determines the "toward LXe" hemisphere:
 
 
 """
-    _merge_pmt_volume(sg, names, merged_name, orientation, materials)
+    _merge_pmt_volume(sg, names, merged_name, orientation)
         -> (PDisk, Vector{SourceVolumeInfo})
 
 Build a merged flat disk volume spanning the full z extent and common
 radius of the named PMT sub-components. The merged volume is vacuum
-(transparent) with the given orientation for hemisphere filtering.
+(transparent, material taken from first component) with the given
+orientation for hemisphere filtering.
 
 The z span is [min(z - hh), max(z + hh)] over all components — no
 hardwired numbers, always computed from the source geometry.
@@ -27,8 +28,7 @@ hardwired numbers, always computed from the source geometry.
 function _merge_pmt_volume(sg::Dict{String,SourceVolumeInfo},
                             names::Vector{String},
                             merged_name::String,
-                            orientation::Symbol,
-                            materials::Dict{String,Material})::Tuple{PDisk,Vector{SourceVolumeInfo}}
+                            orientation::Symbol)::Tuple{PDisk,Vector{SourceVolumeInfo}}
     components = [sg[n] for n in names]
 
     # Compute z span from all components (maximum extent)
@@ -54,7 +54,8 @@ function _merge_pmt_volume(sg::Dict{String,SourceVolumeInfo},
     # at z_max for :down (dome faces down, LXe above)
     z_pos = orientation === :up ? z_min : z_max
     solid = Disk(R, thickness, Inf)  # flat disk (aspect_ratio = Inf)
-    vac = materials["Vacuum"]
+    # All PMT components are vacuum — take material from first component
+    vac = components[1].material
     merged = PDisk(merged_name, LDisk(solid, Float64[0.0, 0.0, z_pos], orientation), vac)
 
     (merged, components)
@@ -62,7 +63,7 @@ end
 
 
 """
-    pmt_top_flux(N, sg, materials, cfg, rng; kwargs...) -> NamedTuple
+    pmt_top_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
 
 Compute top PMT flux tables. The three sub-components (PMTs, bases,
 structure) are lumped into a single transparent volume spanning
@@ -72,11 +73,10 @@ upward gammas are lost (filtered by cos_theta_to_lxe with :up orientation).
 Returns flux tables and summed rate table for each isotope.
 """
 function pmt_top_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
-                       materials::Dict{String,Material},
                        cfg::SimConfig, rng::AbstractRNG;
                        verbose::Bool=false, kwargs...)
     pmt_names = ["PMT_TOP_PMTs", "PMT_TOP_bases", "PMT_TOP_structure"]
-    merged, components = _merge_pmt_volume(sg, pmt_names, "PMT_TOP_merged", :up, materials)
+    merged, components = _merge_pmt_volume(sg, pmt_names, "PMT_TOP_merged", :up)
 
     t0 = time()
     bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
@@ -99,18 +99,17 @@ end
 
 
 """
-    pmt_bottom_flux(N, sg, materials, cfg, rng; kwargs...) -> NamedTuple
+    pmt_bottom_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
 
 Compute bottom PMT flux tables. Four sub-components (PMTs, bases,
 structure, R8778_dome) lumped into one transparent volume. Gammas
 going upward pass the VE; downward gammas are lost.
 """
 function pmt_bottom_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
-                          materials::Dict{String,Material},
                           cfg::SimConfig, rng::AbstractRNG;
                           verbose::Bool=false, kwargs...)
     pmt_names = ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"]
-    merged, components = _merge_pmt_volume(sg, pmt_names, "PMT_BOT_merged", :down, materials)
+    merged, components = _merge_pmt_volume(sg, pmt_names, "PMT_BOT_merged", :down)
 
     t0 = time()
     bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
