@@ -138,19 +138,19 @@ end
 """
     VirtualEnvelope
 
-Surface where sampled gammas are placed, just inside the tracking
-detector boundary. Parameters are extracted from the compiled
-`FastKernelGeometry` by `make_virtual_envelope`.
+Surface where sampled gammas are placed. For dense (cryostat) sources
+the envelope sits just inside the detector boundary. For ideal
+(transparent) sources the envelope is the source geometry itself.
 
-The envelope sits 0.01 cm inside the detector boundary to avoid
-floating-point boundary issues with the fast-kernel region classifier.
+Dense envelopes carry a 0.01 cm inset from the detector boundary to
+avoid floating-point boundary issues with the fast-kernel classifier.
 
 Fields:
-- `kind`: `:barrel`, `:cap_up`, or `:cap_down`
+- `kind`: `:barrel`, `:cap_up`, `:cap_down`, or `:disk_flat`
 - `R_cm`: radius [cm]
-- `z_min_cm`, `z_max_cm`: z range (barrel only; 0 for caps)
-- `z_equator_cm`: equator z position (caps only; 0 for barrel)
-- `aspect_ratio`: cap aspect ratio (caps only; 0 for barrel)
+- `z_min_cm`, `z_max_cm`: z range (barrel only; 0 for caps and disks)
+- `z_equator_cm`: equator z (caps); disk z (`:disk_flat`); 0 for barrel
+- `aspect_ratio`: cap aspect ratio (caps only; 0 for barrel and disk_flat)
 """
 struct VirtualEnvelope
     kind::Symbol
@@ -217,6 +217,33 @@ end
 
 
 """
+    make_virtual_envelope(sv::SourceVolumeInfo) -> VirtualEnvelope
+
+Build a virtual envelope directly from a source volume (ideal sources).
+The envelope is the source geometry itself:
+- `PCyl` (cylinder) → `:disk_flat` at the bottom face of the volume
+- `PCylShell` → `:barrel` spanning the shell z range
+"""
+function make_virtual_envelope(sv::SourceVolumeInfo)::VirtualEnvelope
+    vol = sv.volume
+    if vol isa PCyl
+        lv = vol.logical
+        R = lv.solid.radius_cm
+        z_bottom = lv.position[3] - lv.solid.half_height_cm
+        VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_bottom, 0.0)
+    elseif vol isa PCylShell
+        lv = vol.logical
+        R = lv.solid.R_inner_cm
+        z_center = lv.position[3]
+        hh = lv.solid.half_height_cm
+        VirtualEnvelope(:barrel, R, z_center - hh, z_center + hh, 0.0, 0.0)
+    else
+        error("Cannot build VE from source volume type $(typeof(vol))")
+    end
+end
+
+
+"""
     make_surface_sampler(env::VirtualEnvelope) -> Function
 
 Return a surface sampler function `rng -> (position, normal)` from a
@@ -231,6 +258,8 @@ function make_surface_sampler(env::VirtualEnvelope)::Function
     elseif env.kind === :cap_down
         return rng -> sample_cap_point(env.R_cm, env.aspect_ratio,
                                         env.z_equator_cm, :down, rng)
+    elseif env.kind === :disk_flat
+        return rng -> sample_disk_point(env.R_cm, env.z_equator_cm, rng)
     else
         error("Unknown envelope kind '$(env.kind)'")
     end

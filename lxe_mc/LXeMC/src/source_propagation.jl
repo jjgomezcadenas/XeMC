@@ -29,6 +29,13 @@ function propagate_in_source(E::Float64, pos::Vector{Float64}, dir::Vector{Float
                              rng::AbstractRNG)::Tuple{Symbol,Float64,Vector{Float64},Vector{Float64}}
     mat = source_vol.material
 
+    # Vacuum source: straight-line to exit, no interaction
+    if mat.density <= 0.0
+        t_exit = distance_to_exit(pos, dir, source_vol.logical)
+        pos .= pos .+ dir .* (t_exit + 1e-4)
+        return (:exited, E, pos, dir)
+    end
+
     while E >= cfg.Egamma_cut
         sC, sP, sPh = sigma_three(mat, E)
         s_tot = sC + sP + sPh

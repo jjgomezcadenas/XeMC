@@ -125,7 +125,7 @@ export propagate_through_layers
 export generate_flux_compound_bi214, generate_flux_compound_tl208
 export cryostat_barrel_flux, cryostat_top_flux, cryostat_bottom_flux
 export sample_from_flux, sample_from_rate_table
-export sample_barrel_point, sample_cap_point, reconstruct_direction
+export sample_barrel_point, sample_disk_point, sample_cap_point, reconstruct_direction
 export sample_gamma_from_flux
 export merge_flux_bi214, merge_flux_tl208
 export write_pdf_csv, write_flux_bi214_csv, write_flux_tl208_csv, write_rate_table_csv

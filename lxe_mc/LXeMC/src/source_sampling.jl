@@ -117,6 +117,23 @@ end
 
 
 """
+    sample_disk_point(R, z, rng) -> (position, normal)
+
+Sample a uniform point on a flat disk of radius `R` at height `z`.
+Returns position [cm] and downward normal [0, 0, -1] (toward detector
+interior below the source).
+"""
+function sample_disk_point(R::Float64, z::Float64,
+                            rng::AbstractRNG)::Tuple{Vector{Float64},Vector{Float64}}
+    r = R * sqrt(rand(rng))
+    φ = 2π * rand(rng)
+    pos = Float64[r * cos(φ), r * sin(φ), z]
+    normal = Float64[0.0, 0.0, -1.0]  # downward into detector
+    (pos, normal)
+end
+
+
+"""
     sample_cap_point(R, aspect_ratio, z_equator, orientation, rng) -> (position, normal)
 
 Sample a point on an ellipsoidal cap inner surface with approximate

@@ -1050,6 +1050,87 @@ end
 end
 
 
+
+@testset "cryostat barrel propagation chain" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    ocv = sg["OCV_barrel"]
+    mli = sg["MLI"]
+    icv = sg["ICV_barrel"]
+
+    R_ocv_inner = ocv.volume.logical.solid.R_inner_cm   # 90.8
+    R_mli_inner = mli.volume.logical.solid.R_inner_cm   # 83.0
+    R_mli_outer = R_mli_inner + mli.volume.logical.solid.wall_thickness_cm  # 84.0
+    R_icv_inner = icv.volume.logical.solid.R_inner_cm   # 82.1
+    R_icv_outer = R_icv_inner + icv.volume.logical.solid.wall_thickness_cm  # 83.0
+    z_center = ocv.volume.logical.position[3]
+
+    N = 100
+
+    # --- From OCV: propagate through OCV (KN), then [mli, icv] ---
+    n_exit_ocv = 0
+    n_exit_chain = 0
+    for i in 1:N
+        rng = MersenneTwister(i)
+        # Start inside OCV, heading inward
+        R_start = R_ocv_inner + 0.35  # middle of OCV wall
+        pos = Float64[R_start, 0.0, z_center]
+        dir = Float64[-1.0, 0.0, 0.0]
+
+        status, E, pos, dir = propagate_in_source(2.448, pos, dir, ocv.volume, CFG, rng)
+        if status == :exited
+            n_exit_ocv += 1
+
+            status2, E2, pos2, dir2 = propagate_through_layers(
+                E, pos, dir, PhysicalVolume[mli.volume, icv.volume], CFG, rng)
+            if status2 == :exited
+                n_exit_chain += 1
+            end
+        end
+    end
+    @test n_exit_ocv > 10     # most exit thin Ti OCV
+    @test n_exit_chain > 5    # some survive the full chain
+
+    # --- From MLI: propagate through MLI (vacuum), then ICV (KN) ---
+    n_exit_mli = 0
+    n_exit_icv_from_mli = 0
+    for i in 1:N
+        rng = MersenneTwister(i + 1000)
+        R_start = R_mli_inner + 0.5  # middle of MLI
+        pos = Float64[R_start, 0.0, z_center]
+        dir = Float64[-1.0, 0.0, 0.0]
+
+        # MLI is vacuum: propagate_in_source should always exit
+        status, E, pos, dir = propagate_in_source(2.448, pos, dir, mli.volume, CFG, rng)
+        @test status == :exited
+        @test E ≈ 2.448   # no energy loss in vacuum
+        n_exit_mli += 1
+
+        status2, E2, pos2, dir2 = propagate_through_layers(
+            E, pos, dir, PhysicalVolume[icv.volume], CFG, rng)
+        if status2 == :exited
+            n_exit_icv_from_mli += 1
+        end
+    end
+    @test n_exit_mli == N          # all exit vacuum
+    @test n_exit_icv_from_mli > 10 # most survive thin ICV
+
+    # --- From ICV: propagate through ICV (KN) only ---
+    n_exit_icv = 0
+    for i in 1:N
+        rng = MersenneTwister(i + 2000)
+        R_start = R_icv_inner + 0.45  # middle of ICV wall
+        pos = Float64[R_start, 0.0, z_center]
+        dir = Float64[-1.0, 0.0, 0.0]
+
+        status, E, pos, dir = propagate_in_source(2.448, pos, dir, icv.volume, CFG, rng)
+        if status == :exited
+            n_exit_icv += 1
+        end
+    end
+    @test n_exit_icv > 10  # most survive thin ICV
+end
+
 @testset "cryostat_barrel_flux" begin
     src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
     sg = load_source_geometry(src_path, MATS)
@@ -1207,6 +1288,65 @@ end
         @test normal[3] ≈ 0.0 atol=1e-10  # no z component
         # Normal points inward (opposite to position radial direction)
         @test normal[1] * pos[1] + normal[2] * pos[2] < 0.0
+    end
+end
+
+@testset "sample_disk_point" begin
+    rng = MersenneTwister(42)
+    R = 72.8
+    z = 152.6
+
+    for _ in 1:100
+        pos, normal = sample_disk_point(R, z, rng)
+        r = sqrt(pos[1]^2 + pos[2]^2)
+        @test r <= R + 1e-10
+        @test pos[3] ≈ z atol=1e-10
+        # Normal is downward unit vector
+        @test normal ≈ [0.0, 0.0, -1.0] atol=1e-10
+    end
+
+    # Check uniform radial distribution: mean(r^2) should be R^2/2
+    r2_vals = Float64[]
+    for _ in 1:10000
+        pos, _ = sample_disk_point(R, z, rng)
+        push!(r2_vals, pos[1]^2 + pos[2]^2)
+    end
+    @test mean(r2_vals) ≈ R^2 / 2 rtol=0.05
+end
+
+@testset "make_virtual_envelope from SourceVolumeInfo" begin
+    sg = load_source_geometry(
+        normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json")),
+        MATS)
+
+    # PMT_TOP_PMTs is a PCyl → should give :disk_flat
+    sv_pmt = sg["PMT_TOP_PMTs"]
+    env = make_virtual_envelope(sv_pmt)
+    @test env.kind === :disk_flat
+    @test env.R_cm ≈ 72.8
+    # z should be at the bottom face of the volume
+    lv = sv_pmt.volume.logical
+    z_bottom = lv.position[3] - lv.solid.half_height_cm
+    @test env.z_equator_cm ≈ z_bottom
+
+    # PMT_BARREL_cables is a PCylShell → should give :barrel
+    sv_cables = sg["PMT_BARREL_cables"]
+    env2 = make_virtual_envelope(sv_cables)
+    @test env2.kind === :barrel
+    lv2 = sv_cables.volume.logical
+    @test env2.R_cm ≈ lv2.solid.R_inner_cm
+    @test env2.z_min_cm ≈ lv2.position[3] - lv2.solid.half_height_cm
+    @test env2.z_max_cm ≈ lv2.position[3] + lv2.solid.half_height_cm
+
+    # Surface sampler from disk_flat VE should produce valid points
+    rng = MersenneTwister(42)
+    sampler = make_surface_sampler(env)
+    for _ in 1:50
+        pos, normal = sampler(rng)
+        r = sqrt(pos[1]^2 + pos[2]^2)
+        @test r <= env.R_cm + 1e-10
+        @test pos[3] ≈ env.z_equator_cm atol=1e-10
+        @test normal ≈ [0.0, 0.0, -1.0] atol=1e-10
     end
 end
 

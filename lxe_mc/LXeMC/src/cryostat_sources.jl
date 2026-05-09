@@ -53,8 +53,10 @@ end
     cryostat_barrel_flux(N, sg, cfg, rng; kwargs...)
 
 Compute barrel flux tables. Three contributing sources:
-1. OCV_barrel -> vacuum -> ICV_barrel (compound)
-2. MLI -> ICV_barrel (transparent: propagate through ICV only)
+1. OCV_barrel -> ICV_barrel (compound). The MLI sits between OCV and ICV
+   but is vacuum, so skipping it in the layer chain is physically correct:
+   the gamma flies straight from OCV exit to ICV entry either way.
+2. MLI -> MLI (straight line) -> ICV_barrel (compound, transparent source)
 3. ICV_barrel self
 
 Returns named tuple with component tables and summed rate tables.
@@ -66,15 +68,19 @@ function cryostat_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
     mli = sg["MLI"]
     icv = sg["ICV_barrel"]
     layers_icv = PhysicalVolume[icv.volume]
+    layers_mli = PhysicalVolume[mli.volume, icv.volume]
 
     t0 = time()
+    # OCV compound: skip MLI in layer chain — MLI is vacuum, so the gamma
+    # flies straight from OCV exit to ICV entry (see test for equivalence).
     bi_ocv = generate_flux_compound_bi214(N, ocv.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
     tl_ocv = generate_flux_compound_tl208(N, ocv.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
     verbose && @printf("  [barrel] OCV compound done (%.1fs)\n", time() - t0)
 
     t1 = time()
-    bi_mli = generate_flux_bi214(N, icv.volume, cfg, rng; kwargs...)
-    tl_mli = generate_flux_tl208(N, icv.volume, cfg, rng; kwargs...)
+    # MLI compound: born in MLI (vacuum), straight-line through MLI, KN through ICV
+    bi_mli = generate_flux_compound_bi214(N, mli.volume, layers_mli, icv.volume, cfg, rng; kwargs...)
+    tl_mli = generate_flux_compound_tl208(N, mli.volume, layers_mli, icv.volume, cfg, rng; kwargs...)
     verbose && @printf("  [barrel] MLI done (%.1fs)\n", time() - t1)
 
     t2 = time()
