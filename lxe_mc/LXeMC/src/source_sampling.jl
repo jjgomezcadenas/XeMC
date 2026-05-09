@@ -117,18 +117,19 @@ end
 
 
 """
-    sample_disk_point(R, z, rng) -> (position, normal)
+    sample_disk_point(R, z, normal_z, rng) -> (position, normal)
 
 Sample a uniform point on a flat disk of radius `R` at height `z`.
-Returns position [cm] and downward normal [0, 0, -1] (toward detector
-interior below the source).
+`normal_z` sets the z-component of the surface normal: -1.0 for
+downward (TOP PMTs, toward LXe below) or +1.0 for upward (BOTTOM
+PMTs, toward LXe above).
 """
-function sample_disk_point(R::Float64, z::Float64,
+function sample_disk_point(R::Float64, z::Float64, normal_z::Float64,
                             rng::AbstractRNG)::Tuple{Vector{Float64},Vector{Float64}}
     r = R * sqrt(rand(rng))
     φ = 2π * rand(rng)
     pos = Float64[r * cos(φ), r * sin(φ), z]
-    normal = Float64[0.0, 0.0, -1.0]  # downward into detector
+    normal = Float64[0.0, 0.0, normal_z]
     (pos, normal)
 end
 

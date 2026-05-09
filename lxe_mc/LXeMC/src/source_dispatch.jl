@@ -150,7 +150,7 @@ Fields:
 - `R_cm`: radius [cm]
 - `z_min_cm`, `z_max_cm`: z range (barrel only; 0 for caps and disks)
 - `z_equator_cm`: equator z (caps); disk z (`:disk_flat`); 0 for barrel
-- `aspect_ratio`: cap aspect ratio (caps only; 0 for barrel and disk_flat)
+- `aspect_ratio`: cap aspect ratio (caps only; normal z-sign for `:disk_flat`; 0 for barrel)
 """
 struct VirtualEnvelope
     kind::Symbol
@@ -221,8 +221,13 @@ end
 
 Build a virtual envelope directly from a source volume (ideal sources).
 The envelope is the source geometry itself:
-- `PCyl` (cylinder) → `:disk_flat` at the bottom face of the volume
+- `PCyl` (cylinder) → `:disk_flat` at the bottom face, normal_z = -1
+- `PDisk` (flat disk) → `:disk_flat` with normal_z from orientation
+  (:up → -1.0, toward LXe below; :down → +1.0, toward LXe above)
 - `PCylShell` → `:barrel` spanning the shell z range
+
+For `:disk_flat`, the `aspect_ratio` field stores the normal z-sign
+(-1.0 or +1.0) used by `sample_disk_point`.
 """
 function make_virtual_envelope(sv::SourceVolumeInfo)::VirtualEnvelope
     vol = sv.volume
@@ -230,7 +235,18 @@ function make_virtual_envelope(sv::SourceVolumeInfo)::VirtualEnvelope
         lv = vol.logical
         R = lv.solid.radius_cm
         z_bottom = lv.position[3] - lv.solid.half_height_cm
-        VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_bottom, 0.0)
+        VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_bottom, -1.0)
+    elseif vol isa PDisk
+        lv = vol.logical
+        R = lv.solid.radius_cm
+        normal_z = lv.orientation === :up ? -1.0 : 1.0
+        # VE at bottom face for :up, top face for :down
+        if lv.orientation === :up
+            z_ve = lv.position[3]  # bottom face
+        else
+            z_ve = lv.position[3]  # top face (position is at z_max for :down)
+        end
+        VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_ve, normal_z)
     elseif vol isa PCylShell
         lv = vol.logical
         R = lv.solid.R_inner_cm
@@ -259,7 +275,8 @@ function make_surface_sampler(env::VirtualEnvelope)::Function
         return rng -> sample_cap_point(env.R_cm, env.aspect_ratio,
                                         env.z_equator_cm, :down, rng)
     elseif env.kind === :disk_flat
-        return rng -> sample_disk_point(env.R_cm, env.z_equator_cm, rng)
+        nz = env.aspect_ratio  # normal z-sign stored in aspect_ratio field
+        return rng -> sample_disk_point(env.R_cm, env.z_equator_cm, nz, rng)
     else
         error("Unknown envelope kind '$(env.kind)'")
     end

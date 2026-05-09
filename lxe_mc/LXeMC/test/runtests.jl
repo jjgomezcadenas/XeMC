@@ -1296,19 +1296,25 @@ end
     R = 72.8
     z = 152.6
 
+    # Downward normal
     for _ in 1:100
-        pos, normal = sample_disk_point(R, z, rng)
+        pos, normal = sample_disk_point(R, z, -1.0, rng)
         r = sqrt(pos[1]^2 + pos[2]^2)
         @test r <= R + 1e-10
         @test pos[3] ≈ z atol=1e-10
-        # Normal is downward unit vector
         @test normal ≈ [0.0, 0.0, -1.0] atol=1e-10
+    end
+
+    # Upward normal
+    for _ in 1:100
+        pos, normal = sample_disk_point(R, z, 1.0, rng)
+        @test normal ≈ [0.0, 0.0, 1.0] atol=1e-10
     end
 
     # Check uniform radial distribution: mean(r^2) should be R^2/2
     r2_vals = Float64[]
     for _ in 1:10000
-        pos, _ = sample_disk_point(R, z, rng)
+        pos, _ = sample_disk_point(R, z, -1.0, rng)
         push!(r2_vals, pos[1]^2 + pos[2]^2)
     end
     @test mean(r2_vals) ≈ R^2 / 2 rtol=0.05
