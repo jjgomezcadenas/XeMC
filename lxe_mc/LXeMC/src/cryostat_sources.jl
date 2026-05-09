@@ -68,7 +68,6 @@ function cryostat_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
     mli = sg["MLI"]
     icv = sg["ICV_barrel"]
     layers_icv = PhysicalVolume[icv.volume]
-    layers_mli = PhysicalVolume[mli.volume, icv.volume]
 
     t0 = time()
     # OCV compound: skip MLI in layer chain — MLI is vacuum, so the gamma
@@ -78,9 +77,11 @@ function cryostat_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
     verbose && @printf("  [barrel] OCV compound done (%.1fs)\n", time() - t0)
 
     t1 = time()
-    # MLI compound: born in MLI (vacuum), straight-line through MLI, KN through ICV
-    bi_mli = generate_flux_compound_bi214(N, mli.volume, layers_mli, icv.volume, cfg, rng; kwargs...)
-    tl_mli = generate_flux_compound_tl208(N, mli.volume, layers_mli, icv.volume, cfg, rng; kwargs...)
+    # MLI compound: born in MLI (vacuum), exits MLI via propagate_in_source,
+    # then traverses ICV (KN). Layers = [icv] only — the gamma has already
+    # left MLI after source-side propagation.
+    bi_mli = generate_flux_compound_bi214(N, mli.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
+    tl_mli = generate_flux_compound_tl208(N, mli.volume, layers_icv, icv.volume, cfg, rng; kwargs...)
     verbose && @printf("  [barrel] MLI done (%.1fs)\n", time() - t1)
 
     t2 = time()

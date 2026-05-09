@@ -1159,6 +1159,14 @@ end
     @test result.bi214_rate.total_rate ≈ sum(result.bi214_rate.component_rates) atol=1e-15
     @test result.tl208_rate.total_rate ≈ sum(result.tl208_rate.component_rates) atol=1e-15
 
+    # All components must have nonzero survival (non-empty flux tables)
+    @test sum(result.bi214_ocv.pdf) > 0
+    @test sum(result.bi214_mli.pdf) > 0
+    @test sum(result.bi214_icv.pdf) > 0
+    @test sum(result.tl208_ocv.pdf_main) > 0
+    @test sum(result.tl208_mli.pdf_main) > 0
+    @test sum(result.tl208_icv.pdf_main) > 0
+
     # OCV survival < ICV survival (more material)
     @test sum(result.bi214_ocv.pdf) < sum(result.bi214_icv.pdf)
 
