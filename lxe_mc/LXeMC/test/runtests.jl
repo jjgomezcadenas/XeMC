@@ -1554,6 +1554,87 @@ end
 end
 
 
+@testset "Surface sampler from sg with epsilon inset" begin
+    # Test that surface samplers built from source geometry + tiny inset
+    # place gammas inside the detector. The inset (ENVELOPE_INSET_CM) is
+    # needed because the fast kernel uses strict < for boundary checks.
+    # With the geometry fix, the ICV inner surface matches the detector
+    # boundary exactly, so the inset is purely numerical (not geometric).
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    fk3 = compile_fastkernel_geometry(DET3)
+    ε = ENVELOPE_INSET_CM
+
+    # --- Barrel: ICV_barrel inner surface with inset ---
+    icv_b = sg["ICV_barrel"]
+    R_b = icv_b.volume.logical.solid.R_inner_cm - ε
+    z_eq_top = sg["ICV_top"].volume.logical.position[3]
+    z_eq_bot = sg["ICV_bottom"].volume.logical.position[3]
+    # Barrel z excludes dome regions
+    top_depth = R_b / sg["ICV_top"].volume.logical.solid.aspect_ratio
+    bot_depth = R_b / sg["ICV_bottom"].volume.logical.solid.aspect_ratio
+    barrel_sampler = rng -> sample_barrel_point(R_b, z_eq_bot + bot_depth, z_eq_top - top_depth, rng)
+
+    rng = MersenneTwister(42)
+    local n_in = 0
+    for _ in 1:200
+        pos, _ = barrel_sampler(rng)
+        region = classify_fastkernel(fk3, (pos[1], pos[2], pos[3]))
+        region !== nothing && (n_in += 1)
+    end
+    @test n_in == 200
+
+    # --- Top: ICV_top inner dome with inset ---
+    icv_t = sg["ICV_top"]
+    R_t = icv_t.volume.logical.solid.radius_cm - icv_t.volume.logical.solid.wall_thickness_cm - ε
+    ar_t = icv_t.volume.logical.solid.aspect_ratio
+    top_sampler = rng -> sample_cap_point(R_t, ar_t, z_eq_top, :up, rng)
+
+    local n_in_t = 0
+    for _ in 1:200
+        pos, _ = top_sampler(rng)
+        region = classify_fastkernel(fk3, (pos[1], pos[2], pos[3]))
+        region !== nothing && (n_in_t += 1)
+    end
+    @test n_in_t == 200
+
+    # --- Bottom: ICV_bottom inner dome with inset ---
+    icv_bot = sg["ICV_bottom"]
+    R_bot = icv_bot.volume.logical.solid.radius_cm - icv_bot.volume.logical.solid.wall_thickness_cm - ε
+    ar_bot = icv_bot.volume.logical.solid.aspect_ratio
+    bot_sampler = rng -> sample_cap_point(R_bot, ar_bot, z_eq_bot, :down, rng)
+
+    local n_in_b = 0
+    for _ in 1:200
+        pos, _ = bot_sampler(rng)
+        region = classify_fastkernel(fk3, (pos[1], pos[2], pos[3]))
+        region !== nothing && (n_in_b += 1)
+    end
+    @test n_in_b == 200
+
+    # --- PMT top: already inside detector, R=72.8 << 82.1 ---
+    pmt_top_sampler = rng -> sample_disk_point(72.8, 152.6, -1.0, rng)
+
+    local n_in_pt = 0
+    for _ in 1:200
+        pos, _ = pmt_top_sampler(rng)
+        region = classify_fastkernel(fk3, (pos[1], pos[2], pos[3]))
+        region !== nothing && (n_in_pt += 1)
+    end
+    @test n_in_pt == 200
+
+    # --- PMT bottom: already inside detector ---
+    pmt_bot_sampler = rng -> sample_disk_point(72.8, -15.75, 1.0, rng)
+
+    local n_in_pb = 0
+    for _ in 1:200
+        pos, _ = pmt_bot_sampler(rng)
+        region = classify_fastkernel(fk3, (pos[1], pos[2], pos[3]))
+        region !== nothing && (n_in_pb += 1)
+    end
+    @test n_in_pb == 200
+end
+
 @testset "Gammas from surface sampler reach detector" begin
     src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
     sg = load_source_geometry(src_path, MATS)
