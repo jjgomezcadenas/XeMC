@@ -153,12 +153,11 @@ end
 """
     VirtualEnvelope
 
-Surface where sampled gammas are placed. For dense (cryostat) sources
-the envelope sits just inside the detector boundary. For ideal
-(transparent) sources the envelope is the source geometry itself.
-
-Dense envelopes carry a 0.01 cm inset from the detector boundary to
-avoid floating-point boundary issues with the fast-kernel classifier.
+Surface where sampled gammas are placed, built from the source geometry.
+For cryostat sources the envelope is the ICV inner surface; for PMT
+sources it is the source volume itself. All envelopes carry a tiny
+inset (`ENVELOPE_INSET_CM = 0.01 cm`) to avoid floating-point boundary
+issues with the fast-kernel region classifier.
 
 Fields:
 - `kind`: `:barrel`, `:cap_up`, `:cap_down`, or `:disk_flat`
@@ -180,82 +179,66 @@ const ENVELOPE_INSET_CM = 0.01  # inset from detector boundary
 
 
 """
-    make_virtual_envelope(source, fk) -> VirtualEnvelope
-
-Build the virtual envelope for a source from the tracking detector
-geometry. The envelope shape matches the detector boundary for the
-relevant surface.
-
-- **Barrel**: cylindrical shell from the LZ_detector barrel region.
-- **Top**: ellipsoidal cap from the AirDome.
-- **Bottom**: ellipsoidal cap from the LXe_passive bottom.
-"""
-function make_virtual_envelope(source::String,
-                                fk::FastKernelGeometry)::VirtualEnvelope
-    if source == "cryostat_barrel"
-        lz = fk.regions[fk.name_to_index["LZ_detector"]]
-        top_depth = lz.has_top_cap ? lz.top_cap_radius_cm / lz.top_cap_aspect_ratio : 0.0
-        bot_depth = lz.has_bottom_cap ? lz.bottom_cap_radius_cm / lz.bottom_cap_aspect_ratio : 0.0
-        VirtualEnvelope(
-            :barrel,
-            lz.rmax_cm - ENVELOPE_INSET_CM,
-            lz.zmin_cm + bot_depth,   # top of bottom cap
-            lz.zmax_cm - top_depth,   # bottom of top cap
-            0.0,
-            0.0
-        )
-    elseif source == "cryostat_top"
-        air = fk.regions[fk.name_to_index["AirDome"]]
-        VirtualEnvelope(
-            :cap_up,
-            air.top_cap_radius_cm - ENVELOPE_INSET_CM,
-            0.0,
-            0.0,
-            air.zmin_cm,              # equator of the AirDome cap
-            air.top_cap_aspect_ratio
-        )
-    elseif source == "cryostat_bottom"
-        passive = fk.regions[fk.name_to_index["LXe_passive"]]
-        cap_depth = passive.bottom_cap_radius_cm / passive.bottom_cap_aspect_ratio
-        VirtualEnvelope(
-            :cap_down,
-            passive.bottom_cap_radius_cm - ENVELOPE_INSET_CM,
-            0.0,
-            0.0,
-            passive.zmin_cm + cap_depth,   # equator of the bottom cap
-            passive.bottom_cap_aspect_ratio
-        )
-    else
-        error("No virtual envelope for source '$source'")
-    end
-end
-
-
-"""
     make_virtual_envelope(source, sg) -> VirtualEnvelope
 
-Build the virtual envelope for a PMT source from the source geometry.
-The VE is a flat disk at the face of the merged PMT volume closest
-to the LXe.
+Build the virtual envelope for any source from the source geometry.
+The VE sits on the ICV inner surface (for cryostat sources) or on
+the source itself (for PMT sources), with a small inset
+(`ENVELOPE_INSET_CM`) to avoid floating-point boundary issues with
+the fast-kernel region classifier.
+
+- **cryostat_barrel**: ICV_barrel inner cylinder
+- **cryostat_top**: ICV_top inner dome (:cap_up)
+- **cryostat_bottom**: ICV_bottom inner dome (:cap_down)
+- **pmt_top**: merged PMT disk (:disk_flat, downward)
+- **pmt_bottom**: merged PMT disk (:disk_flat, upward)
 """
 function make_virtual_envelope(source::String,
                                 sg::Dict{String,SourceVolumeInfo})::VirtualEnvelope
-    if source == "pmt_top"
+    ε = ENVELOPE_INSET_CM
+
+    if source == "cryostat_barrel"
+        icv = sg["ICV_barrel"]
+        R = icv.volume.logical.solid.R_inner_cm - ε
+        z_eq_top = sg["ICV_top"].volume.logical.position[3]
+        z_eq_bot = sg["ICV_bottom"].volume.logical.position[3]
+        # Barrel z excludes dome regions
+        top_depth = R / sg["ICV_top"].volume.logical.solid.aspect_ratio
+        bot_depth = R / sg["ICV_bottom"].volume.logical.solid.aspect_ratio
+        VirtualEnvelope(:barrel, R, z_eq_bot + bot_depth, z_eq_top - top_depth, 0.0, 0.0)
+
+    elseif source == "cryostat_top"
+        icv = sg["ICV_top"]
+        R = icv.volume.logical.solid.radius_cm - icv.volume.logical.solid.wall_thickness_cm - ε
+        z_eq = icv.volume.logical.position[3]
+        ar = icv.volume.logical.solid.aspect_ratio
+        VirtualEnvelope(:cap_up, R, 0.0, 0.0, z_eq, ar)
+
+    elseif source == "cryostat_bottom"
+        icv = sg["ICV_bottom"]
+        R = icv.volume.logical.solid.radius_cm - icv.volume.logical.solid.wall_thickness_cm - ε
+        z_eq = icv.volume.logical.position[3]
+        ar = icv.volume.logical.solid.aspect_ratio
+        VirtualEnvelope(:cap_down, R, 0.0, 0.0, z_eq, ar)
+
+    elseif source == "pmt_top"
         merged, _ = _merge_pmt_volume(sg,
             ["PMT_TOP_PMTs", "PMT_TOP_bases", "PMT_TOP_structure"],
             "PMT_TOP_merged", :up)
-        make_virtual_envelope(SourceVolumeInfo(
-            "PMT_TOP_merged", merged, merged.material,
-            Dict{String,Float64}(), 0.0, :transparent, "virtual_source", "merged"))
+        sv = SourceVolumeInfo("PMT_TOP_merged", merged, merged.material,
+            Dict{String,Float64}(), 0.0, :transparent, "virtual_source", "merged")
+        make_virtual_envelope(sv)
+
     elseif source == "pmt_bottom"
         merged, _ = _merge_pmt_volume(sg,
             ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
             "PMT_BOT_merged", :down)
-        make_virtual_envelope(SourceVolumeInfo(
-            "PMT_BOT_merged", merged, merged.material,
-            Dict{String,Float64}(), 0.0, :transparent, "virtual_source", "merged"))
+        sv = SourceVolumeInfo("PMT_BOT_merged", merged, merged.material,
+            Dict{String,Float64}(), 0.0, :transparent, "virtual_source", "merged")
+        make_virtual_envelope(sv)
+
     else
-        error("No PMT virtual envelope for source '$source'")
+        error("Unknown source '$source'. Supported: $(join(supported_sources(), ", "))")
     end
 end
 
@@ -328,22 +311,10 @@ end
 
 
 """
-    make_surface_sampler(source, fk) -> Function
-
-Convenience: build virtual envelope and return sampler in one call.
-For cryostat sources, uses FastKernelGeometry.
-"""
-function make_surface_sampler(source::String,
-                               fk::FastKernelGeometry)::Function
-    env = make_virtual_envelope(source, fk)
-    make_surface_sampler(env)
-end
-
-
-"""
     make_surface_sampler(source, sg) -> Function
 
-Convenience: build virtual envelope and return sampler for PMT sources.
+Convenience: build virtual envelope from source geometry and return
+sampler in one call. Works for all source types.
 """
 function make_surface_sampler(source::String,
                                sg::Dict{String,SourceVolumeInfo})::Function

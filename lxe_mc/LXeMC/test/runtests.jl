@@ -1650,8 +1650,8 @@ end
         icv_vol = sg[icv_key].volume
         ft = generate_flux_bi214(5_000, icv_vol, CFG, MersenneTwister(42))
 
-        # Build sampler from tracking detector (not source geometry)
-        sampler = make_surface_sampler(source_name, fk3)
+        # Build sampler from source geometry
+        sampler = make_surface_sampler(source_name, sg)
         rng = MersenneTwister(99)
 
         # All sampled gammas should land inside the detector envelope
