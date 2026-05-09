@@ -389,76 +389,159 @@ carriers.
 
 \begin{table}[h]
 \centering
-\caption{Field-cage and internal sources.  Dimensions refer to the
-  full FC envelope ($z \in [-13.75, 145.6]$~cm, $h_\text{half} =
-  79.675$~cm).}
+\caption{Field-cage and internal sources.  All cylindrical shells
+  centered at $z_0$.  FC\_PTFE, FC\_rings, resistors, and sensors
+  share the FC envelope ($z_0 = 65.925$~cm, $h_\text{half} =
+  79.675$~cm, covering $z \in [-13.75, 145.6]$~cm).  Grid holders
+  sit at the gate and cathode planes respectively.}
 \label{tab:fc_sources}
-\begin{tabular}{@{}llrrrrrr@{}}
+\small
+\begin{tabular}{@{}llrrrrrrr@{}}
 \toprule
-{Source} & {Material} & {$R_\text{in}$} & {$t$} &
+{Source} & {Material} & {$R_\text{in}$} & {$t$} & {$z_0$} &
   {Mass} & {$^{238}$U} & {$^{232}$Th} & {Transport} \\
- & & {(cm)} & {(cm)} & {(kg)} & {(mBq/kg)} & {(mBq/kg)} & \\
+ & & {(cm)} & {(cm)} & {(cm)} & {(kg)} & {(mBq/kg)} & {(mBq/kg)} & \\
 \midrule
-FC\_PTFE     & PTFE   & 72.8  & 1.147 & 184$^a$  & 0.04 & 0.01 & KN \\
-FC\_rings    & Ti     & 74.3  & 0.277 & 93.0$^a$ & 0.35 & 0.24 & KN \\
-FC\_resistors& Vacuum & 72.7  & 0.1   & 0.06$^b$ & 1350 & 2010 & transp.\ \\
-FC\_sensors  & Vacuum & 72.6  & 0.1   & 5.02$^b$ & 5.82 & 1.88 & transp.\ \\
-FC\_topgrid  & SS     & 72.8  & 7.5   & 44.6$^b$ & 2.63 & 1.46 & KN \\
-FC\_botgrid  & SS     & 72.8  & 7.5   & 22.3$^b$ & 2.63 & 1.46 & KN \\
+FC\_PTFE     & PTFE   & 72.8  & 1.147 & 65.93  & 184$^a$  & 0.04 & 0.01 & KN \\
+FC\_rings    & Ti     & 74.3  & 0.277 & 65.93  & 93.0$^a$ & 0.35 & 0.24 & KN \\
+FC\_resistors& Vacuum & 72.7  & 0.1   & 65.93  & 0.06$^b$ & 1350 & 2010 & transp.\ \\
+FC\_sensors  & Vacuum & 72.6  & 0.1   & 65.93  & 5.02$^b$ & 5.82 & 1.88 & transp.\ \\
+FC\_topgrid  & SS     & 72.8  & 7.5   & 146.38 & 44.6$^b$ & 2.63 & 1.46 & KN \\
+FC\_botgrid  & SS     & 72.8  & 7.5   & $-$0.39  & 22.3$^b$ & 2.63 & 1.46 & KN \\
 \bottomrule
-\multicolumn{8}{@{}l}{\footnotesize $^a$ Geometric mass from drawn
+\multicolumn{9}{@{}l}{\footnotesize $^a$ Geometric mass from drawn
   dimensions.  $^b$ \texttt{equivalent\_mass\_kg} (virtual carrier).} \\
-\multicolumn{8}{@{}l}{\footnotesize Grid holders: JSON total
+\multicolumn{9}{@{}l}{\footnotesize Grid holders: JSON total
   66.8~kg vs.\ paper 89.1~kg; difference is grid wire mass not
   modeled separately.}
 \end{tabular}
 \end{table}
 
-\subsection{PMT and cable sources}
+\subsection{PMT, cable, and skin sources}
 
-Table~\ref{tab:pmt_sources} lists the PMT-related sources.  All are
-\texttt{mass\_equivalent} virtual carriers with transparent transport.
-Masses and activities match paper Table~I exactly.
+Tables~\ref{tab:pmt_top}--\ref{tab:pmt_barrel} list all PMT-related
+sources grouped by location.  All are \texttt{mass\_equivalent}
+virtual carriers (Vacuum, transparent transport).  Masses and
+activities match paper Table~I exactly.
 
 \begin{table}[h]
 \centering
-\caption{PMT and cable sources.  All virtual carriers (Vacuum,
-  transparent transport).  ``top+bot'' entries are modeled as separate
-  disk-shaped sources at their respective $z$ positions; the table
-  shows per-source values.}
-\label{tab:pmt_sources}
-\begin{tabular}{@{}llrrr@{}}
+\caption{Top PMT sources ($z \approx 153$~cm, above gate plane).
+  All $R = 72.8$~cm disk-shaped cylinders.}
+\label{tab:pmt_top}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-{Source} & {Shape} & {Mass (kg)} &
-  {$^{238}$U (mBq/kg)} & {$^{232}$Th (mBq/kg)} \\
+{Source} & {$h_\text{half}$ (cm)} & {$z_0$ (cm)} & {Mass (kg)} &
+  {$^{238}$U} & {$^{232}$Th} \\
+ & & & & {(mBq/kg)} & {(mBq/kg)} \\
 \midrule
-PMT\_TOP\_PMTs       & cylinder & 47.07 & 3.22 & 1.61 \\
-PMT\_BOT\_PMTs       & cylinder & 44.83 & 3.22 & 1.61 \\
-\quad \emph{sum}     &          & \emph{91.90} & & \\[2pt]
-PMT\_TOP\_bases      & cylinder &  1.434 & 75.9 & 33.1 \\
-PMT\_BOT\_bases      & cylinder &  1.366 & 75.9 & 33.1 \\
-\quad \emph{sum}     &          & \emph{2.80} & & \\[2pt]
-PMT\_TOP\_structure  & cylinder & 83.0  & 1.60 & 1.06 \\
-PMT\_BOT\_structure  & cylinder & 83.0  & 1.60 & 1.06 \\
-\quad \emph{sum}     &          & \emph{166.0} & & \\[2pt]
-PMT\_BARREL\_cables  & cyl.\ shell & 88.7 & 4.31 & 0.82 \\
+PMT\_TOP\_PMTs       & 0.179 & 152.78 & 47.07  & 3.22 & 1.61 \\
+PMT\_TOP\_bases      & 0.006 & 152.61 &  1.434 & 75.9 & 33.1 \\
+PMT\_TOP\_structure  & 0.553 & 153.15 & 83.0   & 1.60 & 1.06 \\
 \midrule
-\multicolumn{5}{@{}l}{\emph{Skin PMTs (all share 46.0 / 14.9 mBq/kg):}} \\
-PMT\_BARREL\_R8520       & cyl.\ shell & 6.10  & 46.0 & 14.9 \\
-PMT\_BARREL\_R8778\_lower & cyl.\ shell & 1.31  & 46.0 & 14.9 \\
-PMT\_BOT\_R8778\_dome    & cylinder    & 1.18  & 46.0 & 14.9 \\
-\quad \emph{sum}         &             & \emph{8.59} & & \\
+\textbf{Top total}   &       &        & \textbf{131.5} & & \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Insulation source}
+\begin{table}[h]
+\centering
+\caption{Bottom PMT sources ($z \approx -16$~cm, below RFR).
+  All $R = 72.8$~cm disk-shaped cylinders, plus one dome skin PMT.}
+\label{tab:pmt_bottom}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+{Source} & {$h_\text{half}$ (cm)} & {$z_0$ (cm)} & {Mass (kg)} &
+  {$^{238}$U} & {$^{232}$Th} \\
+ & & & & {(mBq/kg)} & {(mBq/kg)} \\
+\midrule
+PMT\_BOT\_PMTs          & 0.170 & $-$15.92 & 44.83  & 3.22 & 1.61 \\
+PMT\_BOT\_bases         & 0.005 & $-$15.76 &  1.366 & 75.9 & 33.1 \\
+PMT\_BOT\_structure     & 0.553 & $-$16.30 & 83.0   & 1.60 & 1.06 \\
+PMT\_BOT\_R8778\_dome   & 0.005 & $-$15.75 &  1.18  & 46.0 & 14.9 \\
+\midrule
+\textbf{Bottom total}   &       &          & \textbf{130.4} & & \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-The MLI cryostat insulation is modeled as a virtual cylindrical shell
-on the ICV outer wall ($R_\text{in} = 83.0$~cm, $t = 1.0$~cm,
-$h_\text{half} = 94.92$~cm).  Material is Vacuum (transparent
-transport); \texttt{equivalent\_mass\_kg} $= 13.8$~kg.  Activities:
-$^{238}$U-late $= 11.1$, $^{232}$Th-late $= 7.79$~mBq/kg.
+\begin{table}[h]
+\centering
+\caption{Barrel sources (cylindrical shells along FC envelope,
+  $z_0 = 65.93$~cm, $h_\text{half} = 79.675$~cm, covering
+  $z \in [-13.75, 145.6]$~cm).}
+\label{tab:pmt_barrel}
+\small
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+{Source} & {$R_\text{in}$ (cm)} & {$t$ (cm)} & {Mass (kg)} &
+  {$^{238}$U} & {$^{232}$Th} & {Paper category} \\
+ & & & & {(mBq/kg)} & {(mBq/kg)} & \\
+\midrule
+PMT\_BARREL\_cables      & 81.2 & 0.150 & 88.7 & 4.31 & 0.82 & TPC PMT cables \\
+PMT\_BARREL\_R8520       & 81.4 & 0.010 &  6.10 & 46.0 & 14.9 & Skin PMTs \\
+PMT\_BARREL\_R8778\_lower & 81.4 & 0.002 &  1.31 & 46.0 & 14.9 & Skin PMTs \\
+\midrule
+\textbf{Barrel total}    &      &       & \textbf{96.1} & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Paper aggregates vs.\ JSON sub-components:}
+
+\begin{tabular}{@{}lrl@{}}
+\toprule
+Paper category & Mass (kg) & JSON sources \\
+\midrule
+TPC PMTs       & 91.9  & TOP\_PMTs + BOT\_PMTs \\
+TPC PMT bases  &  2.80 & TOP\_bases + BOT\_bases \\
+TPC PMT struct.\ & 166.0 & TOP\_structure + BOT\_structure \\
+TPC PMT cables & 88.7  & BARREL\_cables \\
+Skin PMTs+bases &  8.59 & BARREL\_R8520 + R8778\_lower + BOT\_R8778\_dome \\
+\bottomrule
+\end{tabular}
+\vspace{6pt}
+
+The top array sits $\sim$7~cm above the gate ($z = 145.6$~cm) in
+the gas dome.  The bottom array sits $\sim$2~cm below the RFR bottom
+($z = -13.75$~cm).  Barrel sources run the full FC envelope height.
+
+\subsection{Insulation and cryostat positions}
+
+Table~\ref{tab:positions} collects the $z$ positions of the cryostat
+and insulation sources.  These positions anchor the source-flux
+emission surfaces and determine the solid-angle coverage toward the
+active LXe.
+
+\begin{table}[h]
+\centering
+\caption{Cryostat and insulation source positions.  $z_0$ is the
+  center of the barrel or the equator of the head.}
+\label{tab:positions}
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+{Source} & {Shape} & {$R_\text{in}$ (cm)} & {$z_0$ (cm)} &
+  {$h_\text{half}$ or AR} \\
+\midrule
+OCV barrel   & cyl.\ shell & 90.8 & 53.58  & $h = 106.25$ \\
+OCV top      & disk (2:1)  & 91.5 & 159.83 & AR $= 2.0$ \\
+OCV bottom   & disk (2:1)  & 91.5 & $-$52.67 & AR $= 2.0$ \\
+ICV barrel   & cyl.\ shell & 82.1 & 53.585 & $h = 94.915$ \\
+ICV top      & disk (2:1)  & 83.0 & 148.50 & AR $= 2.0$ \\
+ICV bottom   & disk (3:1)  & 83.0 & $-$41.33 & AR $= 3.0$ \\
+MLI          & cyl.\ shell & 83.0 & 53.585 & $h = 94.92$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The OCV and ICV barrels are approximately coaxial, centered near
+$z \approx 53.6$~cm (midpoint of the drift region).  The ICV barrel
+extends from $z = -41.33$~cm to $z = 148.5$~cm, bracketing the full
+detector volume.  The OCV barrel is wider ($R = 90.8$~cm vs.\
+82.1~cm) and taller, providing an $\sim$8~cm radial gap and
+$\sim$11~cm axial gap for the MLI insulation and vacuum space.
 
 \subsection{Components not modeled}
 

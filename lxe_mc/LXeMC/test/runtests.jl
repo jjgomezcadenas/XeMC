@@ -1590,3 +1590,126 @@ end
         end
     end
 end
+
+
+# =====================================================================
+# PMT merged volume geometry
+# =====================================================================
+@testset "PMT merged volume geometry" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+
+    # --- TOP: 3 components ---
+    merged_top, comp_top = LXeMC._merge_pmt_volume(
+        sg, ["PMT_TOP_PMTs", "PMT_TOP_bases", "PMT_TOP_structure"],
+        "PMT_TOP_merged", :up, MATS)
+
+    @test length(comp_top) == 3
+    @test merged_top isa PDisk
+    @test merged_top.material.density ≈ 0.0  # vacuum
+
+    # z span should match expected values from source geometry
+    s = merged_top.logical.solid
+    c = merged_top.logical.position
+    @test s.radius_cm ≈ 72.8
+    @test is_flat(s)  # aspect_ratio = Inf
+
+    # z range: [152.599, 153.706] (from bases bottom to structure top)
+    z_bottom = c[3]  # position is at z_min for :up
+    z_top = c[3] + s.wall_thickness_cm
+    @test z_bottom ≈ 152.599 atol=0.01
+    @test z_top ≈ 153.706 atol=0.01
+
+    # --- BOTTOM: 4 components ---
+    merged_bot, comp_bot = LXeMC._merge_pmt_volume(
+        sg, ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
+        "PMT_BOT_merged", :down, MATS)
+
+    @test length(comp_bot) == 4
+    @test merged_bot isa PDisk
+    @test merged_bot.material.density ≈ 0.0
+
+    s_bot = merged_bot.logical.solid
+    c_bot = merged_bot.logical.position
+    @test s_bot.radius_cm ≈ 72.8
+    @test is_flat(s_bot)
+
+    # z range: [-16.856, -15.750] (from structure bottom to shared top)
+    z_top_bot = c_bot[3]  # position is at z_max for :down
+    z_bottom_bot = c_bot[3] - s_bot.wall_thickness_cm
+    @test z_top_bot ≈ -15.750 atol=0.01
+    @test z_bottom_bot ≈ -16.856 atol=0.01
+end
+
+
+# =====================================================================
+# PMT propagation: gammas enter air (top) or LXe (bottom)
+# =====================================================================
+@testset "PMT propagation into detector" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+    det3 = load_tracking_detector(default_tracking_detector_path(), MATS)
+    fk3 = compile_fastkernel_geometry(det3)
+
+    # --- TOP PMTs: gammas going downward should enter AirDome (gas) ---
+    merged_top, _ = LXeMC._merge_pmt_volume(
+        sg, ["PMT_TOP_PMTs", "PMT_TOP_bases", "PMT_TOP_structure"],
+        "PMT_TOP_merged", :up, MATS)
+
+    rng = MersenneTwister(42)
+    n_in_detector = 0
+    N = 200
+    for _ in 1:N
+        pos = random_position_in_volume(merged_top, rng)
+        dir = sample_isotropic_direction(rng)
+        # Only downward gammas (toward LXe)
+        dir[3] > 0 && continue
+
+        # Check that the gamma position is inside the AirDome region
+        # (PMTs sit inside the gas dome at z~152.6, R=72.8)
+        region = classify_fastkernel(fk3, (pos[1], pos[2], pos[3]))
+        if region !== nothing
+            n_in_detector += 1
+        end
+    end
+    # At least some gammas should start inside the detector envelope
+    @test n_in_detector > 0
+
+    # --- TOP PMTs flux: ~50% survival (hemisphere cut, no material) ---
+    result_top = pmt_top_flux(5000, sg, MATS, CFG, MersenneTwister(42))
+    f_top = sum(result_top.bi214.pdf)
+    # Isotropic in vacuum: ~50% go downward, all survive
+    @test 0.3 < f_top < 0.7
+
+    # Rate table has 3 components
+    @test length(result_top.bi214_rate.component_names) == 3
+    @test result_top.bi214_rate.total_rate > 0
+
+    # --- BOTTOM PMTs: gammas going upward should enter LXe ---
+    merged_bot, _ = LXeMC._merge_pmt_volume(
+        sg, ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
+        "PMT_BOT_merged", :down, MATS)
+
+    rng = MersenneTwister(42)
+    n_in_detector_bot = 0
+    for _ in 1:N
+        pos = random_position_in_volume(merged_bot, rng)
+        dir = sample_isotropic_direction(rng)
+        dir[3] < 0 && continue
+
+        region = classify_fastkernel(fk3, (pos[1], pos[2], pos[3]))
+        if region !== nothing
+            n_in_detector_bot += 1
+        end
+    end
+    @test n_in_detector_bot > 0
+
+    # --- BOTTOM PMTs flux: ~50% survival ---
+    result_bot = pmt_bottom_flux(5000, sg, MATS, CFG, MersenneTwister(42))
+    f_bot = sum(result_bot.bi214.pdf)
+    @test 0.3 < f_bot < 0.7
+
+    # Rate table has 4 components
+    @test length(result_bot.bi214_rate.component_names) == 4
+    @test result_bot.bi214_rate.total_rate > 0
+end

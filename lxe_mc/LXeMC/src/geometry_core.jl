@@ -485,6 +485,76 @@ function distance_to_exit(pos::Vector{Float64}, dir::Vector{Float64}, lcs::LCylS
 end
 
 
+function distance_to_exit(pos::Vector{Float64}, dir::Vector{Float64}, ld::LDisk)::Float64
+    R = ld.solid.radius_cm
+    t_cm = ld.solid.wall_thickness_cm
+    cx, cy, cz = ld.position
+    sgn = ld.orientation === :up ? 1.0 : -1.0
+
+    dx = pos[1] - cx
+    dy = pos[2] - cy
+    dz = pos[3] - cz
+
+    if is_flat(ld.solid)
+        # Slab between z_pos and z_pos + sgn * thickness, plus cylinder at R
+        z_lo = 0.0
+        z_hi = sgn * t_cm
+        if z_lo > z_hi
+            z_lo, z_hi = z_hi, z_lo
+        end
+        dz_rel = dz  # relative to position
+
+        t_min = Inf
+
+        # Z faces
+        if abs(dir[3]) > 1e-20
+            for z_face in [z_lo, z_hi]
+                t = (z_face - dz_rel) / dir[3]
+                if t > 1e-10
+                    rx = dx + t * dir[1]
+                    ry = dy + t * dir[2]
+                    if rx^2 + ry^2 <= R^2
+                        t_min = min(t_min, t)
+                    end
+                end
+            end
+        end
+
+        # Cylindrical boundary
+        a = dir[1]^2 + dir[2]^2
+        if a > 1e-20
+            b = 2.0 * (dx * dir[1] + dy * dir[2])
+            c_coef = dx^2 + dy^2 - R^2
+            disc = b^2 - 4 * a * c_coef
+            if disc >= 0.0
+                sq = sqrt(disc)
+                for t in [(-b - sq) / (2a), (-b + sq) / (2a)]
+                    if t > 1e-10
+                        z_hit = dz_rel + t * dir[3]
+                        if z_lo <= z_hit <= z_hi
+                            t_min = min(t_min, t)
+                        end
+                    end
+                end
+            end
+        end
+
+        return t_min
+    end
+
+    # Domed disk: use step search fallback
+    ds = 0.1
+    for i in 1:10000
+        t = i * ds
+        test_pos = pos .+ dir .* t
+        if !is_inside(ld, test_pos)
+            return t
+        end
+    end
+    Inf
+end
+
+
 function distance_to_entry(pos::Vector{Float64}, dir::Vector{Float64}, lv::LBox)::Float64
     ds = 0.1
     for i in 1:10000
