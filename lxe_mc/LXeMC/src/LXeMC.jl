@@ -118,6 +118,7 @@ export DecayGamma, DecayScheme, GammaEmission, SampledGamma
 export load_decays, sample_decay, sample_event, sample_gammas, sample_isotropic_direction
 export propagate_in_source, random_position_in_volume
 export SourceFlux, SourceFluxBi214, SourceFluxTl208, SourceRateTable
+export BR_BI214_2448, BR_TL208_2615
 export SourceVolumeInfo, load_source_geometry
 export generate_flux_bi214, generate_flux_tl208
 export propagate_through_layers

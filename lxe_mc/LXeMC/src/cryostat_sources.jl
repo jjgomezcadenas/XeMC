@@ -9,12 +9,18 @@ tables.
 
 
 """
-    _build_rate_table(surface, components, E_min, E_max, n_E, n_u)
+    _build_rate_table(surface, gamma_BR, components, E_min, E_max, n_E, n_u)
 
 Build a `SourceRateTable` by summing activity-weighted component flux tables.
 Each component is `(name, A_Bq_per_kg, mass_kg, flux)`.
+
+`gamma_BR` is the branching ratio from chain decay to the specific gamma
+line simulated (e.g. `BR_BI214_2448` or `BR_TL208_2615`).  The chain
+activity `A_Bq_per_kg` is multiplied by `gamma_BR` to obtain the
+single-gamma rate.
 """
 function _build_rate_table(surface::Symbol,
+                            gamma_BR::Float64,
                             components::Vector{<:Tuple},
                             E_min::Float64, E_max::Float64,
                             n_E::Int, n_u::Int)::SourceRateTable
@@ -24,7 +30,7 @@ function _build_rate_table(surface::Symbol,
 
     for (name, A_Bq_per_kg, mass_kg, flux) in components
         pdf = flux isa SourceFluxBi214 ? flux.pdf : flux.pdf_main
-        rate_scale = A_Bq_per_kg * mass_kg
+        rate_scale = A_Bq_per_kg * mass_kg * gamma_BR
         if size(pdf) == (n_E, n_u)
             pdf_rate .+= rate_scale .* pdf
         end
@@ -79,13 +85,13 @@ function cryostat_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
     A_bi = "Bi214_mBq_per_kg"
     A_tl = "Tl208_mBq_per_kg"
 
-    rate_bi = _build_rate_table(:barrel,
+    rate_bi = _build_rate_table(:barrel, BR_BI214_2448,
         [("OCV_barrel", _get_activity_Bq(ocv, A_bi), ocv.mass_kg, bi_ocv),
          ("MLI",        _get_activity_Bq(mli, A_bi), mli.mass_kg, bi_mli),
          ("ICV_barrel", _get_activity_Bq(icv, A_bi), icv.mass_kg, bi_icv)],
         bi_ocv.E_min, bi_ocv.E_max, bi_ocv.n_E, bi_ocv.n_u)
 
-    rate_tl = _build_rate_table(:barrel,
+    rate_tl = _build_rate_table(:barrel, BR_TL208_2615,
         [("OCV_barrel", _get_activity_Bq(ocv, A_tl), ocv.mass_kg, tl_ocv),
          ("MLI",        _get_activity_Bq(mli, A_tl), mli.mass_kg, tl_mli),
          ("ICV_barrel", _get_activity_Bq(icv, A_tl), icv.mass_kg, tl_icv)],
@@ -123,12 +129,12 @@ function cryostat_top_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
     A_bi = "Bi214_mBq_per_kg"
     A_tl = "Tl208_mBq_per_kg"
 
-    rate_bi = _build_rate_table(:top,
+    rate_bi = _build_rate_table(:top, BR_BI214_2448,
         [("OCV_top", _get_activity_Bq(ocv, A_bi), ocv.mass_kg, bi_ocv),
          ("ICV_top", _get_activity_Bq(icv, A_bi), icv.mass_kg, bi_icv)],
         bi_ocv.E_min, bi_ocv.E_max, bi_ocv.n_E, bi_ocv.n_u)
 
-    rate_tl = _build_rate_table(:top,
+    rate_tl = _build_rate_table(:top, BR_TL208_2615,
         [("OCV_top", _get_activity_Bq(ocv, A_tl), ocv.mass_kg, tl_ocv),
          ("ICV_top", _get_activity_Bq(icv, A_tl), icv.mass_kg, tl_icv)],
         tl_ocv.E_min_main, tl_ocv.E_max_main, tl_ocv.n_E_main, tl_ocv.n_u)
@@ -165,12 +171,12 @@ function cryostat_bottom_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
     A_bi = "Bi214_mBq_per_kg"
     A_tl = "Tl208_mBq_per_kg"
 
-    rate_bi = _build_rate_table(:bottom,
+    rate_bi = _build_rate_table(:bottom, BR_BI214_2448,
         [("OCV_bottom", _get_activity_Bq(ocv, A_bi), ocv.mass_kg, bi_ocv),
          ("ICV_bottom", _get_activity_Bq(icv, A_bi), icv.mass_kg, bi_icv)],
         bi_ocv.E_min, bi_ocv.E_max, bi_ocv.n_E, bi_ocv.n_u)
 
-    rate_tl = _build_rate_table(:bottom,
+    rate_tl = _build_rate_table(:bottom, BR_TL208_2615,
         [("OCV_bottom", _get_activity_Bq(ocv, A_tl), ocv.mass_kg, tl_ocv),
          ("ICV_bottom", _get_activity_Bq(icv, A_tl), icv.mass_kg, tl_icv)],
         tl_ocv.E_min_main, tl_ocv.E_max_main, tl_ocv.n_E_main, tl_ocv.n_u)

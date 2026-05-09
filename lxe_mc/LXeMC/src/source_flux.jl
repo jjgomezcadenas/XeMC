@@ -25,6 +25,22 @@ Concrete subtypes:
 abstract type SourceFlux end
 
 
+# =====================================================================
+# Gamma branching ratios: chain activity → single-gamma rate
+# =====================================================================
+#
+# The JSON stores chain activities (226Ra-onward for U-238 late,
+# 224Ra-onward for Th-232 late).  The flux generators shoot one
+# specific gamma per call.  To convert chain decay rate [Bq] to
+# single-gamma rate [gammas/s], multiply by these branching ratios.
+
+"""BR for 214Bi → 2448 keV gamma (1.5% of 214Bi decays)."""
+const BR_BI214_2448 = 0.015
+
+"""BR for 212Bi → 208Tl (35.94%) × 208Tl → 2615 keV gamma (99.8%)."""
+const BR_TL208_2615 = 0.3594 * 0.998
+
+
 """
     SourceFluxBi214 <: SourceFlux
 

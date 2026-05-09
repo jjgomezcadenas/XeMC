@@ -1080,6 +1080,30 @@ end
 
     # OCV survival < ICV survival (more material)
     @test sum(result.bi214_ocv.pdf) < sum(result.bi214_icv.pdf)
+
+    # BR is applied: rate = A_chain * mass * BR * survival, not A_chain * mass * survival
+    icv = sg["ICV_barrel"]
+    A_bi_chain = get(icv.activity, "Bi214_mBq_per_kg", 0.0) * 1e-3
+    A_tl_chain = get(icv.activity, "Tl208_mBq_per_kg", 0.0) * 1e-3
+    f_bi_icv = sum(result.bi214_icv.pdf)
+    f_tl_icv = sum(result.tl208_icv.pdf_main)
+
+    rate_bi_icv_with_BR = A_bi_chain * icv.mass_kg * BR_BI214_2448 * f_bi_icv
+    rate_bi_icv_no_BR   = A_bi_chain * icv.mass_kg * f_bi_icv
+
+    rate_tl_icv_with_BR = A_tl_chain * icv.mass_kg * BR_TL208_2615 * f_tl_icv
+    rate_tl_icv_no_BR   = A_tl_chain * icv.mass_kg * f_tl_icv
+
+    bi_icv_idx = findfirst(==("ICV_barrel"), result.bi214_rate.component_names)
+    tl_icv_idx = findfirst(==("ICV_barrel"), result.tl208_rate.component_names)
+
+    @test result.bi214_rate.component_rates[bi_icv_idx] ≈ rate_bi_icv_with_BR atol=1e-15
+    @test result.bi214_rate.component_rates[bi_icv_idx] < rate_bi_icv_no_BR
+    @test rate_bi_icv_no_BR / rate_bi_icv_with_BR ≈ 1.0 / BR_BI214_2448 atol=0.01
+
+    @test result.tl208_rate.component_rates[tl_icv_idx] ≈ rate_tl_icv_with_BR atol=1e-15
+    @test result.tl208_rate.component_rates[tl_icv_idx] < rate_tl_icv_no_BR
+    @test rate_tl_icv_no_BR / rate_tl_icv_with_BR ≈ 1.0 / BR_TL208_2615 atol=0.01
 end
 
 @testset "cryostat_top_flux" begin
