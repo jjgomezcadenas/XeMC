@@ -193,7 +193,8 @@ checked by `@testset "Source geometric mass vs bb0nu"` in
 ```
 MARS                                  Vacuum    world (cylinder, R=120, H=440)
 └── LZ_detector                       Vacuum    domed_container, R=82.1, ICV inner cavity
-    ├── AirDome                       HPGXe     cap, gas above the gate
+    ├── AirDome                       HPGXe     cap, gas dome (z_eq=148.5, ar=2.0)
+    ├── AirCyl                        HPGXe     cylinder, gas gap (z=[145.6, 148.5])
     └── LXe_passive                   LXe       capped_cylinder, ICV-inner liquid volume
         ├── TopActive                 LXe       cylinder, sensitive (above FV)
         ├── BarrelActive              LXe       cylinder_shell, sensitive (around FV)
@@ -204,11 +205,27 @@ MARS                                  Vacuum    world (cylinder, R=120, H=440)
         └── Skin                      LXe       cylinder_shell, sensitive (veto)
 ```
 
+### ICV inner surface consistency
+
+All tracking detector boundaries match the ICV inner surface at
+R = 82.1 cm. The ICV head wall thicknesses were adjusted so that
+R_inner = R_outer - t = 82.1 for all three surfaces (barrel, top,
+bottom), while preserving the original dome masses. The real ICV
+is not a perfect cylinder+dome; this is a deliberate simplification.
+
+- ICV_barrel: R_outer = 83.0, t = 0.9 (unchanged)
+- ICV_top: R_outer = 82.902, t = 0.802 (mass = 107.7 kg, preserved)
+- ICV_bottom: R_outer = 83.292, t = 1.192 (mass = 141.4 kg, preserved)
+
+The AirDome cap equator sits at z = 148.5 (ICV_top equator), not at
+the gate plane z = 145.6. The cylindrical gas gap between the gate
+and the dome equator is filled by AirCyl (R = 82.1, z = [145.6, 148.5]).
+
 Containment invariants:
 
 - `LZ_detector` ⊂ `MARS`.
-- `AirDome` and `LXe_passive` partition `LZ_detector`'s interior
-  (gas above gate, liquid below).
+- `AirDome`, `AirCyl`, and `LXe_passive` partition `LZ_detector`'s
+  interior (gas dome above gate + gas gap + liquid below).
 - All eight named daughters of `LXe_passive` are strictly contained in
   it; siblings are non-overlapping.
 - `TopActive`, `BarrelActive`, `BottomActive`, and `FV` together cover
