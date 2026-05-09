@@ -33,17 +33,30 @@
             "approximation": "exact"
         },
         {
-            "_doc": "Top gas dome above the gate, modeled as a pure top cap anchored at the gate plane z=145.6.",
+            "_doc": "Gas dome matching the ICV top inner surface. Equator at z=148.5 (ICV_top equator), R=82.1 (ICV inner R with uniform 0.9 cm wall). The real ICV is not a perfect dome; this is a deliberate simplification so that the tracking detector boundary coincides with the ICV inner surface.",
             "name": "AirDome",
             "shape": "cap",
             "radius_cm": 82.1,
             "aspect_ratio": 2.0,
             "orientation": "up",
-            "position_cm": [0.0, 0.0, 145.6],
+            "position_cm": [0.0, 0.0, 148.5],
             "material": "HPGXe",
             "parent": "LZ_detector",
             "tag": "vacuum",
             "role": "gas_dome",
+            "approximation": "exact"
+        },
+        {
+            "_doc": "Cylindrical gas gap between the gate plane (z=145.6) and the AirDome equator (z=148.5). Fills the region inside the ICV barrel above the LXe surface.",
+            "name": "AirCyl",
+            "shape": "cylinder",
+            "radius_cm": 82.1,
+            "half_height_cm": 1.45,
+            "position_cm": [0.0, 0.0, 147.05],
+            "material": "HPGXe",
+            "parent": "LZ_detector",
+            "tag": "vacuum",
+            "role": "gas_gap",
             "approximation": "exact"
         },
         {

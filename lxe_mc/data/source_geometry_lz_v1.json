@@ -99,11 +99,11 @@
             }
         },
         {
-            "_doc": "Inner cryostat titanium top head source.",
+            "_doc": "Inner cryostat titanium top head source. R_outer and wall_thickness adjusted so that R_inner = 82.1 cm (matching barrel) while preserving the original dome mass (107.7 kg). The real ICV is not a perfect cylinder+dome; this is a deliberate simplification for consistent inner geometry.",
             "name": "ICV_top",
             "shape": "disk",
-            "radius_cm": 83.0,
-            "wall_thickness_cm": 0.8,
+            "radius_cm": 82.902,
+            "wall_thickness_cm": 0.802,
             "aspect_ratio": 2.0,
             "orientation": "up",
             "position_cm": [0.0, 0.0, 148.5],
@@ -118,11 +118,11 @@
             }
         },
         {
-            "_doc": "Inner cryostat titanium bottom head source.",
+            "_doc": "Inner cryostat titanium bottom head source. R_outer and wall_thickness adjusted so that R_inner = 82.1 cm (matching barrel) while preserving the original dome mass (141.4 kg). The real ICV is not a perfect cylinder+dome; this is a deliberate simplification for consistent inner geometry.",
             "name": "ICV_bottom",
             "shape": "disk",
-            "radius_cm": 83.0,
-            "wall_thickness_cm": 1.2,
+            "radius_cm": 83.292,
+            "wall_thickness_cm": 1.192,
             "aspect_ratio": 3.0,
             "orientation": "down",
             "position_cm": [0.0, 0.0, -41.33],

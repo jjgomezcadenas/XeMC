@@ -54,7 +54,7 @@ end
     @test DET3.name == "LZ"
 
     names3 = sort([n.lv.name for n in DET3.nodes])
-    @test names3 == ["AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "MARS", "Skin", "TopActive"]
+    @test names3 == ["AirCyl", "AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "MARS", "Skin", "TopActive"]
 
     root3 = root_node(DET3)
     lz3 = node_by_name(DET3, "LZ_detector")
@@ -108,7 +108,7 @@ end
     @test find_tracking_node(DET3, (0.0, 0.0, 160.0)).lv.name == "AirDome"
 
     fk3 = compile_fastkernel_geometry(DET3)
-    @test sort([r.name for r in fk3.regions]) == ["AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "Skin", "TopActive"]
+    @test sort([r.name for r in fk3.regions]) == ["AirCyl", "AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "Skin", "TopActive"]
     @test fk3.envelope_index != 0
     @test fk3.fallback_index != 0
     @test fk3.regions[fk3.envelope_index].role == "tracking_envelope"
