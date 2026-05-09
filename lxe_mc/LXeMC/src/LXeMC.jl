@@ -131,7 +131,8 @@ export write_pdf_csv, write_flux_bi214_csv, write_flux_tl208_csv, write_rate_tab
 export write_flux_json, flux_bi214_metadata, flux_tl208_metadata, rate_table_metadata
 export load_pdf_csv, load_flux_bi214, load_flux_tl208, load_rate_table
 export dispatch_source_flux, merge_dispatch_results
-export supported_sources, supported_isotopes, make_surface_sampler
+export supported_sources, supported_isotopes
+export VirtualEnvelope, ENVELOPE_INSET_CM, make_virtual_envelope, make_surface_sampler
 
 # --- Convenience paths ---
 """Path to the canonical detector-geometry JSON file."""

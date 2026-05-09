@@ -136,44 +136,114 @@ end
 
 
 """
-    make_surface_sampler(source, fk) -> Function
+    VirtualEnvelope
 
-Return a surface sampler function `rng -> (position, normal)` for the
-given source. The sampler places gammas on a virtual envelope that sits
-just inside the tracking detector boundary, extracted from the compiled
-`FastKernelGeometry`.
+Surface where sampled gammas are placed, just inside the tracking
+detector boundary. Parameters are extracted from the compiled
+`FastKernelGeometry` by `make_virtual_envelope`.
 
-- **Barrel**: cylindrical shell at R = detector rmax, z from Skin region.
-- **Top**: ellipsoidal cap matching the AirDome geometry.
-- **Bottom**: ellipsoidal cap matching the LXe_passive bottom cap.
+The envelope sits 0.01 cm inside the detector boundary to avoid
+floating-point boundary issues with the fast-kernel region classifier.
+
+Fields:
+- `kind`: `:barrel`, `:cap_up`, or `:cap_down`
+- `R_cm`: radius [cm]
+- `z_min_cm`, `z_max_cm`: z range (barrel only; 0 for caps)
+- `z_equator_cm`: equator z position (caps only; 0 for barrel)
+- `aspect_ratio`: cap aspect ratio (caps only; 0 for barrel)
 """
-function make_surface_sampler(source::String,
-                               fk::FastKernelGeometry)::Function
+struct VirtualEnvelope
+    kind::Symbol
+    R_cm::Float64
+    z_min_cm::Float64
+    z_max_cm::Float64
+    z_equator_cm::Float64
+    aspect_ratio::Float64
+end
+
+const ENVELOPE_INSET_CM = 0.01  # inset from detector boundary
+
+
+"""
+    make_virtual_envelope(source, fk) -> VirtualEnvelope
+
+Build the virtual envelope for a source from the tracking detector
+geometry. The envelope shape matches the detector boundary for the
+relevant surface.
+
+- **Barrel**: cylindrical shell from the LZ_detector barrel region.
+- **Top**: ellipsoidal cap from the AirDome.
+- **Bottom**: ellipsoidal cap from the LXe_passive bottom.
+"""
+function make_virtual_envelope(source::String,
+                                fk::FastKernelGeometry)::VirtualEnvelope
     if source == "cryostat_barrel"
-        # Barrel envelope: LZ_detector barrel region (between top and bottom caps)
         lz = fk.regions[fk.name_to_index["LZ_detector"]]
         top_depth = lz.has_top_cap ? lz.top_cap_radius_cm / lz.top_cap_aspect_ratio : 0.0
         bot_depth = lz.has_bottom_cap ? lz.bottom_cap_radius_cm / lz.bottom_cap_aspect_ratio : 0.0
-        R = lz.rmax_cm - 0.01     # slightly inside boundary (82.09 cm)
-        z_min = lz.zmin_cm + bot_depth  # top of bottom cap
-        z_max = lz.zmax_cm - top_depth  # bottom of top cap
-        return rng -> sample_barrel_point(R, z_min, z_max, rng)
+        VirtualEnvelope(
+            :barrel,
+            lz.rmax_cm - ENVELOPE_INSET_CM,
+            lz.zmin_cm + bot_depth,   # top of bottom cap
+            lz.zmax_cm - top_depth,   # bottom of top cap
+            0.0,
+            0.0
+        )
     elseif source == "cryostat_top"
-        # Top envelope: AirDome cap, slightly inside boundary
         air = fk.regions[fk.name_to_index["AirDome"]]
-        R = air.top_cap_radius_cm - 0.01   # slightly inside (82.09 cm)
-        ar = air.top_cap_aspect_ratio      # 2.0
-        z_eq = air.zmin_cm                 # 145.6 cm (equator of the cap)
-        return rng -> sample_cap_point(R, ar, z_eq, :up, rng)
+        VirtualEnvelope(
+            :cap_up,
+            air.top_cap_radius_cm - ENVELOPE_INSET_CM,
+            0.0,
+            0.0,
+            air.zmin_cm,              # equator of the AirDome cap
+            air.top_cap_aspect_ratio
+        )
     elseif source == "cryostat_bottom"
-        # Bottom envelope: LXe_passive bottom cap, slightly inside boundary
         passive = fk.regions[fk.name_to_index["LXe_passive"]]
-        R = passive.bottom_cap_radius_cm - 0.01   # slightly inside (82.09 cm)
-        ar = passive.bottom_cap_aspect_ratio       # 3.0
-        cap_depth = passive.bottom_cap_radius_cm / ar  # use full R for depth calc
-        z_eq = passive.zmin_cm + cap_depth
-        return rng -> sample_cap_point(R, ar, z_eq, :down, rng)
+        cap_depth = passive.bottom_cap_radius_cm / passive.bottom_cap_aspect_ratio
+        VirtualEnvelope(
+            :cap_down,
+            passive.bottom_cap_radius_cm - ENVELOPE_INSET_CM,
+            0.0,
+            0.0,
+            passive.zmin_cm + cap_depth,   # equator of the bottom cap
+            passive.bottom_cap_aspect_ratio
+        )
     else
-        error("No surface sampler for source '$source'")
+        error("No virtual envelope for source '$source'")
     end
+end
+
+
+"""
+    make_surface_sampler(env::VirtualEnvelope) -> Function
+
+Return a surface sampler function `rng -> (position, normal)` from a
+`VirtualEnvelope`.
+"""
+function make_surface_sampler(env::VirtualEnvelope)::Function
+    if env.kind === :barrel
+        return rng -> sample_barrel_point(env.R_cm, env.z_min_cm, env.z_max_cm, rng)
+    elseif env.kind === :cap_up
+        return rng -> sample_cap_point(env.R_cm, env.aspect_ratio,
+                                        env.z_equator_cm, :up, rng)
+    elseif env.kind === :cap_down
+        return rng -> sample_cap_point(env.R_cm, env.aspect_ratio,
+                                        env.z_equator_cm, :down, rng)
+    else
+        error("Unknown envelope kind '$(env.kind)'")
+    end
+end
+
+
+"""
+    make_surface_sampler(source, fk) -> Function
+
+Convenience: build virtual envelope and return sampler in one call.
+"""
+function make_surface_sampler(source::String,
+                               fk::FastKernelGeometry)::Function
+    env = make_virtual_envelope(source, fk)
+    make_surface_sampler(env)
 end
