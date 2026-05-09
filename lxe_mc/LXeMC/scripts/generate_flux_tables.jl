@@ -151,8 +151,58 @@ function main()
         end
     end
 
+    # --- Activity summary ---
+    activity_key = cli.isotope == "Bi214" ? "Bi214_mBq_per_kg" : "Tl208_mBq_per_kg"
+    chain_name = cli.isotope == "Bi214" ? "U-238" : "Th-232"
+    gamma_BR = cli.isotope == "Bi214" ? BR_BI214_2448 : BR_TL208_2615
+    rate_key = cli.isotope == "Bi214" ? :bi214_rate : :tl208_rate
+
+    if haskey(merged, rate_key)
+        rt = merged[rate_key]
+        activity_summary = Dict{String,Any}[]
+        total_chain_Bq = 0.0
+        total_gamma_emitted = 0.0
+
+        for (i, cname) in enumerate(rt.component_names)
+            sv = sg[cname]
+            act_mBq = get(sv.activity, activity_key, 0.0)
+            act_Bq = act_mBq * 1e-3 * sv.mass_kg
+            gamma_emitted = act_Bq * gamma_BR
+            total_chain_Bq += act_Bq
+            total_gamma_emitted += gamma_emitted
+            push!(activity_summary, Dict{String,Any}(
+                "component" => cname,
+                "mass_kg" => sv.mass_kg,
+                "activity_mBq_per_kg" => act_mBq,
+                "chain_activity_Bq" => act_Bq,
+                "gamma_emitted_per_s" => gamma_emitted,
+                "gamma_surviving_per_s" => rt.component_rates[i]
+            ))
+        end
+
+        metadata["chain"] = chain_name
+        metadata["gamma_BR"] = gamma_BR
+        metadata["total_chain_activity_Bq"] = total_chain_Bq
+        metadata["total_gamma_emitted_per_s"] = total_gamma_emitted
+        metadata["total_gamma_surviving_per_s"] = rt.total_rate
+        metadata["activity_breakdown"] = activity_summary
+
+        @printf("\nActivity summary (%s chain, BR = %.4f):\n", chain_name, gamma_BR)
+        @printf("  %-15s  %10s  %12s  %12s  %12s  %12s\n",
+                "Component", "Mass [kg]", "Act [mBq/kg]", "Chain [Bq]",
+                "Emitted [/s]", "Surviving [/s]")
+        for d in activity_summary
+            @printf("  %-15s  %10.2f  %12.3f  %12.6f  %12.6e  %12.6e\n",
+                    d["component"], d["mass_kg"], d["activity_mBq_per_kg"],
+                    d["chain_activity_Bq"], d["gamma_emitted_per_s"],
+                    d["gamma_surviving_per_s"])
+        end
+        @printf("  %-15s  %10s  %12s  %12.6f  %12.6e  %12.6e\n",
+                "TOTAL", "", "", total_chain_Bq, total_gamma_emitted, rt.total_rate)
+    end
+
     write_flux_json(joinpath(cli.outdir, "metadata.json"), metadata)
-    @printf("Output written to %s\n", cli.outdir)
+    @printf("\nOutput written to %s\n", cli.outdir)
     @printf("Total time: %.2f s\n", time() - t0)
 end
 
