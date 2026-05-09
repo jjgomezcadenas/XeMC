@@ -335,5 +335,40 @@ V3 runtime model:
 4. detector container: node set + root
 
 The fast-kernel compiler (`compile_fastkernel_geometry`) flattens the
-tree into a region array indexed by name for the inner photon-transport
-loop.
+tree into a region array in JSON declaration order. Two distinguished
+regions are identified by markers:
+- **Envelope**: the unique region with `role == "tracking_envelope"`
+- **Fallback**: the unique region with `tag == passive_lxe`
+
+Classification loops over all regions; no volume name appears in the
+dispatch logic.
+
+## Adding a tracked region
+
+Adding or removing a tracked region is a JSON-only change. No code edits
+are required. The steps:
+
+1. Add the volume entry to `data/detector_lz_v3.json` with:
+   - `name`: any unique string (purely a label)
+   - `shape` + dimensions: the geometric solid
+   - `material`: key into `materials.json`
+   - `parent`: the mother volume
+   - `tag`: one of `world`, `vacuum`, `passive_lxe`, `tpc_active`,
+     `fv`, `skin`, `structural`
+   - `role`: a descriptive string (free-form)
+   - Optional overrides: `ecut_keV`, `dz_mm`, `inFastKernel`, etc.
+
+2. The `tag` drives all simulation behavior:
+   - `_capabilities_for_tag(tag)` provides defaults for `inFastKernel`,
+     `isXe`, `sensitive`, `ecut_keV`, `dz_mm`, `fv_target`
+   - `select_interaction_fastkernel` classifies by tag, not by name
+   - `veto_threshold` dispatches by tag
+   - JSON fields override any default when present
+
+3. The compiler validates structural invariants at load time:
+   - Exactly one region with `role == "tracking_envelope"`
+   - Exactly one region with `tag == passive_lxe`
+   - Child containment and sibling non-overlap
+
+To remove a region, delete its JSON entry. To rename one, change the
+`name` field. Neither operation requires touching any `.jl` file.

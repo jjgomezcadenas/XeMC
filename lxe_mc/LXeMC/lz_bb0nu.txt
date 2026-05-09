@@ -1,0 +1,1719 @@
+arXiv:1912.04248v2 [nucl-ex] 24 Apr 2020
+
+Projected sensitivity of the LUX-ZEPLIN experiment to the 0νββ decay of
+
+136
+
+Xe
+
+D.S. Akerib,1, 2 C.W. Akerlof,3 A. Alqahtani,4 S.K. Alsum,5 T.J. Anderson,1, 2 N. Angelides,6 H.M. Araújo,7
+J.E. Armstrong,8 M. Arthurs,3 X. Bai,9 J. Balajthy,10 S. Balashov,11 J. Bang,4 A. Baxter,12 J. Bensinger,13
+E.P. Bernard,14, 15 A. Bernstein,16 A. Bhatti,8 A. Biekert,14, 15 T.P. Biesiadzinski,1, 2 H.J. Birch,12 K.E. Boast,17
+B. Boxer,12 P. Brás,18, a J.H. Buckley,19 V.V. Bugaev,19 S. Burdin,12 J.K. Busenitz,20 R. Cabrita,18 C. Carels,17
+D.L. Carlsmith,5 M.C. Carmona-Benitez,21 M. Cascella,6 C. Chan,4 N.I. Chott,9 A. Cole,15 A. Cottle,17, 22
+J.E. Cutter,10 C.E. Dahl,23, 22 L. de Viveiros,21 J.E.Y. Dobson,6 E. Druszkiewicz,24 T.K. Edberg,8 S.R. Eriksen,25
+A. Fan,1, 2 S. Fiorucci,15 H. Flaecher,25 E.D. Fraser,12 T. Fruth,17 R.J. Gaitskell,4 J. Genovesi,9 C. Ghag,6
+E. Gibson,17 M.G.D. Gilchriese,15 S. Gokhale,26 M.G.D.van der Grinten,11 C.R. Hall,8 A. Harrison,9
+S.J. Haselschwardt,27 S.A. Hertel,28 J.Y-K. Hor,20 M. Horn,29 D.Q. Huang,4 C.M. Ignarra,1, 2 O. Jahangir,6
+W. Ji,1, 2 J. Johnson,10 A.C. Kaboth,30, 11 A.C. Kamaha,31 K. Kamdin,15, 14 K. Kazkaz,16 D. Khaitan,24
+A. Khazov,11 I. Khurana,6 C.D. Kocher,4 L. Korley,13 E.V. Korolkova,32 J. Kras,5 H. Kraus,17 S. Kravitz,15
+L. Kreczko,25 B. Krikler,25 V.A. Kudryavtsev,32 E.A. Leason,33 J. Lee,34 D.S. Leonard,34 K.T. Lesko,15
+C. Levy,31 J. Li,34 J. Liao,4 F.-T. Liao,17 J. Lin,14, 15 A. Lindote,18 R. Linehan,1, 2 W.H. Lippincott,22, b
+R. Liu,4 X. Liu,33 C. Loniewski,24 M.I. Lopes,18 B. López Paredes,7 W. Lorenzon,3 S. Luitz,1 J.M. Lyle,4
+P.A. Majewski,11 A. Manalaysay,10 L. Manenti,6 R.L. Mannino,5 N. Marangou,7 M.F. Marzioni,33
+D.N. McKinsey,14, 15 J. McLaughlin,23 Y. Meng,20 E.H. Miller,1, 2 E. Mizrachi,8 A. Monte,22, b M.E. Monzani,1, 2
+J.A. Morad,10 E. Morrison,9 B.J. Mount,35 A.St.J. Murphy,33 D. Naim,10 A. Naylor,32 C. Nedlik,28 C. Nehrkorn,27
+H.N. Nelson,27 F. Neves,18 J.A. Nikoleyczik,5 A. Nilima,33 K. O’Sullivan,15, 14, c I. Olcina,7 K.C. Oliver-Mallory,15, 14
+S. Pal,18 K.J. Palladino,5 J. Palmer,30 N. Parveen,31 E.K. Pease,15 B. Penning,13 G. Pereira,18 K. Pushkin,3
+J. Reichenbacher,9 C.A. Rhyne,4 Q. Riffard,14, 15 G.R.C. Rischbieter,31 R. Rosero,26 P. Rossiter,32 G. Rutherford,4
+D. Santone,30 A.B.M.R. Sazzad,20 R.W. Schnee,9 M. Schubnell,3 D. Seymour,4 S. Shaw,27 T.A. Shutt,1, 2 J.J. Silk,8
+C. Silva,18 R. Smith,14, 15 M. Solmaz,27 V.N. Solovov,18 P. Sorensen,15 I. Stancu,20 A. Stevens,17 K. Stifter,1, 2
+T.J. Sumner,7 N. Swanson,4 M. Szydagis,31 M. Tan,17 W.C. Taylor,4 R. Taylor,7, d D.J. Temples,23 P.A. Terman,36
+D.R. Tiedt,8 M. Timalsina,9 A. Tomás,7 M. Tripathi,10 D.R. Tronstad,9 W. Turner,12 L. Tvrznikova,37, 14
+U. Utku,6 A. Vacheret,7 A. Vaitkus,4 J.J. Wang,13 W. Wang,28 J.R. Watson,14, 15 R.C. Webb,36 R.G. White,1, 2
+T.J. Whitis,27, 1 F.L.H. Wolfs,24 D. Woodward,21 X. Xiang,4 J. Xu,16 M. Yeh,26 and P. Zarzhitsky20
+(The LUX-ZEPLIN (LZ) Collaboration)
+1
+
+SLAC National Accelerator Laboratory, Menlo Park, CA 94025-7015, USA
+2
+Kavli Institute for Particle Astrophysics and Cosmology,
+Stanford University, Stanford, CA 94305-4085 USA
+3
+University of Michigan, Randall Laboratory of Physics, Ann Arbor, MI 48109-1040, USA
+4
+Brown University, Department of Physics, Providence, RI 02912-9037, USA
+5
+University of Wisconsin-Madison, Department of Physics, Madison, WI 53706-1390, USA
+6
+University College London (UCL), Department of Physics and Astronomy, London WC1E 6BT, UK
+7
+Imperial College London, Physics Department, Blackett Laboratory, London SW7 2AZ, UK
+8
+University of Maryland, Department of Physics, College Park, MD 20742-4111, USA
+9
+South Dakota School of Mines and Technology, Rapid City, SD 57701-3901, USA
+10
+University of California, Davis, Department of Physics, Davis, CA 95616-5270, USA
+11
+STFC Rutherford Appleton Laboratory (RAL), Didcot, OX11 0QX, UK
+12
+University of Liverpool, Department of Physics, Liverpool L69 7ZE, UK
+13
+Brandeis University, Department of Physics, Waltham, MA 02453, USA
+14
+University of California, Berkeley, Department of Physics, Berkeley, CA 94720-7300, USA
+15
+Lawrence Berkeley National Laboratory (LBNL), Berkeley, CA 94720-8099, USA
+16
+Lawrence Livermore National Laboratory (LLNL), Livermore, CA 94550-9698, USA
+17
+University of Oxford, Department of Physics, Oxford OX1 3RH, UK
+18
+Laboratório de Instrumentação e Fı́sica Experimental de Partı́culas (LIP),
+University of Coimbra, P-3004 516 Coimbra, Portugal
+19
+Washington University in St. Louis, Department of Physics, St. Louis, MO 63130-4862, USA
+20
+University of Alabama, Department of Physics & Astronomy, Tuscaloosa, AL 34587-0324, USA
+21
+Pennsylvania State University, Department of Physics, University Park, PA 16802-6300, USA
+22
+Fermi National Accelerator Laboratory (FNAL), Batavia, IL 60510-5011, USA
+23
+Northwestern University, Department of Physics & Astronomy, Evanston, IL 60208-3112, USA
+24
+University of Rochester, Department of Physics and Astronomy, Rochester, NY 14627-0171, USA
+25
+University of Bristol, H.H. Wills Physics Laboratory, Bristol, BS8 1TL, UK
+26
+Brookhaven National Laboratory (BNL), Upton, NY 11973-5000, USA
+
+2
+27
+
+University of California, Santa Barbara, Department of Physics, Santa Barbara, CA 93106-9530, USA
+28
+University of Massachusetts, Department of Physics, Amherst, MA 01003-9337, USA
+29
+South Dakota Science and Technology Authority (SDSTA),
+Sanford Underground Research Facility, Lead, SD 57754-1700, USA
+30
+Royal Holloway, University of London, Department of Physics, Egham, TW20 0EX, UK
+31
+University at Albany (SUNY), Department of Physics, Albany, NY 12222-1000, USA
+32
+University of Sheffield, Department of Physics and Astronomy, Sheffield S3 7RH, UK
+33
+University of Edinburgh, SUPA, School of Physics and Astronomy, Edinburgh EH9 3FD, UK
+34
+IBS Center for Underground Physics (CUP), Yuseong-gu, Daejeon, KOR
+35
+Black Hills State University, School of Natural Sciences, Spearfish, SD 57799-0002, USA
+36
+Texas A&M University, Department of Physics and Astronomy, College Station, TX 77843-4242, USA
+37
+Yale University, Department of Physics, New Haven, CT 06511-8499, USA
+(Dated: April 27, 2020)
+The LUX-ZEPLIN (LZ) experiment will enable a neutrinoless double beta decay search in parallel
+to the main science goal of discovering dark matter particle interactions. We report the expected LZ
+136
+sensitivity to
+Xe neutrinoless double beta decay, taking advantage of the significant (>600 kg)
+136
+Xe mass contained within the active volume of LZ without isotopic enrichment. After 1000 live136
+26
+days, the median exclusion sensitivity to the half-life of
+Xe is projected to be 1.06×10 years
+(90% confidence level), similar to existing constraints. We also report the expected sensitivity of a
+136
+27
+possible subsequent dedicated exposure using 90% enrichment with
+Xe at 1.06×10 years.
+
+I.
+
+INTRODUCTION
+
+Neutrinoless double beta decay (0νββ) is a process
+by which a nucleus emits two electrons and no neutrinos. This is distinct from two-neutrino double beta
+decay (2νββ), whereby a nucleus emits two electrons
+and two electron antineutrinos (ν̄ e ). 2νββ has been
+observed in several isotopes, and may be observable in
+even-even nuclei whenever single beta decay is energetically forbidden or highly suppressed [1]. In particular, 136 Xe, which comprises 8.9% of naturally occurring
+xenon, has been shown to undergo 2νββ with a half-life
+of 2.165 ± 0.016(stat) ± 0.059(sys) × 1021 years with a
+Q-value of 2457.83 ± 0.37 keV [2, 3]. There are thus
+far no unambiguous observations of 0νββ. This neutrinoless decay mode is allowed only if the neutrino is its
+own antiparticle, an idea originally suggested by Majorana [4]. Particles which are their own antiparticles are
+referred to as Majorana particles. A 0νββ decay would
+result in a mono-energetic peak in the β-spectrum at the
+double beta decay Q-value, Qββ , because the electrons
+must carry almost all the energy of the decay (with a
+small fraction going into the recoiling nucleus), allowing
+one to separate the process from Standard Model 2νββ.
+Observation of 0νββ would imply the discovery of fundamental massive Majorana particles, lepton number violation (∆L = 2), and B–L violation (∆B = 0 and ∆L
+= 2). Currently, the best upper limit on the half-life for
+
+0νββ of 136 Xe comes from the KamLAND-Zen experiment at 1.07×1026 years [5].
+A detector designed to observe the 0νββ decay of a
+given source needs to have a complete understanding of
+the backgrounds in the event search region, a high abundance of the decaying element to compensate for the rare
+nature of this process and an excellent energy resolution
+at the Q-value of the decay.
+The LUX-ZEPLIN (LZ) experiment features a twophase xenon time projection chamber (TPC) designed to
+search for weakly interacting massive particles (WIMPs).
+While WIMPs present an entirely different signal than
+0νββ, many of the experimental challenges are similar.
+Both require low backgrounds, a large active mass and,
+in the case of a xenon TPC, good scintillation and ionization collection. Most 0νββ experiments use sources
+enriched in the isotope of interest, so as to increase the
+fraction of the relevant isotope and to decrease the passive non-source material. LZ’s active detection mass is 7
+tonnes of natural liquid xenon (LXe), yielding 623 kg of
+136
+Xe at natural abundance. This is a comparable mass
+to other world-leading 0νββ experiments. Here the sensitivity of LZ to 0νββ is investigated and compared to
+current limits and other next generation 0νββ searches
+using xenon, including nEXO, NEXT, KamLAND2-Zen,
+and PandaX-III [5–8].
+
+II.
+
+a
+
+Corresponding author: paulo.bras@coimbra.lip.pt
+[Now at: ]University of California, Santa Barbara, CA 931069530, USA
+c
+Corresponding author: the.kevin.osullivan@gmail.com; [Now at:
+]Grammarly, Inc., San Francisco, CA 94104.
+d
+Corresponding author: r.taylor16@imperial.ac.uk
+b
+
+THE LZ DETECTOR
+
+A schematic of LZ is shown in Figure 1. LZ will occupy
+the Davis cavern at the Sanford Underground Research
+Facility (SURF) in Lead, South Dakota (USA) in the location where the LUX experiment operated from 2012
+until 2016 [9–13]. In a two-phase xenon TPC such as LZ,
+energy deposits produce prompt scintillation light (S1)
+and free electrons. Some electrons recombine with the
+
+3
+xenon ions producing more scintillation light. The electrons that do not recombine drift in an electric field to
+the liquid surface where they are extracted into a highfield gas region, creating a proportional scintillation signal (S2) [14–16]. In LZ both signals are detected by two
+arrays of Hamamatsu R11410-22 3-inch diameter lowradioactivity photomultiplier tubes (PMTs) [17] that observe the active region from the top and bottom: 253 in
+the top array and 241 in the bottom array. The relative
+intensity of S2 light in each PMT is used to reconstruct
+the event position in the horizontal (x,y) plane. The time
+difference between the S1 and S2 pulses indicates the free
+electron drift distance and is used to determine the depth
+(z) of the interaction. The drift field is created by the
+voltage difference between a cathode grid at the bottom
+of the detector and a gate grid just below the liquid surface. The electron extraction field around the liquid-gas
+interface is produced by the voltage applied between the
+gate grid and the anode grid above the LXe volume. The
+TPC has a drift region of 145.6 cm (from cathode to gate
+grid) and an inner diameter of 145.6 cm, and contains 7
+tonnes of active xenon. A bottom grid situated below
+the cathode prevents the bottom PMT array from being
+exposed to the high fields near the cathode grid. The
+region between the bottom grid and the cathode grid is
+13.75 cm in depth and is referred to as the reverse field
+region [18].
+The TPC is contained inside a low-background,
+double-walled titanium cryostat [19], containing approximately 10 tonnes of liquid xenon. The TPC is surrounded by an additional volume of xenon instrumented
+with PMTs, referred to as the xenon “skin”. The side
+section of the skin that surrounds the TPC is 4 cm thick
+at the top and 8 cm at the level of the cathode. The
+total amount of xenon in the full skin system is around
+2 tonnes. Light collection efficiency of the skin detector
+is highly dependent on the position of the interaction.
+Studies of PMT coverage and wall reflectivity have led
+to an expected gamma-ray energy threshold of 100 keV
+in more than 95% of the skin region.
+The cryostat vessel is surrounded by the Outer
+Detector (OD), containing organic liquid scintillator
+(gadolinium-loaded linear alkylbenzene), and a water
+shield. These systems will be viewed by an array of
+120 8-inch diameter Hamamatsu R5912 PMTs, providing an additional active veto for gamma-ray scatters in
+the liquid scintillator. The average light collection efficiency over the entire outer detector volume is estimated
+to be ∼7%, providing an average light yield of about 130
+photoelectrons for a 1 MeV energy deposit in the liquid
+scintillator [18]. The outer detector system records PMT
+data in tandem with a triggered event in the LXe TPC,
+meaning that the energy threshold of the outer detector
+is only limited by the light collection and the background
+rate from 14 C decay in the liquid scintillator (Q-value of
+156 keV). The prompt coincidence window for the outer
+detector veto is set as 1 µs for this analysis to reduce the
+rate of accidental coincidences due to 14 C decays in co-
+
+incidence with a potential 0νββ event in the TPC. This
+coincidence window can be much smaller than that considered for the main WIMP search analysis (500 µs) since
+neutron interactions are not relevant at the 0νββ energies, allowing the threshold of the outer detector to be
+lowered from 200 keV to 100 keV without increasing the
+dead time significantly. A more detailed description of
+the LZ experiment can be found in [18].
+A.
+
+Event Reconstruction and Energy Resolution
+
+The energy of an interaction in the forward field region
+of the TPC can be estimated by combining both the S1
+and S2 signals through the relation,
+
+
+S1 S2
+,
+(1)
+E=W
++
+g1
+g2
+where W = 13.7 eV is the W -value of liquid xenon [20]
+and g1, g2 are detector dependent gain factors. g1 corresponds to the product of the detector light collection
+efficiency and PMT quantum efficiencies and g2 is the
+product of the efficiency to extract electrons to the gas
+phase and the pulse size of a single electron signal. These
+factors are determined directly from data using calibration sources of known energies.
+Because the S1 and S2 signals are proportional to the
+number of scintillation photons and free electrons, each
+fluctuates due to effects of recombination. Some of the
+free electrons may recombine, resulting in fewer free electrons and more photons. In this way, for a scatter of fixed
+energy, there is an anti-correlation between the S1 and S2
+signals. Therefore, combining the S1 and the S2 signals
+to measure deposited energy will substantially improve
+the energy resolution [21] beyond what may be achieved
+with the S1 or S2 signals individually.
+As the range of energies for a 0νββ search is much
+higher than for dark matter searches, it is expected that
+some PMT saturation might occur for the S2 signal.
+A combination of simulation results combined with the
+PMT voltage divider design indicate that a 0νββ S1 will
+not saturate the PMTs, nor would its S2 saturate the
+PMTs in the bottom array. However, some PMTs in the
+top array will saturate the S2 signal due to limited dynamic range of the ADC and/or to capacitor depletion
+in the PMT biasing circuit [22]. Around 7 to 22 PMTs
+in the top array will saturate the ADCs depending on
+the drift time and the resulting level of electron diffusion
+before S2 production. Nonlinearity effects caused by capacitor depletion, which affects only the top PMTs in the
+S2 signal, will be corrected during data processing. For
+an S2 signal, approximately 79 photons detected (phd)
+per extracted electron are assumed with 95% extraction
+efficiency, with 27 of those photons being detected in the
+bottom array [23]. As such, the bottom array alone can
+be used to estimate the S2 size with minimal impact on
+the energy resolution. However, the top array is used
+to reconstruct the xy position of events, so the effects of
+
+4
+
+FIG. 1. Schematic of the LZ detector: an outer water tank shields external radioactivity. An outer detector system consisting
+of a Gd-doped liquid scintillator in acrylic designed to tag outgoing neutrons and gammas is indicated in green. The outer
+detector is viewed by PMTs to tag energy deposits in the scintillator as well as muons passing through the water tank. The
+TPC sits inside a titanium cryostat surrounded by the outer detector acrylic tanks. Most of the xenon is contained inside the
+inner cryostat vessel.
+
+saturation on xy position reconstruction must be considered. The event position is useful for rejecting radioactive
+backgrounds which are higher in rate at the edge of the
+detector. The effects of saturation can be minimized by
+excluding the saturated PMTs from the position reconstruction [24]. Preliminary studies demonstrate that LZ
+will achieve a xy position resolution of 0.5 cm or better
+for interaction with deposited energies above 1.8 MeV
+within a radial distance of 68.8 cm from the center of the
+detector and across the full drift length of the TPC. Near
+the center of the detector, the resolution will be 0.2 cm
+or better.
+
+B.
+
+Detector Calibration
+
+The self-shielding provided by liquid xenon makes detector calibration challenging. For this reason, LZ utilizes several radioactive sources that can be injected into
+the active xenon, which can be removed later or decay
+away with a short half-life [25, 26]. However, almost all
+of these sources deposit less than 200 keV in one interaction, making calibration at higher energies more difficult. One option is to use a 220 Rn source as suggested
+by [27]. The energy spectrum of the 208 Tl daughter has
+a step around 3.2 MeV created by the coincident beta
+and gamma decays, and also has alpha decays at 6.2, 6.4,
+6.9, and 8.9 MeV. A 220 Rn calibration is already planned
+for LZ, as well as an external 228 Th gamma-ray source
+that will, at the very least, calibrate the outer regions of
+the active xenon. The internal sources allow for robust
+correction for the position dependence of the detector response, so performing a high-energy (∼MeV) calibration
+
+uniformly through the xenon is not necessary. Lastly, although the backgrounds are very low in the inner volume
+of the TPC, there is a plethora of visible gamma-ray lines
+in the outside sections of the active region. Although
+one would not want to rely on these as the only detector
+calibration, the LZ background data stands as a useful
+crosscheck on any high-energy calibration.
+
+III.
+
+BACKGROUND MODEL
+
+The main background contributions for this
+0νββ search are summarized in Table I. Extensive
+Monte Carlo simulations of the backgrounds due to
+radioactive contamination in detector components and
+the cavern rock are generated using BACCARAT, a
+framework based on GEANT4 that evolved from the
+LUXSim [28] simulation package which is also used
+to make predictions for dark matter sensitivity [23].
+The full detector geometry is modeled and matches the
+engineering drawings. The statistics generated for each
+simulated component typically corresponds to tens to
+hundreds of thousands of days, significantly exceeding
+the run time of the experiment, which is considered here
+to be 1000 days. The model used in this analysis was
+constructed using the most recent material assays and
+detector simulations [23, 29]. The uncertainty in the
+estimated backgrounds is dominated by the uncertainties
+in the cavern rock gammas flux measurements (50% for
+238
+U and 25% for 232 Th) [30]. However, a 1σ increase
+in the total rock gamma background would only result
+in a 5% decrease of the sensitivity. Backgrounds will be
+measured with high accuracy once the detector begins
+
+5
+
+An inner volume was defined with the goal of characterizing the relevant backgrounds for this analysis. This
+inner volume was optimized using a cut-and-count analysis and provides a snapshot of the full background model
+in the most sensitive region of the detector. This volume
+is defined within 26 < z < 96 cm and for radii smaller
+than 39 cm, containing ∼967 kg of LXe. A larger fiducial
+volume is used for the sensitivity analysis, as discussed
+in Section IV. The region-of-interest (ROI) considered on
+this analysis is 2433.3 < Edep < 2482.4 keV, representing a ± 1σ energy window around Qββ , considering an
+energy resolution (σ/E) of 1% (see Section III A). This
+energy window is used to characterize the backgrounds
+in the central 0νββ signal region. The sensitivity analysis uses an extended range of energies, from 2000 keV
+to 2700 keV, in order to model the backgrounds more
+precisely, as discussed in Section IV.
+Figure 2 shows the number of simulated background
+events in the ROI versus z and radius squared. The background rates are higher at the top than at the bottom
+of the active volume, as the bottom PMTs are shielded
+by the xenon in the reverse field region. The innermost
+region of the detector has a much lower background due
+to the self shielding of LXe. Figure 3 on the left shows
+the background spectrum for the major contributors, as
+well as the total background spectrum, for a run lasting
+1000 live-days and within the inner 967 kg volume. The
+right-hand side plot of Figure 3 displays how the successive selection cuts used in this analysis impact the background spectrum in the inner 967 kg volume. A detailed
+explanation of the selection criteria used in the analysis
+can be found in Section IV. The “single scatter” selection
+provides the strongest background rejection for gammas
+of these energies. However, this analysis cut does not
+exclude events from the 2νββ decay of 136 Xe, resulting
+in the loss of rejection efficiency visible at lower energies
+on Figure 3.
+
+10−1
+
+5613 kg
+
+120
+100
+
+10−2
+
+967 kg
+
+counts/kg/day
+
+There are two important gamma lines to consider for
+backgrounds near Qββ . There is a line at 2614.5 keV
+from 208 Tl decay in the 232 Th decay chain, which is about
+160 keV higher in energy than Qββ and has a branching
+ratio of 35.9%. The second, more problematic, gamma
+line is from 214 Bi (238 U-chain) at 2447.7 keV with 1.5%
+branching ratio. This low branching ratio is fortunate,
+as this line cannot be separated from the signal with the
+energy resolution of LZ. There is also the possibility of
+a sum peak from 60 Co at 1173.2 + 1332.5 = 2505.7 keV.
+However, simulations show that good rejection of multiple scatter events will eliminate this background.
+
+140
+
+z [cm]
+
+taking data. The outer detector and skin systems will
+be integral for the characterization of backgrounds,
+specially those from external sources like gammas from
+cavern rock. Events recorded near the LXe wall can also
+be used to describe and constrain several backgrounds
+from both internal and external sources. All data will be
+fit to simulations in order to best constrain the different
+backgrounds observed.
+
+80
+
+10−3
+
+60
+
+10−4
+
+40
+20
+0
+
+10−5
+0 202 302 402
+
+502
+602
+r2 [cm2]
+
+702
+
+FIG. 2. Background event rate in the active region and in
+2
+the ± 1σ energy ROI as a function of r and z. The dashed
+black rectangle represents the inner 967 kg volume where LZ
+is most sensitive to the 0νββ decay, while the larger dashed
+white rectangle represents the extended fiducial volume used
+on the profile likelihood analysis to obtain the LZ sensitivity
+136
+to the
+Xe 0νββ decay.
+
+A.
+
+Assumptions About Detector Performance
+
+The energy resolution at the Q-value affects the experiment’s ability to reject backgrounds from the 2614.5 keV
+208
+Tl line. Using baseline assumptions about light collection (7.5% photon detection efficiency averaged over
+the active volume), electron extraction efficiency (95%),
+and single electron amplification (79 detected photons
+per extracted e− ) for LZ and applying the most recent
+NEST model [32, 33], an energy resolution of 0.88% at
+Qββ is predicted to be achievable with LZ. XENON1T
+demonstrates that an energy resolution of 0.79% at Qββ
+is achievable with a tonne-scale dual-phase xenon detector [34]. The drift field of XENON1T is 80 V/cm, significantly lower than the expected 310 V/cm drift field of
+LZ [23] and the energy resolution is expected to improve
+with higher drift field as observed by EXO-200 [35]. An
+energy resolution of 1.0% at Qββ is assumed for this analysis, as a conservative value that will likely be improved.
+Sensitivity estimates also depend on the minimal vertex separation needed to identify a multiple scatter event.
+Previous work assumed multiple scatter events could be
+rejected down to 3 mm separations in z [36], and the same
+is assumed here. In LZ, the full-width at half-maximum
+of an S2 from a shallow event will be ∼1 µs and a drift velocity ≤ 2 mm/µs, so in theory separating scatters 2 mm
+apart should be possible. However, rejecting events with
+vertex separation in depth less than 3 mm would lower
+the efficiency for detecting 0νββ. Diffusion will widen the
+S2 pulses; this is a known and well-understood Gaussian
+smearing and can be addressed through advanced analysis, such as applying a drift-time dependent S2 width cut
+or pulse deconvolution. Vertex separation in the xy plane
+
+6
+TABLE I. Summary table of the masses, activities and estimated background counts
+in the ± 1σ ROI and inner 967 kg mass, for a 1000 day run, considering 1.0% energy
+resolution at Q-value and 0.3 cm multiple scatter rejection along z (see text for details).
+Item
+
+238
+
+232
+
+Mass
+U-late Counts
+Th-late Counts
+Total
+238
+232
+(kg) (mBq/kg) from
+U (mBq/kg) from
+Th Counts
+TPC PMTs
+91.9
+3.22
+2.95
+1.61
+0.10
+3.05
+TPC PMT bases
+2.80
+75.9
+1.52
+33.1
+0.03
+1.55
+TPC PMT structures
+166
+1.60
+2.65
+1.06
+0.12
+2.77
+TPC PMT cables
+88.7
+4.31
+1.44
+0.82
+0.19
+1.63
+Skin PMTs and bases
+8.59
+46.0
+0.75
+14.9
+0.02
+0.78
+PTFE walls
+184
+0.04
+0.39
+0.01
+0.00
+0.39
+TPC sensors
+5.02
+5.82
+1.19
+1.88
+0.00
+1.19
+Field grids and holders
+89.1
+2.63
+0.62
+1.46
+0.11
+0.73
+Field-cage resistors
+0.06
+1350
+2.63
+2010
+0.03
+2.65
+†
+†
+Field-cage rings
+93.0
+0.35
+0.82
+0.24
+0.00
+0.82
+†
+†
+Ti cryostat vessel
+2590
+0.08
+1.30
+0.22
+0.20
+1.49
+†
+†
+Cryostat insulation
+13.8
+11.1
+0.90
+7.79
+0.04
+0.94
+†
+†
+Outer detector system
+22900
+4.71
+1.70
+3.73
+1.08
+2.79
+Other components
+438
+1.83
+2.10
+1.65
+0.31
+2.41
+Det. components subtotal
+21.0
+2.32
+23.3
+Cavern walls
+29000.00
+3.21
+12500.00
+8.41
+11.6
+137
+∗
+Neutron-induced
+Xe
+0.28
+222
+∗
+Internal
+Rn
+0.45
+136
+†
+Xe 2νββ
+0.01
+8
+B solar neutrinos
+0.03
+Total
+24.2
+10.7
+35.6
+†
+
+Upper limit
+preliminary estimate
+238
+226
+232
+224
+U-late chain is
+Ra and after.
+Th-late chain is
+Ra and after
+∗
+
+is not used to reject multiple scatter events in this analysis. Preliminary studies show that a vertex separation
+in the xy plane of 3 cm would only improve background
+rejection by less than 4% in the inner 967 kg volume.
+Finally, any event which deposits more than 100 keV
+in the LXe skin and/or 100 keV in the outer detector
+is vetoed. This provides an advantage in tagging the
+2614.5 keV 208 Tl line, which is always emitted with another gamma-ray of at least 583 keV. The skin and outer
+detector are less helpful for reducing the background from
+the 214 Bi line.
+B.
+
+Detector Components
+
+Every component of the TPC, skin, outer detector and
+auxiliary systems of LZ is included in the background
+model. Their individual contributions are estimated using the dedicated BACCARAT simulations mentioned
+above. Table I summarizes the activities of these components. The categories 238 U-late and 232 Th-late refer only
+to the late chain activity, beyond 230 Th and 228 Th, respectively, as several samples measured by LZ were found
+to be out of secular equilibrium [18].
+All constituent materials have been screened for radioactivity directly by the LZ collaboration in specially
+designed facilities, with the exception of a few that are
+based on assay results from previous experiments [29].
+
+Some contamination values for detector materials are
+measured upper limits. Material assays will continue
+with the goal of improving the upper limits on several
+components.
+The TPC PMTs are the largest contributor to the
+backgrounds amongst detector components. The titanium vessels, with a mass of 2.6 tonnes, contributes only
+half of the total background counts from the full cryostat.
+Despite the low contamination levels of the outer detector acrylic tanks, the total acrylic mass of 4.3 tonnes is
+mostly responsible for the background rates from that
+system. The opposite is true for the resistors, which
+weigh less than 60 grams combined but have high contamination levels. Field-cage and cathode feedthrough
+resistors use interconnects while for other electronics
+components low activity solders were used [29].
+C.
+
+Davis Cavern Walls
+
+The rock surrounding the Davis cavern is composed
+primarily of amphibolite and rhyolite [13, 30] that was
+sprayed with a layer of shotcrete with an average thickness of 12 cm. Recent measurements with a sodium iodide detector in the Davis cavern indicate an average activity of 12.5 Bq/kg of 232 Th and of 29.0 Bq/kg of 238 U in
+the surrounding cavern rock [30]. Measurements of gravel
+from beneath the water tank have shown an activity of
+
+7
+
+10−6
+
+Total
+
+Cavern
+
+10−7
+
+222 Rn (Internal)
+
+137
+
+Xe
+
+8B
+
+10−9
+2000
+
+0ν β β
+
+10−8
+
+2100
+
+2200
+
+Qβ β = 2458 keV
+
+Detector
+Components
+
+Rate [counts/kg/day/keV]
+
+10−5
+
+Qβ β = 2458 keV
+
+10−3
+
+e
+136 X
+
+Rate [counts/kg/day/keV]
+
+10−4
+
+2300 2400 2500
+Energy [keV]
+
+2600
+
+2700
+
+10−4
+10−5
+10−6
+10−7
+10−8
+2000
+
+967 kg Inner Volume
++ Single Scatter Selection
++ Skin Veto
++ OD Veto
+
+2100
+
+2200
+
+2300 2400 2500
+Energy [keV]
+
+2600
+
+2700
+
+FIG. 3. Background energy spectrum in the inner 967 kg volume: contributions from the main background sources (left) and
+effect of successive selection cuts used in the analysis (right). More details regarding the analysis can be found in the text.
+60
+238
+232
+The Co,
+U-late chain and
+Th-late chain backgrounds from the detector components are combined into a single curve
+on the left plot but are treated independently in the sensitivity analysis. The dashed yellow line in the left plot represents
+136
+26
+the expected signal spectrum for
+Xe 0νββ decay, considering a half-life of 1.06×10 years (see Section IV), and it is not
+included in the total spectrum. The spectra are smeared using the energy resolution function of LUX [31], scaled to be 1.0%
+at Qββ .
+
+1.7 Bq/kg of 232 Th and of 26.3 Bq/kg of 238 U [30]. LZ
+will be shielded from external gamma-rays by a 7.62 m diameter water tank, as well as 6 octagonal steel plates of 5
+cm thickness embeded between the concrete and the bottom of the water tank. Although this shielding is more
+than sufficient for dark matter data taking, an 8 cm thickness of additional steel shielding above the water tank
+was added to enable a competitive double beta decay
+analysis. No additional shielding is assumed to be on the
+sides of the water tank. The outer detector system will be
+an important tool to mitigate the effect of the gammas
+from the laboratory rock. In order to tag events from
+the 2614.5 keV line from 208 Tl, which is only 160 keV
+away from the Q-value of the 2νββ, the outer detector
+energy threshold is set at 100 keV for this analysis. The
+outer detector vessels will contain liquid scintillator with
+a thickness above 60 cm on top, bottom and sides (see
+Figure 1).
+Despite the shielding provided by the several steel
+plates, scintillator and the water tank, the background
+from rock gammas is significant. The contributions from
+the full 238 U and 232 Th chains were estimated using a
+detailed set of simulations that included the top and bottom steel plates and both veto systems. The effects of
+the shielding provided by the top steel plate, water tank,
+veto systems and detector materials results in a limited
+number of events reaching the active region and a subsequent loss of efficiency for simulations of sources in the
+rock. For that reason the same event biasing technique
+was used as in [18, 30, 37].
+The simulations of gammas from the rock predict a
+non-negligible background rate from high energy gammas
+with energies above 3 MeV. Both the 238 U and 232 Th de-
+
+cay chains have several α emissions with energies up to
+8.8 MeV that may produce these high energy gammas in
+(α, γ) reactions in the rock on oxygen and silicon [38], the
+most abundant elements in the cavern rock at SURF. Fortunately, the expected flux of these high energy gammas
+is 2 to 3 orders of magnitude lower than the radiogenic
+gammas from the 238 U and 232 Th decay chains, resulting
+in a total contribution to the background of less than one
+count in the inner 967 kg volume and in 1000 live-days,
+despite their high penetrative power. This effect is only
+noticeable in the rock gamma simulations because of the
+attenuation of the lower energy gammas in the rock itself
+and in the water tank and scintillator volumes. The effect
+of high energy gammas produced in the internal components of the detector would be too low to measure. The
+flux of high energy gammas from laboratory rock walls
+will be measured when LZ starts collecting data.
+
+D.
+
+Internal Radon
+
+Radon emanates from detector materials and residual
+dust in the internal surfaces of the TPC into the liquid bulk. LZ has a requirement of < 2.0 µBq/kg of
+222
+Rn, equivalent to 14 mBq in the active xenon. The
+current projections conservatively assume emanation at
+room temperature, whereas emanation from many materials will be decreased at lower temperatures.
+One of the daughters of the 222 Rn-chain is 214 Bi, whose
+2448 keV gamma line cannot be separated from the
+0νββ ROI by energy resolution alone. However, this
+gamma line is not a problem for events well-centralized
+
+8
+in the xenon as it is vetoed by a coincident β decay. With
+the low charge detection threshold of LZ (50% efficiency
+at 1.5 keVee ) the event will be rejected in >99.97% of
+decays by coincidence with the β.
+A problematic background from radon-induced 214 Bi is
+a naked-β decay, i.e., a β emission without any accompanying γ emission, with a Q-value of 3.27 MeV and
+branching ratio of 19.1%. At 1.0% energy resolution,
+0.5% of 214 Bi decays will result in a single-scatter event
+in the ROI. However, the daughter is 214 Po which decays
+by α emission with a 163.6 µs half-life, so can be easily detected and used to veto 214 Bi decays in the active
+xenon. By excluding all events with either an α or dead
+time in the following 2.5 ms, more than 99.99% of internal 214 Bi decays will be rejected. This results in around
+0.03 background events per tonne in the ROI.
+Some of the 222 Rn daughters are positively charged and
+will be captured on the TPC walls or drift to the cathode, where they can decay and produce a background
+that cannot be vetoed using a coincident decay. In EXO200 [39], the internal 214 Bi activity in their fiducial volume was found to be only 11.6% of the 222 Rn activity.
+Evidence for this effect has also been seen in LUX [40].
+The main source of background generated by this population occurs when both the β particle from 214 Bi and
+the α particle from 214 Po are absorbed by the walls or by
+the cathode grid wires and the 2448 keV γ interacts in
+the liquid xenon. To study this background, we used the
+same simulations used to predict the background from
+the cathode grid with an additional efficiency factor to
+account for the 25% of events where both the β and α
+are absorbed by the walls, as well as the fraction of mass
+inside the active region. If we assume that all the 214 Bi
+drifts to the cathode, we predict around 0.41 events in
+the inner 967 kg volume from this source in 1000 days.
+This value can be reduced further by the observation of
+the recoil signal from 210 Pb after the α emission.
+
+E.
+
+Internal
+
+137
+
+Xe
+
+Muon-induced and radiogenic neutrons can lead to production of 137 Xe through the reaction 136 Xe(n,γ)137 Xe.
+This isotope is a β-emitter with a Q-value of 4173 keV
+and a half-life of 3.8 minutes, and therefore this β-decay
+spectrum overlaps with the 0νββ ROI. It undergoes a
+naked β-decay with a branching ratio of 67%.
+EXO-200, located at the Waste Isolation Pilot Plant
+(WIPP) in New Mexico (USA), measured 338+132
+−93
+136
+Xe(n, γ)137 Xe captures per year by fitting data in coincidence with hits in their muon veto. They calculate
+that 1.5% of such captures resulted in a background event
++2.0
+in their ROI, or 5.1−1.4
+events per year. The fiducial volume for their analysis contained 76.5 kg of 136 Xe [39],
+implying 70 ROI events/(tonne 136 Xe)/year [41]. LZ has
+three advantages that reduce the muon-induced 137 Xe
+background relative to EXO-200.
+
+1. The muon flux in the Davis cavern is calculated to
+be 6.2 × 10−9 cm−2 s−1 [18, 37], nearly 100 times
+lower than at WIPP (4.0 × 10−7 cm−2 s−1 ). The
+calculated flux agrees within 20% with the measurements carried out with the veto system of the
+Davis experiment [42] and the veto system of the
+Majorana demonstrator [43] (see [37] for further
+discussion).
+2. Only 8.9% of natural xenon is 136 Xe. On the other
+hand, nearly half is 129 Xe or 131 Xe , each of which
+have neutron capture cross sections more than five
+times larger than 136 Xe [44].
+3. The LZ detector’s large active xenon mass, xenon
+skin veto, and surrounding outer detector should
+enable enhanced muon veto efficiency as well as enhanced detection of the neutron capture cascade
+gamma rays produced in the 136 Xe(n,γ)137 Xe reaction. By looking back over several 137 Xe half-lives
+for these signatures, potential 137 Xe background
+may be vetoed as in EXO but with higher efficiency.
+The muon flux reduction and 136 Xe abundance alone result in a factor of 100–1000 fewer events in the ROI per
+kg of xenon compared to EXO-200 [39]. Furthermore, a
+muon veto efficiency higher than 99% can be reached in
+LZ. Any muon that crosses the outer detector, skin or
+the TPC of LZ will deposit enough energy to be tagged
+with close to 100% efficiency [37]. XENON1T estimates
+a veto efficiency of 99.5% for muon tracks in their water
+tank from Cherenkov light alone [45]. Finally, a neutron
+capture or multiple scattering event in the LXe active
+region could also be tagged with high efficiency. Under
+these conditions, the estimated background from muoninduced neutron capture on 136 Xe is  0.01 events in the
+ROI and inner 967 kg volume over the 1000 day exposure. The presence of other Xe isotopes in the bulk with
+higher probability of absorbing incident neutrons further
+reduces this background by more than an order of magnitude. This background is therefore considered negligible
+for this search. Other muon-induced backgrounds have
+also been studied and are similarly negligible.
+Radiogenic neutrons may also cause 137 Xe production
+through thermal neutron capture. Though the thermal neutron flux is very small within the LZ shielding
+tank, it is higher outside the shielding, measured to be
+1.7×10−6 cm−2 s−1 within the Davis cavern [46]. Xenon
+within the purification system is exposed to this thermal
+neutron flux, and given the 4000 kg/day xenon purification rate, 10 kg of xenon is delivered to LZ over the 3.8
+minute half-life of 137 Xe, about half of which will go into
+the TPC. This mechanism produces about 0.28 events
+in the ROI and inner 967 kg volume over the 1000 day
+exposure. In addition, some 137 Xe produced by thermal
+neutron capture in the purification system will decay in
+the LXe conduit passing through the shielding tank before reaching the LZ time projection chamber.
+
+9
+F.
+
+Other Backgrounds
+
+The two-neutrino decay mode of 136 Xe can result in
+a background in the ROI as it has the same Q-value as
+0νββ. However, the spectrum falls off sharply at the end
+point. Using the 2νββ spectrum taken from Ref. [47],
+for 1.0% energy resolution this results in less than 0.01
+background events in 1000 days and in the inner 967 kg
+volume, or 6.9 × 10−6 events/kg 136 Xe/year in the ± 1σ
+ROI.
+8
+B solar neutrinos can scatter elastically with electrons
+from the LXe target with enough energy to produce a signal at the Qββ range. The calculated elastic scattering
+cross sections per neutrino flavour for charged and neutral current interactions were calculated using the average electron density for Xe atoms and considering a neutrino flux of 5.79 × 106 cm−2 s−1 [48] and the survival
+probabilities for electron neutrinos of Pee = 0.543 [36],
+resulting in a rate of 0.01 events/tonne/year in the ROI,
+corresponding to 0.03 events over 1000 days of live time
+and in the inner 967 kg volume, .
+The neutrino capture process νe +136 Xe−→e− +136 Cs
+can also induce a background for this search or for an
+eventual dedicated run with enrichment of 136 Xe in LZ.
+Estimates from the nEXO experiment predict a rate of
+0.3 events/tonne/year, or 0.8 counts/tonne/1000 days
+with enriched 136 Xe with no single scatter selection [6].
+In LZ this process can occur on any of the naturally
+present xenon isotopes, and can produce a background
+from both the prompt emission of an energetic electron
+and the subsequent decay of the produced cesium nucleus. The prompt e− emitted from the neutrino capture in any Xe isotope is expected to have an energy
+far greater than Qββ and the prompt de-excitation of
+the Cs nucleus will likely produce several gammas that
+can be tagged as multiple scatters with high efficiency
+[6, 49–51]. The only isotope of cesium that can produce
+a background in LZ is 136 Cs, since all other isotopes either decay via β+ emission that can easily be tagged or
+do not have enough energy to generate a background at
+Qββ . The decay of 136 Cs into 136 Ba with a half-life of
+13.16 days and Q=2548.2 keV always produces a cascade of gammas along with the beta emission. This is
+expected to be completely excluded by multiple scatter
+rejection, even if the 136 Cs is not removed from the LXe
+bulk by the purification system. A simulation of 107 decays of 136 Cs in the bulk returned no single scatter events
+within the ROI. This background is therefore considered
+negligible for this analysis.
+IV.
+
+SENSITIVITY PROJECTION
+
+The sensitivity to 0νββ decay is defined as the median
+90% confidence level (CL) upper limit on the number of
+signal events that would be obtained from a repeated set
+of background-only experiments, assuming 1000 days of
+detector live time and a LXe mass of 5.6 tonnes, cor-
+
+responding to a 1360 kg·years exposure of 136 Xe. To
+estimate the background contribution for such an exposure, a multidimensional background model is constructed that accounts for each of the sources discussed
+in section III. Each background is described by the three
+observables: energy (2000 < E < 2700 keV), depth
+(2 < z < 132.6 cm) and radial position (r < 68.8 cm).
+These are combined to model the background with a
+probability density function (PDF) P (E, r2 , z). For the
+detector, cavern, and internal radon backgrounds, the
+PDFs are empirically determined from energy deposit
+simulations and are approximated by decomposing into
+factorised energy and position distributions P (E, r2 , z) =
+P (E)P (r2 , z), which has been verified as a suitable approximation in the given ranges of the observables. The
+following selection criteria are applied to the simulations
+to reject background events:
+• Fiducial Volume: events that occur close to the
+TPC walls and grids are rejected with a fiducial
+cut. The extended fiducial volume is defined as
+4 cm from the TPC walls, 2 cm above the cathode
+grid and 13 cm below the gate grid, which defines
+a region containing 5.6 tonnes of LXe. This cut
+removes backgrounds which may originate from the
+grids or TPC walls such as the β-emitting charged
+222
+Rn daughters.
+• Single Scatter: 136 Xe 0νββ-decay events in LXe
+are almost point-like and therefore are expected
+to produce a single-scatter S2 pulse, whereas the
+dominant γ-ray background predominantly results
+in extended, multiple scatter events. These are rejected by requiring that multiple vertices are separated by less than 3 mm in the vertical direction,
+i.e., ∆z < 3 mm.
+• Veto: γ-ray backgrounds that produce a single
+scatter in the TPC but deposit more than 100 keV
+either in the outer detector or in the skin vetoes
+within a narrow 1 µs time window are rejected.
+This has a significant effect on reducing the background from the 208 Tl 2614.5 keV line, which originates from both the detector components and cavern walls.
+The remaining backgrounds are expected to have
+uniform position distributions and are therefore characterised by their energy spectra alone. The 136 Xe
+2νββ decay spectrum is from Ref. [47] and the 137 Xe
+β-decay spectrum is obtained from Ref. [52]. To model
+the finite energy resolution, each of the energy distributions are smeared using the LUX energy resolution function [31] that has been scaled to ensure σ/E = 1% at the
+Q-value.
+The 136 Xe 0νββ signal is modelled with a uniform position distribution and a Gaussian energy distribution
+centered at Qββ . The signal efficiency is estimated to be
+80% after simulating signal events with initial kinematics
+
+10
+generated using DECAY0 [53] and applying the selection
+criteria. The inefficiency is due to the rejection of multiple scatter signal events arising from Bremsstrahlung
+emission.
+The signal and background PDFs are combined to form
+the unbinned extended likelihood function,
+
+i=1
+
+µib Pbi (E, r2 , z)
+
+g(ajb , σbj ),
+
+j=1
+
+where the floating parameters are µs , the number of signal events, and µib , the number of events for the i-th
+background source. The systematic uncertainties σbj on
+the expected background rates ajb are included by treating the background sources as nuisance parameters with
+the set of Gaussian constraint terms g(ajb , σbj ). Table II
+summarises the background sources included as parameters in the likelihood as well as the relative systematic
+uncertainties on their rate. The cavern background uncertainties are taken directly from the uncertainty of the
+measured 238 U and 232 Th activities [30]. The uncertainties of the detector component background rates are conservatively set at 30%. The contribution of the remaining
+background components to the sensitivity is low and their
+uncertainties are negligible in the first approximation to
+the final result. The uncertainty for the 222 Rn component is driven by the range of the estimated contamination and is expected to be conservative. Uncertainties
+for 136 Xe and 8 B come from the measured half-life and
+uncertainties of the neutrino flux, respectively, making
+these rather constrained. Since the 137 Xe background
+and 214 Bi cathode background rates are not known they
+are assigned a large uncertainty. The backgrounds considered in this analysis and the associated uncertainties
+will be measured with high precision once LZ begins collecting data.
+The 90% CL upper limit on the number of signal events
+is calculated using the profile likelihood ratio (PLR)
+method, utilising the asymptotic one-sided profile likelihood test statistic [54]. It has been verified that Wilk’s
+theorem is valid and that the asymptotic approximation
+is applicable.
+The sensitivity analysis takes advantage of the precise multi-parameter reconstruction of events in the LXe
+TPC, namely the energy and 3-dimensional position, for
+enhanced sensitivity. As demonstrated by Figure 2, the
+self shielding LXe of LZ results in a low background inner region of the TPC where the majority of signal sensitivity is expected. However, the analysis utilises an
+extended fiducial volume which allows for the fit of the
+backgrounds close to the TPC walls and therefore constrains the background in the inner volume of the TPC.
+Alongside this, the full shape of the position distribution can be used to discriminate between signal-like and
+background events, which results in both increased signal exposure and sensitivity compared to a simple cutand-count analysis. Similarly, the extended energy range
+
+30%
+30%
+50%
+30%
+50%
+50%
+50%
+5%
+5%
+
+used in the PDFs strongly constrains the backgrounds
+near the Q-value. Using an extended phase-space in the
+profile likelihood analysis improves the sensitivity result
+by a factor of two when compared to a simple cut-andcount analysis.
+A.
+
+Projection with Natural Abundance of
+
+136
+
+Xe
+
+The 90% CL sensitivity to the 136 Xe 0νββ half-life
+as a function of detector live time is shown in Fig. 4.
+A median sensitivity to a half-life of 1.06×1026 years is
+reached after 1000 live-days.
+hment
+136
+90% Xe Enric
+
+1027
+[yr]
+
+nb
+X
+
+30%
+
+232
+
+1
+2
+
+µs Ps (E, r2 , z) +
+
+(2)
+# n
+b
+Y
+
+238
+
+U (Detector)
+Th (Detector)
+60
+Co (Detector)
+238
+U (Cavern)
+232
+Th (Cavern)
+214
+Bi (Cathode)
+222
+Rn (Internal)
+137
+Xe (Internal)
+136
+Xe 2νββ
+8
+B solar ν
+
+136 Xe 0νβ β T
+
+L(µs , {µb }) =
+"
+
+TABLE II. Summary table of the individual background
+sources and the relative uncertainties on their background
+rates assumed in this analysis.
+Background
+σ/N
+
+KamLAND-Zen (2016)
+
+1026
+
+EXO-200 (2019)
+
+Projected Sensitivity (90% C.L.)
+±1σ
+
+1025
+0
+
+200
+
+400
+600
+Livetime [days]
+
+800
+
+1000
+
+136
+
+FIG. 4. LZ projected sensitivity to
+Xe 0νββ decay as a
+function of detector live time. The light green shaded band
+represents a ±1σ statistical uncertainty on the sensitivity.
+136
+The dashed black line shows the projected sensitivity to
+Xe
+136
+0νββ decay for a dedicated run with 90%
+Xe enrichment.
+For comparison, the limits set by EXO-200 [55] (orange full)
+and KamLAND-Zen [5] (purple full) are also shown, along
+with the respective projected sensitivities (dashed).
+
+As the ability to distinguish signal events from the
+
+11
+
+136 Xe 0νβ β T
+
+Under the assumption that light neutrino exchange is
+the driving mechanism for 0νββ, the half-life sensitivity can be translated into the sensitivity to the effective
+neutrino mass mββ through the relation [56]
+
+m2e
+
+LZ projected
+
+[yr]
+1
+2
+
+100
+
+It is assumed in this analysis that multiple scatter
+events can be rejected with a depth-based vertex separation cut, as multiple energy deposits at different depths
+in the TPC will have multiple S2 pulses. As expected,
+Figure 6 demonstrates that there is a large variation in
+sensitivity with this cut as multiple scatter events form
+the dominant background contribution.
+
+mββ
+
+2
+
+G0ν |M 0ν |2 .
+
+3
+5
+1
+2
+4
+Minimum vertical vertex separation [mm]
+
+6
+
+1.4%
+
+FIG. 5. Expected 90% CL sensitivity for a 1000 live-days run
+and for various assumed values of energy resolution at Qββ .
+The vertical dashed line labeled “LZ projected” marks the
+assumed resolution for this analysis. Also shown on the plot
+is the projected LZ sensitivity assuming the energy resolution
+recently measured in XENON1T [34].
+
+=
+
+0
+
+FIG. 6. Expected 90% CL sensitivity for a 1000 live-days run
+and for various assumed minimum separable vertex distances
+in depth. Here multiple scatter events are assumed to be
+rejected based on z separation only. The vertical dashed line
+marks the assumed separation of 3 mm. At lower separation
+values, this cut also begins to exclude signal events, resulting
+in the observed loss in sensitivity.
+
+(3)
+
+Fig. 7 shows that the expected sensitivity to mββ after 1000 days is 53–164 meV, with the uncertainty driven
+by the range of estimates used for the nuclear matrix element [57, 58]. The phase space factor from Ref. [47]
+and an unquenched axial-vector coupling constant of gA
+= 1.27 are used to calculate the effective neutrino mass.
+
+100
+130 Te Mo
+76 Ge
+136 Xe
+
+10−1
+mβ β [eV]
+
+0.8%
+1.0%
+1.2%
+Energy resolution [σ (Qβ β )/Qβ β ]
+
+−1
+
+1.0
+
+Projected Sensitivity (90% C.L.)
+
+Projected Sensitivity (90% C.L.)
+
+0ν
+T1/2
+
+1.1
+
+0.8
+
+1.0
+
+
+
+1.2
+
+0.9
+
+1.1
+
+0.9
+0.6%
+
+×1026
+
+1.3
+
+LZ projected
+
+XENON1T
+
+1.2
+
+1
+2
+
+[yr]
+
+26
+1.3 ×10
+
+1.4
+
+136 Xe 0νβ β T
+
+neighbouring 214 Bi and 208 Tl peaks relies heavily on the
+energy resolution, the dependence of the sensitivity on
+the energy resolution at the 136 Xe Q-value is shown in
+Figure 5. It is clear that an energy resolution slightly
+worse than the assumed 1.0% has a minor impact on the
+sensitivity. However, if the energy resolution were 2.0%
+or larger, the impact from the 208 Tl peak would be significant.
+
+LZ (1000 days)
+IH
+
+10−2
+NH
+
+10−3
+10−4
+
+10−3
+10−2
+mlightest [eV]
+
+FIG. 7. LZ projected sensitivity to mββ and subsequently
+the neutrino mass hierarchy. The width of the green sensitivity band is due to the uncertainty in the nuclear matrix
+elements [57][58]. The red and blue contours show the allowed
+parameter space (± 1σ) for the inverted hierarchy and normal hierarchy neutrino mass scenarios, respectively [6]. On
+the right are the current best limits and their uncertainties
+136
+for different 2νββ isotopes, showing that
+Xe provides the
+most stringent constraints on mββ [56].
+
+B.
+
+Projection with 90%
+
+136
+
+Xe Enrichment
+
+After completion of the WIMP search run of LZ, the
+sensitivity for 0νββ could be extended with several specific upgrades that would be either unnecessary or dis-
+
+12
+advantageous for a dark matter search. The simplest
+version would be simply to fill the same detector with enriched xenon with no additional upgrades over the WIMP
+search run. However, with more 136 Xe in the active volume of the detector some backgrounds specific to this isotope would increase and need to be accounted for, namely
+137
+Xe production from thermal neutron capture when the
+xenon is in the purification system outside the water tank
+and the 2νββ decay of 136 Xe. With 1.0% energy resolution the additional background from 2νββ was verified to
+be negligible and does not impact the sensitivity. A 10fold increase in the production of 137 Xe would result in a
+9% decrease in the final sensitivity, but this background
+can be significantly reduced through the installation of a
+neutron shield around the xenon purification system. It
+has been shown that a layer of high-density polyethylene 20 cm thick around the xenon purification tower
+would reduce the flux of radiogenic neutrons by 2 orders
+of magnitude [59, 60]. The impact of shielding the purification system on the production of 137 Xe will be studied
+in more detail in a dedicated analysis. As discussed in
+Section III E, the capture of muon-induced neutrons by
+136
+Xe is still considered negligible despite the 90% abundance and the reduced capture rate on other isotopes.
+The expected background rate from muon-induced 137 Xe
+is estimated to be < 0.02 events in the ROI and inner
+967 kg volume over the 1000 day exposure, considering
+a 99% efficiency at tagging either the muon, the induced
+neutron or the gamma cascade produced by the neutron
+capture on 136 Xe. Figure 4 demonstrates that with 90%
+enriched xenon the sensitivity for a 1000 day run would
+reach 1.06×1027 years.
+
+sitivity result demonstrates the potential of a two-phase
+LXe TPC for searching for 0νββ, as a competitive sensitivity can be reached even for an experiment primarily
+designed for WIMP detection.
+It would be possible, with no improvements in detector
+parameters and proper mitigation of the 137 Xe neutroninduced background, for LZ to conduct a dedicated post
+WIMP search run with enriched 136 Xe that would lead
+to a sensitivity of 1.06×1027 years.
+
+ACKNOWLEDGMENTS
+
+LZ will be a multi-purpose experiment, capable of exploring a plethora of rare-event phenomena beyond dark
+matter search due to its ultra-low background environment, great background discrimination potential, large
+active target mass and an excellent energy resolution.
+The LZ experiment will search for 0νββ decay with
+a projected median 90% CL exclusion sensitivity of
+1.06×1026 years for the half-life of 136 Xe, and a sensitivity to mββ of 53–164 meV. This result assumes
+1% energy resolution at the Q-value of 0νββ decay and
+3 mm vertex separation in depth. The expected background rate within the ± 1σ ROI around the Q-value
+of 0νββ and in an inner 967 kg fiducial volume is about
+35 events in 1 000 days of live time. The profile likelihood
+method benefits from background constraints that result
+from using a larger volume and energy range. This sen-
+
+The research supporting this work took place in
+whole or in part at the Sanford Underground Research
+Facility (SURF) in Lead, South Dakota.
+Funding
+for this work is supported by the U.S. Department
+of Energy, Office of Science, Office of High Energy
+Physics under Contract Numbers DE-AC02-05CH11231,
+DE-SC0020216, DE-SC0012704, DE-SC0010010, DEAC02-07CH11359, DE-SC0012161, DE-SC0014223,
+DE-FG02-13ER42020, DE-SC0009999, DE-NA0003180,
+DE-SC0011702, DESC0010072, DE-SC0015708, DESC0006605, DE-FG02-10ER46709, UW PRJ82AJ,
+DE-SC0013542, DE-AC02-76SF00515, DE-SC0019066,
+DE-AC52-07NA27344, & DOE-SC0012447. This research was also supported by U.S. National Science
+Foundation (NSF); the U.K. Science & Technology Facilities Council under award numbers, ST/M003655/1,
+ST/M003981/1,
+ST/M003744/1,
+ST/M003639/1,
+ST/M003604/1, and ST/M003469/1; Portuguese Foundation for Science and Technology (FCT) under award
+numbers PTDC/FIS-PAR/28567/2017; the Institute for
+Basic Science, Korea (budget numbers IBS-R016-D1);
+University College London and Lawrence Berkeley
+National Laboratory thank the U.K. Royal Society for
+travel funds under the International Exchange Scheme
+(IE141517). We acknowledge additional support from
+the Boulby Underground Laboratory in the U.K., the
+GridPP Collaboration [61, 62], in particular at Imperial
+College London and additional support by the University
+College London (UCL) Cosmoparticle Initiative. This
+research used resources of the National Energy Research
+Scientific Computing Center, a DOE Office of Science
+User Facility supported by the Office of Science of
+the U.S. Department of Energy under Contract No.
+DE-AC02-05CH11231. The University of Edinburgh
+is a charitable body, registered in Scotland, with the
+registration number SC005336. The assistance of SURF
+and its personnel in providing physical access and
+general logistical and technical support is acknowledged.
+
+[1] R. Saakyan. Two-Neutrino Double-Beta Decay. Ann.
+Rev. Nucl. Part. Sci., 63:503–529, 2013.
+
+[2] J. B. Albert et al. Improved measurement of the 2νββ
+136
+half-life of
+Xe with the EXO-200 detector. Phys. Rev.
+
+V.
+
+CONCLUSIONS
+
+13
+C, 89:015502, 2014.
+[3] M. Redshaw, E. Wingfield, J. McDaniel, and E. Myers.
+136
+Mass and Double-Beta-Decay Q-Value of
+Xe. Phys.
+Rev. Lett., 98:053003, 2007.
+[4] E. Majorana. Teoria simmetrica dell’elettrone e del
+positrone. Nuovo Cim., 171, 1937.
+[5] A. Gando et al. Search for Majorana Neutrinos near the
+Inverted Mass Hierarchy Region with KamLAND-Zen.
+Phys. Rev. Lett., 117:082503, 2016.
+[6] J. B. Albert et al.
+Sensitivity and Discovery Potential of nEXO to Neutrinoless Double
+Beta Decay.
+Phys. Rev., C97(6):065503, 2018.
+doi.org/10.1103/PhysRevC.97.065503.
+[7] J. Martı́n-Albo et al. Sensitivity of NEXT-100 to Neutrinoless Double Beta Decay. JHEP, 05:159, 2016.
+[8] Xun Chen et al. PandaX-III: Searching for neutrino136
+less double beta decay with high pressure Xe gas time
+projection chambers. Sci. China Phys. Mech. Astron.,
+60(6):061011, 2017.
+[9] Kevin T. Lesko et al. Deep Underground Science and Engineering Laboratory - Preliminary Design Report. arXiv
+[1108.0959] (physics.geo-ph), 2011.
+[10] Kevin T. Lesko. The Sanford Underground Research Facility at Homestake. Eur. Phys. J. Plus 127: 107, 2012.
+[11] D. Mei, C. Zhang, K. Thomas, and F. Gray. Early results on radioactive background characterization for Sanford Laboratory and DUSEL experiments. Astroparticle
+Physics, 34:33–39, 2010.
+[12] F.E. Gray, C. Ruybal, J. Totushek, D. Mei, K. Thomas,
+and C. Zhang. Cosmic ray muon flux at the Sanford
+Underground Laboratory at Homestake. Nuc Inst and
+Methods, 638(1):63–66, 2011.
+[13] K.T. Lesko. The Sanford Underground Research Facility at Homestake (SURF). Physics Procedia, 61:542–551,
+2015. 13th International Conference on Topics in Astroparticle and Underground Physics, TAUP 2013.
+[14] B. A. Dolgoshein, V. A. Lebedenko, and B. U. Rodionov.
+New Method of Registration of Ionizing-particle Tracks
+in Condensed Matter. JETP Lett., 11:351, 1970.
+[15] P. Benetti et al. Detection of energy deposition down
+to the keV region using liquid xenon scintillation. Nucl.
+Instrum. Meth. A, 327(1):203 – 206, 1993.
+[16] V. Chepel and H. Araújo. Liquid noble gas detectors for
+low energy particle physics. JINST, 8:R04001, 2013.
+[17] D.S. Akerib et al. An ultra-low background PMT for
+liquid xenon detectors. Nuc. Inst. and Methods A, 703:1–
+6, 2013.
+[18] B. J. Mount et al. LUX-ZEPLIN (LZ) Technical Design
+Report. arXiv:1703.09144 (physics.ins-det), 2017.
+[19] D.S. Akerib et al. Identification of radiopure titanium
+for the LZ dark matter experiment and future rare event
+searches. Astroparticle Physics, 96:1–10, 2017.
+[20] R.L. Platzman. Total ionization in gases by high-energy
+particles: An appraisal of our understanding. The International Journal of Applied Radiation and Isotopes,
+10(2):116 – 127, 1961.
+[21] E. Conti et al. Correlated fluctuations between luminescence and ionization in liquid xenon. Phys. Rev. B,
+68:054201, 2003.
+[22] Carlos Faham. Prototype, Surface Commissioning and
+Photomultiplier Tube Characterization for the Large Underground Xenon (LUX) Direct Dark Matter Search Experiment. PhD thesis, Brown University, Providence,
+
+Rhode Island, 5 2014.
+[23] D. S. Akerib et al.
+Projected WIMP sensitivity of the LUX-ZEPLIN dark matter experiment.
+Phys. Rev. D, 101:052002, 2020.
+doi.org/10.1103/PhysRevD.101.052002.
+[24] D. S. Akerib et al. Position Reconstruction in LUX.
+JINST, 13(02):P02001, 2018.
+[25] D. S. Akerib et al. Tritium calibration of the LUX dark
+matter experiment. Phys. Rev., D93(7):072009, 2016.
+[26] D. S. Akerib et al. Calibration, event reconstruction, data
+analysis, and limit calculation for the LUX dark matter
+experiment. Phys. Rev., D97(10):102008, 2018.
+220
+[27] R.F. Lang et al. A
+Rn source for the calibration of
+low-background experiments. Journal of Instrumentation, 11(04):P04004, 2016.
+[28] D.S. Akerib et al.
+LUXSim:
+A componentcentric approach to low-background simulations. Nucl.
+Inst. Meth. in Phys. Res. A, 675:63–77, 2012.
+doi:10.1016/j.nima.2012.02.010.
+[29] LUX-ZEPLIN Collaboration. Description of and Results
+from the LUX-ZEPLIN Radio-Contaminant Control Program. in preparation.
+[30] D. S. Akerib et al. Measurement of the Gamma Ray
+Background in the Davis Cavern at the Sanford Underground Research Facility. Astropart. Phys., 116:102391,
+2020.
+[31] D. S. Akerib et al. Signal yields, energy resolution, and
+recombination fluctuations in liquid xenon. Phys. Rev.
+D, 95:012008, 2017.
+[32] M. Szydagis, N. Barry, K. Kazkaz, J. Mock, D. Stolp,
+M. Sweany, M. Tripathi, S. Uvarov, N. Walsh, and
+M. Woods. NEST: a comprehensive model for scintillation yield in liquid xenon.
+Journal of Instrumentation, 6(10):P10002, 2011.
+doi:10.1088/17480221/6/10/P10002.
+[33] M Szydagis, A Fyhrie, D Thorngren, and M Tripathi.
+Enhancement of NEST capabilities for simulating lowenergy recoils in liquid xenon. Journal of Instrumentation, 8(10):C10003, 2013.
+[34] E. Aprile et al. Energy resolution and linearity in the
+keV to MeV range measured in XENON1T. arXiv
+2003.03825, 2020.
+[35] G. Anton et al. Measurement of the scintillation and
+ionization response of liquid xenon at MeV energies in
+the EXO-200 experiment. arXiv:1908.04128, 2019.
+[36] L. Baudis et al. Neutrino physics with multi-ton scale
+liquid xenon detectors. Journal Cosm Astropart Phys,
+2014(01):044, 2014.
+[37] D. S. Akerib et al.
+Simulations of Events for
+the LUX-ZEPLIN (LZ) Dark Matter Experiment.
+arXiv:2001.09363 [physics.ins-det], 2020.
+[38] A. Tiwari, C. Zhang, D. M. Mei, and P. Cushman. Observation of annual modulation induced by γ rays from
+(α, γ) reactions at the Soudan Underground Laboratory.
+Phys. Rev. C, 96(4):044609, 2017. [Erratum: Phys.
+Rev.C98,no.1,019901(2018)].
+[39] J. B. Albert et al. Measurements of the ion fraction and
+mobility of α- and β-decay products in liquid xenon using
+the EXO-200 detector. Phys. Rev. C, 92:045504, 2015.
+[40] D.S. Akerib et al. Radiogenic and muon-induced backgrounds in the LUX dark matter detector. Astroparticle
+Physics, 62:33–46, 2015.
+[41] J.B. Albert et al. Cosmogenic backgrounds to 0νββ
+
+14
+in EXO-200. Journal of Cosmology and Astroparticle
+Physics, 2016(04):029, 2016.
+[42] M. L. Cherry, M. Deakyne, K. Lande, C. K. Lee, R. I.
+Steinberg, B. Cleveland, and E. J. Fenyves. Multiple
+muons in the homestake underground detector. Phys.
+Rev. D, 27:1444–1447, Apr 1983.
+[43] N. Abgrall et al. Muon Flux Measurements at the Davis
+Campus of the Sanford Underground Research Facility
+with the Majorana Demonstrator Veto System. Astropart. Phys., 93:70–75, 2017.
+[44] K. Ni, R. Hasty, T.M. Wongjirad, L. Kastens, A. Manzur,
+and D.N. McKinsey. Preparation of neutron-activated
+xenon for liquid xenon detector calibration. Nuclear
+Instruments and Methods in Physics Research Section
+A: Accelerators, Spectrometers, Detectors and Associated
+Equipment, 582(2):569–574, 2007.
+[45] E. Aprile et al. Conceptual design and simulation of a
+water Cherenkov muon veto for the XENON1T experiment. JINST, 9:P11006, 2014. doi.org/10.1088/17480221/9/11/P11006.
+[46] A. Best et al. Low energy neutron background in deep
+underground laboratories. Nuclear Instrumentation and
+Methods A, 812:1–6, 2015.
+[47] J. Kotila and F. Iachello. Phase-space factors for doubleβ decay. Phys. Rev. C, 85:034316, 2012.
+[48] John N. Bahcall, Aldo M. Serenelli, and Sarbani Basu.
+New Solar Opacities, Abundances, Helioseismology, and
+Neutrino Fluxes. The Astrophysical Journal, 621(1):L85–
+L88, 2005.
+[49] S. R. Elliott and H. Ejiri.
+Solar Neutrinos as
+Background to Neutrinoless Double-beta Decay Experiments. AIP Conf. Proc., 1894(1):020008, 2017.
+doi.org/10.1063/1.5007633.
+[50] H. Ejiri and S. R. Elliott. Charged current neutrino
+cross section for solar neutrinos, and background to
+ββ(0ν) experiments. Phys. Rev., C89(5):055501, 2014.
+doi.org/10.1103/PhysRevC.89.055501.
+[51] P. Pirinen, J. Suhonen, and E. Ydrefors. Charged-current
+neutrino-nucleus scattering off Xe isotopes. Phys. Rev.
+C, 99:014320, 2019. 10.1103/PhysRevC.99.014320.
+[52] Xavier Mougeot. Betashape: A new code for improved
+analytical calculations of beta spectra. EPJ Web of Conferences, 146:12015, 01 2017.
+[53] O. A. Ponkratenko, V. I. Tretyak, and Yu. G. Zdesenko. Event generator DECAY4 for simulating doublebeta processes and decays of radioactive nuclei. Physics
+of Atomic Nuclei, 63(7):1282–1287, Jul 2000.
+[54] Glen Cowan, Kyle Cranmer, Eilam Gross, and Ofer
+Vitells. Asymptotic formulae for likelihood-based tests
+of new physics. Eur. Phys. J., C71:1554, 2011. [Erratum: Eur. Phys. J.C73,2501(2013)].
+[55] G. Anton et al. Search for Neutrinoless Double-Beta Decay with the Complete EXO-200 Dataset. ArXiv e-prints,
+2019. arXiv:1906.02723.
+[56] Michelle J. Dolinski, Alan W.P. Poon, and Werner Rodejohann. Neutrinoless Double-Beta Decay: Status and
+Prospects. Annual Review of Nuclear and Particle Science, 69(1):219–251, 2019. doi.org/10.1146/annurevnucl-101918-023407.
+[57] M. T. Mustonen and J. Engel. Large-scale calcula76
+130
+136
+tions of the double-β decay of Ge,
+Te,
+Xe, and
+150
+Nd in the deformed self-consistent skyrme quasiparticle random-phase approximation. Phys. Rev. C,
+
+87:064302, Jun 2013.
+[58] Nuria López Vaquero, Tomás R. Rodrı́guez, and J. Luis
+Egido. Shape and pairing fluctuation effects on neutrinoless double beta decay nuclear matrix elements. Phys.
+Rev. Lett., 111:142501, Sep 2013.
+[59] R. Lemrani, M. Robinson, V. A. Kudryavtsev,
+M. De Jesus, G. Gerbier, and N. J. C. Spooner.
+Low energy neutron propagation in MCNPX and
+GEANT4. Nucl. Instrum. Meth., A560:454–459, 2006.
+doi.org/10.1016/j.nima.2005.12.238.
+[60] V. Tomasello, M. Robinson, and V.A. Kudryavtsev. Radioactive background in a cryogenic dark matter experiment. Astroparticle Physics, 34(2):70 – 79, 2010.
+doi.org/10.1016/j.astropartphys.2010.05.005.
+[61] P.J.W. Faulkner et al. GridPP: development of the UK
+computing Grid for particle physics. Journal of Physics
+G: Nuclear and Particle Physics, 32(1):N1–N20, 2006.
+[62] D. Britton et al. GridPP: the UK grid for particle physics.
+Phil. Trans. Royal Society A: Mathematical, Physical and
+Engineering Sciences, 367, 2009.
+
+
