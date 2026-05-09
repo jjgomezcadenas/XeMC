@@ -251,7 +251,7 @@ julia --project=. scripts/run_cryostat_fluxes.jl --n 100000 --seed 42 --outdir r
 ```
 
 
-## Implementation order
+## Implementation order (dense sources, points 1--8)
 
 1. `SourceRateTable` struct (point 1)
 2. `load_source_geometry` (point 2)
@@ -262,3 +262,156 @@ julia --project=. scripts/run_cryostat_fluxes.jl --n 100000 --seed 42 --outdir r
 7. Surface reconstruction: `sample_barrel_point`, `sample_cap_point`,
    `reconstruct_direction`, `sample_gamma_from_flux` (point 7)
 8. Driver script (point 8)
+
+**All 8 points complete** for cryostat (dense) sources.
+
+---
+
+## 9. Source taxonomy: dense vs ideal
+
+Sources fall into two categories based on their `transport_source` and
+`source_class` fields in `source_geometry_lz_v1.json`:
+
+### Dense sources
+
+- `transport_source = "KN"`, `source_class = "shell_source"`
+- Real material (Ti, PTFE, SS) with nonzero density
+- Gammas undergo KN self-shielding inside the source volume
+- May require compound propagation through intervening layers (OCV -> vacuum -> ICV)
+- Flux tables are non-trivial: energy degradation + angular redistribution
+- Virtual envelope sits on the **detector boundary** (ICV inner surface)
+- Examples: OCV_barrel, ICV_top, FC_PTFE, FC_rings, FC_topgrid, FC_botgrid
+
+### Ideal sources
+
+- `transport_source = "transparent"`, `source_class = "virtual_source"`
+- Material is Vacuum (no self-shielding, no energy loss)
+- Mass given by `equivalent_mass_kg` (not geometric)
+- Gammas emerge at full decay energy with isotropic angular distribution
+- Flux tables are **trivial**: delta function in E, flat in u, survival = 1.0
+- Virtual envelope is the **source geometry itself** (a thin disk or shell
+  inside the detector volume)
+- Examples: MLI, FC_resistors, FC_sensors, PMT_TOP_*, PMT_BOT_*, PMT_BARREL_*
+
+The key difference for the pipeline: dense sources require expensive MC to
+build flux tables; ideal sources build flux tables analytically in microseconds.
+The output format (SourceFluxBi214 / SourceFluxTl208 structs, CSV files) is
+identical for both, so the downstream pipeline (fast kernel + FV + smearing)
+is unchanged.
+
+
+## 10. Ideal source flux generation
+
+### Flag: `--ideal_source`
+
+The `generate_flux_tables.jl` script accepts `--ideal_source` (default `false`).
+When `true`, the script skips MC propagation and constructs flux tables
+analytically:
+
+### Bi-214 (ideal)
+
+- Single E bin centered at 2.448 MeV (n_E = 1 or minimal binning)
+- Uniform in u (isotropic emission, all u bins equal)
+- `n_survived = N`, `survival_fraction = 1.0`
+
+### Tl-208 (ideal)
+
+- Main gamma: single E bin at 2.615 MeV, flat in u, survival = 1.0
+- Companion 1 (583 keV): single E bin, flat in u, survival = 1.0, BR = 0.85
+- Companion 2 (511 keV): single E bin, flat in u, survival = 1.0, BR = 0.23
+- Companion 3 (861 keV): single E bin, flat in u, survival = 1.0, BR = 0.12
+
+All companion survival fractions are 1.0 (no material to attenuate).
+
+### Library function
+
+Location: `source_flux.jl`
+
+```julia
+generate_ideal_flux_bi214(N; E_gamma=2.448, n_u=10) -> SourceFluxBi214
+generate_ideal_flux_tl208(N; E_main=2.615, n_u=10) -> SourceFluxTl208
+```
+
+These build the structs directly — no RNG, no propagation, no material.
+The `N` parameter sets `n_generated` for rate normalization (activity × mass
+× pdf_per_decay gives the correct absolute rate).
+
+
+## 11. PMT_TOP sources
+
+Three independent sources sharing a single virtual envelope:
+
+| Source           | Mass (kg) | Bi214 (mBq/kg) | Tl208 (mBq/kg) |
+|:-----------------|:----------|:----------------|:----------------|
+| PMT_TOP_PMTs     | 47.07     | 3.22            | 1.61            |
+| PMT_TOP_bases    | 1.434     | 75.9            | 33.1            |
+| PMT_TOP_structure| 83.0      | 1.60            | 1.06            |
+
+### Shared virtual envelope
+
+- Kind: `:disk` (flat disk, not a dome cap)
+- R = 72.8 cm
+- z = 152.6 cm (bottom of the PMT stack, closest to LXe)
+- Located inside the AirDome (gas phase), above the gate at z = 145.6
+
+### Pipeline
+
+1. **Flux tables** (trivial): `--ideal_source` flag, one run per source
+   component (PMTs, bases, structure) × isotope (Bi214, Tl208). Six runs
+   total, each instantaneous.
+2. **Background processing**: sample from flux tables, place gammas on the
+   shared VE disk, process through fast kernel + FV stack. Gammas travel
+   downward through gas dome into LXe.
+3. **Background rates**: smearing + ROI, per-component and summed.
+
+### Source dispatch
+
+`dispatch_source_flux` extended with:
+- `"pmt_top_pmts"`, `"pmt_top_bases"`, `"pmt_top_structure"`
+
+Each routes to `generate_ideal_flux_bi214` / `generate_ideal_flux_tl208`.
+
+
+## 12. Virtual envelope generalization
+
+The `VirtualEnvelope` struct and `make_virtual_envelope` are extended to
+handle both dense and ideal sources:
+
+### Dense sources (existing)
+
+VE sits on the detector boundary (ICV inner surface):
+- Barrel: cylinder at R = 82.09 cm (LZ_detector R - inset)
+- Top: AirDome cap surface (R = 82.09, z_eq = 145.6, ar = 2.0)
+- Bottom: LXe_passive bottom cap (R = 82.09, z_eq = -14.1, ar = 3.0)
+
+### Ideal sources (new)
+
+VE is the source geometry itself:
+- PMT_TOP: flat disk at R = 72.8, z = 152.6
+- PMT_BOT: flat disk at R = 72.8, z ≈ -15.75
+- PMT_BARREL: cylindrical shell at R ≈ 81.2--81.4, z = [-13.75, 145.6]
+- FC_resistors, FC_sensors: cylindrical shell at R ≈ 72.6--72.7
+
+A new VE kind `:disk_flat` is added for flat disks (as opposed to `:cap_up`
+/ `:cap_down` which are ellipsoidal). The surface sampler for `:disk_flat`
+is simply uniform in (r^2, phi) at fixed z.
+
+### `make_virtual_envelope` dispatch
+
+```
+make_virtual_envelope(source, fk)          # dense: from FastKernelGeometry
+make_virtual_envelope(source, sg)          # ideal: from source geometry dict
+```
+
+The script or dispatch layer chooses which method to call based on the
+source's `transport_source` field.
+
+
+## Implementation order (ideal sources, points 9--12)
+
+9.  Add `:disk_flat` VE kind + `sample_disk_point` surface sampler
+10. `generate_ideal_flux_bi214` / `generate_ideal_flux_tl208` in `source_flux.jl`
+11. `--ideal_source` flag in `generate_flux_tables.jl`
+12. PMT_TOP dispatch entries + `make_virtual_envelope` from source geometry
+13. Run PMT_TOP × {Bi214, Tl208} through full pipeline
+14. Extend to PMT_BOT and PMT_BARREL (same pattern)
