@@ -94,12 +94,8 @@ end
 # Per-thread processing
 # =====================================================================
 
-struct FVEvent
-    deposits::Vector{Deposit}
-end
-
 struct ThreadResult
-    fv_events::Vector{FVEvent}
+    fv_events::Vector{Vector{Deposit}}
     n_fv::Int
     n_vetoed::Int
     n_vetoed_tpc::Int
@@ -132,7 +128,7 @@ function process_batch(flux, surface_sampler::Function,
 
         if result.status == :fv
             n_fv += 1
-            push!(fv_events, FVEvent(result.deposits))
+            push!(fv_events, result.deposits)
         elseif result.status == :vetoed
             n_vetoed += 1
             result.has_tpc_veto && (n_vetoed_tpc += 1)
@@ -163,11 +159,11 @@ end
 # Output
 # =====================================================================
 
-function write_fv_deposits_csv(path::String, fv_events::Vector{FVEvent})
+function write_fv_deposits_csv(path::String, fv_events::Vector{Vector{Deposit}})
     open(path, "w") do io
         println(io, "event_id,x_cm,y_cm,z_cm,energy_MeV,source")
-        for (eid, ev) in enumerate(fv_events)
-            for d in ev.deposits
+        for (eid, deps) in enumerate(fv_events)
+            for d in deps
                 @printf(io, "%d,%.6f,%.6f,%.6f,%.8e,%s\n",
                         eid, d.position[1], d.position[2], d.position[3],
                         d.energy, d.source)
@@ -223,10 +219,6 @@ function main()
 
     # --- Load flux tables ---
     isotope_prefix = cli.isotope == "Bi214" ? "bi214" : "tl208"
-    flux_keys = [k for k in keys(
-        JSON.parsefile(joinpath(cli.indir, "metadata.json"))["components"])
-        if startswith(k, isotope_prefix) && !endswith(k, "rate")]
-
     rate_key = isotope_prefix * "_rate"
     rate_table = load_rate_table(cli.indir, rate_key)
 
@@ -238,7 +230,10 @@ function main()
                         rate_table.n_E, rate_table.n_u,
                         0, 0, 0, 0, 0)
     else
-        tl_key = first(k for k in flux_keys if !endswith(k, "rate"))
+        # Load one Tl208 component for companion structure
+        meta = JSON.parsefile(joinpath(cli.indir, "metadata.json"))
+        tl_key = first(k for k in keys(meta["components"])
+                       if startswith(k, "tl208") && !endswith(k, "rate"))
         load_flux_tl208(cli.indir, tl_key)
     end
 
@@ -285,7 +280,7 @@ function main()
     @printf("    TPC veto:       %8d  (%.4e)\n", merged.n_vetoed_tpc, merged.n_vetoed_tpc / N_actual)
     @printf("    Skin veto:      %8d  (%.4e)\n", merged.n_vetoed_skin, merged.n_vetoed_skin / N_actual)
     @printf("  No FV:            %8d  (%.4e)\n", merged.n_no_fv, merged.n_no_fv / N_actual)
-    n_deposits = sum(length(ev.deposits) for ev in merged.fv_events; init=0)
+    n_deposits = sum(length(deps) for deps in merged.fv_events; init=0)
     @printf("  FV deposits:      %8d  (%.1f per FV event)\n",
             n_deposits, merged.n_fv > 0 ? n_deposits / merged.n_fv : 0.0)
 
