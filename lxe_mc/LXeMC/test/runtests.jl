@@ -476,6 +476,73 @@ end
 end
 
 
+@testset "transport_photon!/lepton! vs _in_fv equivalence" begin
+    # Build a PCyl that matches the FVGeometry
+    fvgeom = compile_fv_geometry(DET3)
+    fv_solid = Cyl(fvgeom.radius_cm,
+                   (fvgeom.zmax_cm - fvgeom.zmin_cm) / 2.0)
+    fv_z_center = (fvgeom.zmax_cm + fvgeom.zmin_cm) / 2.0
+    fv_pcyl = PCyl("FV_test", LCyl(fv_solid, Float64[0.0, 0.0, fv_z_center]),
+                   fvgeom.material)
+
+    # --- Photon equivalence ---
+    for seed in [42, 99, 2026, 5555, 9999]
+        # _in_fv version
+        track = Track(:gamma, 2.615, Float64[0.0, 0.0, 61.0],
+                       Float64[0.3, 0.0, sqrt(1 - 0.09)], 1, 0, 0)
+        deps_fv = Deposit[]
+        stack_fv = ParticleStack()
+        tc_fv = Ref(1)
+        rng_fv = MersenneTwister(seed)
+        LXeMC.transport_photon_in_fv!(track, fvgeom, deps_fv, stack_fv, tc_fv, CFG, rng_fv)
+
+        # PhysicalVolume version
+        track2 = Track(:gamma, 2.615, Float64[0.0, 0.0, 61.0],
+                        Float64[0.3, 0.0, sqrt(1 - 0.09)], 1, 0, 0)
+        deps_pv = Deposit[]
+        stack_pv = ParticleStack()
+        tc_pv = Ref(1)
+        rng_pv = MersenneTwister(seed)
+        transport_photon!(track2, fv_pcyl, deps_pv, stack_pv, tc_pv, CFG, rng_pv)
+
+        # Results must be identical
+        @test length(deps_fv) == length(deps_pv)
+        @test length(stack_fv) == length(stack_pv)
+        for (d1, d2) in zip(deps_fv, deps_pv)
+            @test d1.energy ≈ d2.energy atol=1e-12
+            @test d1.position ≈ d2.position atol=1e-10
+            @test d1.source == d2.source
+        end
+    end
+
+    # --- Lepton equivalence ---
+    for seed in [42, 99, 2026, 5555, 9999]
+        track = Track(:electron, 1.5, Float64[5.0, 0.0, 61.0],
+                       Float64[0.0, 0.0, 1.0], 1, 0, 0)
+        deps_fv = Deposit[]
+        stack_fv = ParticleStack()
+        tc_fv = Ref(1)
+        rng_fv = MersenneTwister(seed)
+        LXeMC.transport_lepton_in_fv!(track, fvgeom, deps_fv, stack_fv, tc_fv, CFG, rng_fv)
+
+        track2 = Track(:electron, 1.5, Float64[5.0, 0.0, 61.0],
+                        Float64[0.0, 0.0, 1.0], 1, 0, 0)
+        deps_pv = Deposit[]
+        stack_pv = ParticleStack()
+        tc_pv = Ref(1)
+        rng_pv = MersenneTwister(seed)
+        transport_lepton!(track2, fv_pcyl, deps_pv, stack_pv, tc_pv, CFG, rng_pv)
+
+        @test length(deps_fv) == length(deps_pv)
+        @test length(stack_fv) == length(stack_pv)
+        for (d1, d2) in zip(deps_fv, deps_pv)
+            @test d1.energy ≈ d2.energy atol=1e-12
+            @test d1.position ≈ d2.position atol=1e-10
+            @test d1.source == d2.source
+        end
+    end
+end
+
 # =====================================================================
 # Test 3b: Geometric solids and CylShell
 # =====================================================================
