@@ -122,7 +122,7 @@ function process_batch(flux, surface_sampler::Function,
                         fk::FastKernelGeometry, fv::PhysicalVolume,
                         cfg::SimConfig, rng::AbstractRNG,
                         N::Int, isotope::String)::ThreadResult
-    fv_events = FVEvent[]
+    fv_events = Vector{Deposit}[]
     n_fv = 0
     n_vetoed = 0
     n_vetoed_tpc = 0
