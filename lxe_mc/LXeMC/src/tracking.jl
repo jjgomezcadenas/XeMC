@@ -456,6 +456,23 @@ end
 end
 
 
+"""Return the appropriate terminal status for a gamma absorbed in `rname`."""
+@inline function _terminal_status(deposits::Vector{FastGammaDeposit},
+                                   rname::String,
+                                   pos::Vector{Float64},
+                                   dir::Vector{Float64})
+    if rname == "Skin"
+        _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
+    elseif rname in ("TopActive", "BarrelActive", "BottomActive")
+        _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
+    elseif _is_passive_region(rname)
+        _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
+    else
+        _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
+    end
+end
+
+
 """
     transport_gamma_fastkernel(gamma, fk, cfg, rng; max_cm=400.0)
         -> FastGammaTrackResult
@@ -529,77 +546,36 @@ function transport_gamma_fastkernel(gamma,
                 dep = E - Egp
                 push!(deposits, FastGammaDeposit(dep, copy(pos), rname))
 
+                # Veto check on Compton deposit
                 if rname == "Skin" && dep >= cfg.veto_skin
                     return _fast_track_result(:vetoed_skin, deposits, rname, Egp, pos, dir)
                 elseif rname in ("TopActive", "BarrelActive", "BottomActive") && dep >= cfg.veto_TPC
                     return _fast_track_result(:vetoed_tpc, deposits, rname, Egp, pos, dir)
-                elseif rname == "FV" && dep >= cfg.veto_TPC
-                    sin_theta = sqrt(max(0.0, 1.0 - cos_theta^2))
-                    phi = 2π * rand(rng)
-                    local_dir = Float64[sin_theta * cos(phi), sin_theta * sin(phi), cos_theta]
-                    dir .= rotate_to_global(local_dir, dir)
-                    E = Egp
-                    if E < cfg.E_roi_floor
-                        dep_total = deposits[end].Edep_MeV + E
-                        _replace_last_deposit!(deposits,
-                            FastGammaDeposit(dep_total, deposits[end].position,
-                                             deposits[end].region))
-                        return _fast_track_result(:below_roi_fv, deposits, rname, 0.0, pos, dir)
-                    end
-                    continue
-                else
-                    E = Egp
-                    if E < cfg.E_roi_floor
-                        dep_total = deposits[end].Edep_MeV + E
-                        _replace_last_deposit!(deposits,
-                            FastGammaDeposit(dep_total, deposits[end].position,
-                                             deposits[end].region))
-
-                        if rname == "Skin"
-                            return _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
-                        elseif rname in ("TopActive", "BarrelActive", "BottomActive")
-                            return _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
-                        elseif rname == "FV"
-                            return _fast_track_result(:below_roi_fv, deposits, rname, 0.0, pos, dir)
-                        elseif _is_passive_region(rname)
-                            return _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
-                        else
-                            return _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
-                        end
-                    end
-
-                    sin_theta = sqrt(max(0.0, 1.0 - cos_theta^2))
-                    phi = 2π * rand(rng)
-                    local_dir = Float64[sin_theta * cos(phi), sin_theta * sin(phi), cos_theta]
-                    dir .= rotate_to_global(local_dir, dir)
-                    continue
                 end
-            elseif proc === :pair
-                push!(deposits, FastGammaDeposit(E, copy(pos), rname))
-                if rname == "Skin"
-                    return _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
-                elseif rname in ("TopActive", "BarrelActive", "BottomActive")
-                    return _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
-                elseif rname == "FV"
-                    return _fast_track_result(:below_roi_fv, deposits, rname, 0.0, pos, dir)
-                elseif _is_passive_region(rname)
-                    return _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
-                else
-                    return _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
+
+                # Gamma survives with reduced energy
+                E = Egp
+
+                # ROI floor: gamma can no longer reach Q_ββ — collapse locally
+                if E < cfg.E_roi_floor
+                    dep_total = deposits[end].Edep_MeV + E
+                    _replace_last_deposit!(deposits,
+                        FastGammaDeposit(dep_total, deposits[end].position,
+                                         deposits[end].region))
+                    return _terminal_status(deposits, rname, pos, dir)
                 end
+
+                # Update direction and continue
+                sin_theta = sqrt(max(0.0, 1.0 - cos_theta^2))
+                phi = 2π * rand(rng)
+                local_dir = Float64[sin_theta * cos(phi), sin_theta * sin(phi), cos_theta]
+                dir .= rotate_to_global(local_dir, dir)
+                continue
+
             else
+                # Pair or photoelectric: terminal, full energy deposited
                 push!(deposits, FastGammaDeposit(E, copy(pos), rname))
-                if rname == "Skin"
-                    return _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
-                elseif rname in ("TopActive", "BarrelActive", "BottomActive")
-                    return _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
-                elseif rname == "FV"
-                    return _fast_track_result(:below_roi_fv, deposits, rname, 0.0, pos, dir)
-                elseif _is_passive_region(rname)
-                    return _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
-                else
-                    return _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
-                end
+                return _terminal_status(deposits, rname, pos, dir)
             end
         end
 
