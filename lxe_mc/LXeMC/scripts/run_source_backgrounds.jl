@@ -1,10 +1,12 @@
 """
-Process source flux tables through the detector and collect SS candidates.
+Process source flux tables through the detector and collect FV deposits.
 
 Reads pre-generated flux tables from --indir, samples gammas, runs them
 through the fast kernel + FV stack, and writes:
-  - candidates.csv: SS candidates with (x, y, z, E_deposited)
+  - fv_deposits.csv: all FV deposits with (event_id, x, y, z, energy, source)
   - statistics.csv: event status counts and fractions
+
+SS/MS classification is done offline (in python) from the deposit CSV.
 
 Usage:
     julia -t 8 --project=. scripts/run_source_backgrounds.jl \\
@@ -92,21 +94,16 @@ end
 # Per-thread processing
 # =====================================================================
 
-struct CandidateEvent
-    x::Float64
-    y::Float64
-    z::Float64
-    E_deposited::Float64
+struct FVEvent
+    deposits::Vector{Deposit}
 end
 
-
 struct ThreadResult
-    candidates::Vector{CandidateEvent}
-    n_accepted::Int
+    fv_events::Vector{FVEvent}
+    n_fv::Int
     n_vetoed::Int
     n_vetoed_tpc::Int
     n_vetoed_skin::Int
-    n_ms_rejected::Int
     n_no_fv::Int
     n_total::Int
 end
@@ -116,16 +113,14 @@ function process_batch(flux, surface_sampler::Function,
                         fk::FastKernelGeometry, fv::PhysicalVolume,
                         cfg::SimConfig, rng::AbstractRNG,
                         N::Int, isotope::String)::ThreadResult
-    candidates = CandidateEvent[]
-    n_accepted = 0
+    fv_events = FVEvent[]
+    n_fv = 0
     n_vetoed = 0
     n_vetoed_tpc = 0
     n_vetoed_skin = 0
-    n_ms_rejected = 0
     n_no_fv = 0
 
     for _ in 1:N
-        # Sample gamma(s) from flux table
         if isotope == "Bi214"
             g = sample_gamma_from_flux(flux, surface_sampler, rng)
             gammas = [g]
@@ -133,45 +128,31 @@ function process_batch(flux, surface_sampler::Function,
             gammas = sample_gamma_from_flux(flux, surface_sampler, rng)
         end
 
-        # Process through fast kernel + FV stack
         result = process_event(gammas, fk, fv, cfg, rng)
 
-        if result.status == :accepted
-            n_accepted += 1
-            # Compute energy-weighted centroid and total energy
-            E_total = sum(d.energy for d in result.deposits)
-            if E_total > 0.0
-                x = sum(d.position[1] * d.energy for d in result.deposits) / E_total
-                y = sum(d.position[2] * d.energy for d in result.deposits) / E_total
-                z = sum(d.position[3] * d.energy for d in result.deposits) / E_total
-            else
-                x, y, z = 0.0, 0.0, 0.0
-            end
-            push!(candidates, CandidateEvent(x, y, z, E_total))
+        if result.status == :fv
+            n_fv += 1
+            push!(fv_events, FVEvent(result.deposits))
         elseif result.status == :vetoed
             n_vetoed += 1
             result.has_tpc_veto && (n_vetoed_tpc += 1)
             result.has_skin_veto && (n_vetoed_skin += 1)
-        elseif result.status == :ms_rejected
-            n_ms_rejected += 1
         else
             n_no_fv += 1
         end
     end
 
-    ThreadResult(candidates, n_accepted, n_vetoed, n_vetoed_tpc, n_vetoed_skin,
-                 n_ms_rejected, n_no_fv, N)
+    ThreadResult(fv_events, n_fv, n_vetoed, n_vetoed_tpc, n_vetoed_skin, n_no_fv, N)
 end
 
 
 function merge_thread_results(results::Vector{ThreadResult})::ThreadResult
     ThreadResult(
-        vcat([r.candidates for r in results]...),
-        sum(r.n_accepted for r in results),
+        vcat([r.fv_events for r in results]...),
+        sum(r.n_fv for r in results),
         sum(r.n_vetoed for r in results),
         sum(r.n_vetoed_tpc for r in results),
         sum(r.n_vetoed_skin for r in results),
-        sum(r.n_ms_rejected for r in results),
         sum(r.n_no_fv for r in results),
         sum(r.n_total for r in results)
     )
@@ -182,11 +163,15 @@ end
 # Output
 # =====================================================================
 
-function write_candidates_csv(path::String, candidates::Vector{CandidateEvent})
+function write_fv_deposits_csv(path::String, fv_events::Vector{FVEvent})
     open(path, "w") do io
-        println(io, "x_cm,y_cm,z_cm,E_deposited_MeV")
-        for c in candidates
-            @printf(io, "%.6f,%.6f,%.6f,%.8e\n", c.x, c.y, c.z, c.E_deposited)
+        println(io, "event_id,x_cm,y_cm,z_cm,energy_MeV,source")
+        for (eid, ev) in enumerate(fv_events)
+            for d in ev.deposits
+                @printf(io, "%d,%.6f,%.6f,%.6f,%.8e,%s\n",
+                        eid, d.position[1], d.position[2], d.position[3],
+                        d.energy, d.source)
+            end
         end
     end
 end
@@ -196,17 +181,15 @@ function write_statistics_csv(path::String, r::ThreadResult)
     open(path, "w") do io
         println(io, "quantity,value")
         @printf(io, "n_total,%d\n", r.n_total)
-        @printf(io, "n_accepted,%d\n", r.n_accepted)
+        @printf(io, "n_fv,%d\n", r.n_fv)
         @printf(io, "n_vetoed,%d\n", r.n_vetoed)
         @printf(io, "n_vetoed_tpc,%d\n", r.n_vetoed_tpc)
         @printf(io, "n_vetoed_skin,%d\n", r.n_vetoed_skin)
-        @printf(io, "n_ms_rejected,%d\n", r.n_ms_rejected)
         @printf(io, "n_no_fv,%d\n", r.n_no_fv)
-        @printf(io, "f_accepted,%.8e\n", r.n_accepted / r.n_total)
+        @printf(io, "f_fv,%.8e\n", r.n_fv / r.n_total)
         @printf(io, "f_vetoed,%.8e\n", r.n_vetoed / r.n_total)
         @printf(io, "f_vetoed_tpc,%.8e\n", r.n_vetoed_tpc / r.n_total)
         @printf(io, "f_vetoed_skin,%.8e\n", r.n_vetoed_skin / r.n_total)
-        @printf(io, "f_ms_rejected,%.8e\n", r.n_ms_rejected / r.n_total)
         @printf(io, "f_no_fv,%.8e\n", r.n_no_fv / r.n_total)
     end
 end
@@ -244,16 +227,10 @@ function main()
         JSON.parsefile(joinpath(cli.indir, "metadata.json"))["components"])
         if startswith(k, isotope_prefix) && !endswith(k, "rate")]
 
-    # For sampling we use the summed rate table's PDF shape
-    # (all components combined). Load it as the sampling source.
     rate_key = isotope_prefix * "_rate"
     rate_table = load_rate_table(cli.indir, rate_key)
 
-    # For Bi-214: sample from rate table directly
-    # For Tl-208: need the full Tl208 struct for companion sampling.
-    #   Load the first non-rate component (they all have same shape after merging).
     flux = if cli.isotope == "Bi214"
-        # Build a SourceFluxBi214 from the rate table PDF (treat as probability)
         total = sum(rate_table.pdf_rate)
         pdf_norm = total > 0 ? rate_table.pdf_rate ./ total : rate_table.pdf_rate
         SourceFluxBi214("combined", pdf_norm,
@@ -261,7 +238,6 @@ function main()
                         rate_table.n_E, rate_table.n_u,
                         0, 0, 0, 0, 0)
     else
-        # Load one of the Tl208 component tables for companion structure
         tl_key = first(k for k in flux_keys if !endswith(k, "rate"))
         load_flux_tl208(cli.indir, tl_key)
     end
@@ -277,7 +253,6 @@ function main()
     @threads for tid in 1:nt
         rng = MersenneTwister(cli.seed + tid)
         if tid == 1
-            # Thread 1: run in 10 sub-batches with progress
             n_chunks = 10
             chunk_size = cld(N_per_thread, n_chunks)
             sub_results = ThreadResult[]
@@ -305,17 +280,18 @@ function main()
 
     # --- Summary ---
     @printf("\nResults:\n")
-    @printf("  Accepted (SS):    %8d  (%.4e)\n", merged.n_accepted, merged.n_accepted / N_actual)
+    @printf("  FV events:        %8d  (%.4e)\n", merged.n_fv, merged.n_fv / N_actual)
     @printf("  Vetoed:           %8d  (%.4e)\n", merged.n_vetoed, merged.n_vetoed / N_actual)
     @printf("    TPC veto:       %8d  (%.4e)\n", merged.n_vetoed_tpc, merged.n_vetoed_tpc / N_actual)
     @printf("    Skin veto:      %8d  (%.4e)\n", merged.n_vetoed_skin, merged.n_vetoed_skin / N_actual)
-    @printf("  MS rejected:      %8d  (%.4e)\n", merged.n_ms_rejected, merged.n_ms_rejected / N_actual)
     @printf("  No FV:            %8d  (%.4e)\n", merged.n_no_fv, merged.n_no_fv / N_actual)
-    @printf("  Candidates:       %8d\n", length(merged.candidates))
+    n_deposits = sum(length(ev.deposits) for ev in merged.fv_events; init=0)
+    @printf("  FV deposits:      %8d  (%.1f per FV event)\n",
+            n_deposits, merged.n_fv > 0 ? n_deposits / merged.n_fv : 0.0)
 
     # --- Write output ---
     mkpath(cli.outdir)
-    write_candidates_csv(joinpath(cli.outdir, "candidates.csv"), merged.candidates)
+    write_fv_deposits_csv(joinpath(cli.outdir, "fv_deposits.csv"), merged.fv_events)
     write_statistics_csv(joinpath(cli.outdir, "statistics.csv"), merged)
 
     metadata = Dict{String,Any}(
@@ -328,11 +304,11 @@ function main()
         "nthreads" => nt,
         "elapsed_processing_s" => elapsed,
         "rate_total_gammas_per_s" => rate_table.total_rate,
-        "n_accepted" => merged.n_accepted,
+        "n_fv" => merged.n_fv,
         "n_vetoed" => merged.n_vetoed,
-        "n_ms_rejected" => merged.n_ms_rejected,
         "n_no_fv" => merged.n_no_fv,
-        "f_accepted" => merged.n_accepted / N_actual
+        "n_fv_deposits" => n_deposits,
+        "f_fv" => merged.n_fv / N_actual
     )
     write_flux_json(joinpath(cli.outdir, "metadata.json"), metadata)
 
