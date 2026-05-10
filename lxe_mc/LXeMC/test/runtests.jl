@@ -412,7 +412,6 @@ end
         fused_res = process_event_fastkernel_calib(fk, fv_vol, CFG, rng2)
 
         @test fused_res.result.status == vec_res.status
-        @test fused_res.result.has_fv == vec_res.has_fv
         @test fused_res.result.has_tpc_veto == vec_res.has_tpc_veto
         @test fused_res.result.has_skin_veto == vec_res.has_skin_veto
         @test fused_res.result.n_processed == vec_res.n_processed
@@ -425,11 +424,11 @@ end
         @test fused_res.E2_MeV == E2
     end
 
-    # Accepted events carry FV deposits; rejected events don't
+    # FV events carry deposits; others don't
     fv_gamma = SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])
     for seed in (100, 200, 300, 400, 500)
         res = process_event([fv_gamma], fk, fv_vol, CFG, MersenneTwister(seed))
-        if res.status == :accepted
+        if res.status == :fv
             @test !isempty(res.deposits)
             @test sum(d.energy for d in res.deposits) > 0.0
         else
