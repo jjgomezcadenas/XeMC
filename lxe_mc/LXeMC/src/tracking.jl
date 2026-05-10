@@ -609,12 +609,6 @@ end
 
 
 
-function _classify_fv_stack_result(deposits::Vector{Deposit}, cfg::SimConfig)::Symbol
-    clusters = cluster_deposits_in_z(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
-    isempty(clusters) && return :no_fv
-    length(clusters) == 1 && return :accepted
-    :ms_rejected
-end
 
 
 """

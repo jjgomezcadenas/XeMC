@@ -384,18 +384,6 @@ end
     @test handoff_res.terminal_region == "FV"
     @test handoff_res.energy_MeV ≈ 2.615 atol=1e-12
 
-    ss_deps = Deposit[
-        Deposit(Float64[0.0, 0.0, 61.0], 1.0, :electron),
-        Deposit(Float64[0.0, 0.0, 61.2], 1.0, :electron),
-    ]
-    ms_deps = Deposit[
-        Deposit(Float64[0.0, 0.0, 61.0], 1.0, :electron),
-        Deposit(Float64[0.0, 0.0, 62.0], 1.0, :electron),
-    ]
-    @test LXeMC._classify_fv_stack_result(Deposit[], CFG) == :no_fv
-    @test LXeMC._classify_fv_stack_result(ss_deps, CFG) == :accepted
-    @test LXeMC._classify_fv_stack_result(ms_deps, CFG) == :ms_rejected
-
     tpc_veto_gamma = SampledGamma(2.615, Float64[60.0, 0.0, 120.0], Float64[1.0, 0.0, 0.0])
     tpc_veto_res = LXeMC.transport_gamma_fastkernel(tpc_veto_gamma, fk, CFG, MersenneTwister(123))
     @test tpc_veto_res.status in (:vetoed_tpc, :absorbed_passive, :below_cut, :handoff_fv, :escaped, :below_roi_fv)
