@@ -3,6 +3,7 @@ using LXeMC
 using JSON
 using Random
 using Statistics
+using Printf
 
 const CFG  = default_config()
 const MATS = load_materials(CFG)
@@ -425,6 +426,91 @@ end
     end
 end
 
+
+@testset "FV deposit CSV round-trip" begin
+    # Pseudo main loop: shoot gammas, collect FV deposits, write CSV,
+    # read back, and verify correctness.
+    fk = compile_fastkernel_geometry(DET3)
+    fv_vol = compile_fv_volume(DET3)
+
+    # Collect FV events
+    fv_events = Vector{Vector{Deposit}}()
+    n_fv = 0
+    n_vetoed = 0
+    n_no_fv = 0
+
+    fv_gamma = SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])
+    for seed in 1:100
+        res = process_event([fv_gamma], fk, fv_vol, CFG, MersenneTwister(seed))
+        if res.status == :fv
+            n_fv += 1
+            push!(fv_events, res.deposits)
+        elseif res.status == :vetoed
+            n_vetoed += 1
+        else
+            n_no_fv += 1
+        end
+    end
+    @test n_fv + n_vetoed + n_no_fv == 100
+    @test n_fv > 0
+
+    # Write CSV
+    tmpdir = mktempdir()
+    csv_path = joinpath(tmpdir, "fv_deposits.csv")
+    open(csv_path, "w") do io
+        println(io, "event_id,x_cm,y_cm,z_cm,energy_MeV,source")
+        for (eid, deps) in enumerate(fv_events)
+            for d in deps
+                @printf(io, "%d,%.6f,%.6f,%.6f,%.8e,%s\n",
+                        eid, d.position[1], d.position[2], d.position[3],
+                        d.energy, d.source)
+            end
+        end
+    end
+
+    # Read back and verify
+    lines = readlines(csv_path)
+    header = lines[1]
+    @test header == "event_id,x_cm,y_cm,z_cm,energy_MeV,source"
+
+    data_lines = lines[2:end]
+    @test length(data_lines) == sum(length(deps) for deps in fv_events)
+
+    # Group by event_id and check deposit count per event
+    events_from_csv = Dict{Int, Vector{NamedTuple}}()
+    for line in data_lines
+        parts = split(line, ",")
+        eid = parse(Int, parts[1])
+        row = (x=parse(Float64, parts[2]), y=parse(Float64, parts[3]),
+               z=parse(Float64, parts[4]), energy=parse(Float64, parts[5]),
+               source=String(parts[6]))
+        push!(get!(events_from_csv, eid, []), row)
+    end
+
+    @test length(events_from_csv) == n_fv
+
+    # Verify each event's deposits match the originals
+    for (eid, deps) in enumerate(fv_events)
+        csv_deps = events_from_csv[eid]
+        @test length(csv_deps) == length(deps)
+        for (d, c) in zip(deps, csv_deps)
+            @test d.position[1] ≈ c.x atol=1e-5
+            @test d.position[2] ≈ c.y atol=1e-5
+            @test d.position[3] ≈ c.z atol=1e-5
+            @test d.energy ≈ c.energy rtol=1e-6
+            @test String(d.source) == c.source
+        end
+    end
+
+    # Energy conservation: total deposited per event <= gamma energy
+    for (eid, csv_deps) in events_from_csv
+        E_total = sum(c.energy for c in csv_deps)
+        @test E_total <= 2.615 + 0.001  # gamma energy + tolerance
+        @test E_total > 0.0
+    end
+
+    rm(tmpdir; recursive=true)
+end
 
 @testset "_fold_fast_deposit is redundant" begin
     # Prove that _fold_fast_deposit never triggers a veto that the
