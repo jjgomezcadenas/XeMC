@@ -925,6 +925,70 @@ function process_event(gammas, fk::FastKernelGeometry, fv::FVGeometry,
 end
 
 
+"""
+    process_event(gammas, fk, vol::PhysicalVolume, cfg, rng) -> EventProcessingResult
+
+Process a multi-gamma event through the fast kernel and full stack.
+General version taking any PhysicalVolume for the FV region.
+"""
+function process_event(gammas, fk::FastKernelGeometry, vol::PhysicalVolume,
+                       cfg::SimConfig, rng::AbstractRNG)
+    has_fv = false
+    has_tpc_veto = false
+    has_skin_veto = false
+    fv_z_ref = NaN
+    n_processed = 0
+    fv_deposits = Deposit[]
+
+    empty_deps = Deposit[]
+
+    for gamma in gammas
+        result = transport_gamma_fastkernel(gamma, fk, cfg, rng)
+        n_processed += 1
+
+        for dep in result.deposits
+            state = _fold_fast_deposit(dep, has_fv, has_tpc_veto, has_skin_veto, fv_z_ref, cfg)
+            has_fv = state.has_fv
+            has_tpc_veto = state.has_tpc_veto
+            has_skin_veto = state.has_skin_veto
+            fv_z_ref = state.fv_z_ref
+            if state.vetoed
+                return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
+            end
+        end
+
+        if result.status == :handoff_fv
+            deps = propagate_gamma(
+                result.energy_MeV,
+                vol,
+                cfg;
+                position=(result.position[1], result.position[2], result.position[3]),
+                direction=(result.direction[1], result.direction[2], result.direction[3]),
+                rng=rng,
+            )
+            fv_status = _classify_fv_stack_result(deps, cfg)
+            if fv_status == :accepted
+                has_fv = true
+                append!(fv_deposits, deps)
+            elseif fv_status == :ms_rejected
+                return EventProcessingResult(:ms_rejected, true, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
+            end
+        elseif result.status == :vetoed_tpc
+            has_tpc_veto = true
+            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
+        elseif result.status == :vetoed_skin
+            has_skin_veto = true
+            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
+        end
+    end
+
+    if has_fv
+        return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, n_processed, fv_deposits)
+    end
+    EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
+end
+
+
 function process_event_fastkernel_calib(fk::FastKernelGeometry, fv::FVGeometry, cfg::SimConfig,
                                         rng::AbstractRNG;
                                         E_MeV::Float64=2.615,
