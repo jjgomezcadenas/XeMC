@@ -41,6 +41,9 @@ Required:
 Optional:
   --n N              Number of events to sample (default: 100000)
   --seed SEED        RNG seed (default: 42)
+  --fv_r R           FV radius [cm] (default: from detector JSON)
+  --fv_zmin ZMIN     FV z_min [cm] (default: from detector JSON)
+  --fv_zmax ZMAX     FV z_max [cm] (default: from detector JSON)
   -h, --help         Show this help
 """)
 end
@@ -53,6 +56,9 @@ function parse_cli(args)
     outdir = nothing
     N = 100_000
     seed = 42
+    fv_r = nothing
+    fv_zmin = nothing
+    fv_zmax = nothing
 
     i = 1
     while i <= length(args)
@@ -72,6 +78,12 @@ function parse_cli(args)
             N = parse(Int, args[i+1]); i += 2; continue
         elseif arg == "--seed"
             seed = parse(Int, args[i+1]); i += 2; continue
+        elseif arg == "--fv_r"
+            fv_r = parse(Float64, args[i+1]); i += 2; continue
+        elseif arg == "--fv_zmin"
+            fv_zmin = parse(Float64, args[i+1]); i += 2; continue
+        elseif arg == "--fv_zmax"
+            fv_zmax = parse(Float64, args[i+1]); i += 2; continue
         else
             error("Unknown argument '$arg'")
         end
@@ -86,7 +98,8 @@ function parse_cli(args)
     isotope in supported_isotopes() || error("Unknown isotope '$isotope'")
     N > 0 || error("--n must be positive")
 
-    (source=source, isotope=isotope, indir=indir, outdir=outdir, N=N, seed=seed)
+    (source=source, isotope=isotope, indir=indir, outdir=outdir, N=N, seed=seed,
+     fv_r=fv_r, fv_zmin=fv_zmin, fv_zmax=fv_zmax)
 end
 
 
@@ -210,7 +223,31 @@ function main()
     mats = load_materials(cfg)
     det = load_tracking_detector(default_tracking_detector_path(), mats)
     fk = compile_fastkernel_geometry(det)
-    fv = compile_fv_volume(det)
+
+    # FV: use CLI overrides or detector JSON defaults
+    fv_default = compile_fv_volume(det)
+    if cli.fv_r !== nothing || cli.fv_zmin !== nothing || cli.fv_zmax !== nothing
+        # Override: use CLI values, fall back to defaults for unspecified
+        r = cli.fv_r !== nothing ? cli.fv_r : fv_default.logical.solid.radius_cm
+        zmin = cli.fv_zmin !== nothing ? cli.fv_zmin :
+               fv_default.logical.position[3] - fv_default.logical.solid.half_height_cm
+        zmax = cli.fv_zmax !== nothing ? cli.fv_zmax :
+               fv_default.logical.position[3] + fv_default.logical.solid.half_height_cm
+        hh = (zmax - zmin) / 2.0
+        zc = (zmax + zmin) / 2.0
+        fv = PCyl("FV", LCyl(Cyl(r, hh), Float64[0.0, 0.0, zc]), fv_default.material)
+        @printf("FV override: R=%.1f, z=[%.1f, %.1f]\n", r, zmin, zmax)
+    else
+        fv = fv_default
+        r = fv.logical.solid.radius_cm
+        zmin = fv.logical.position[3] - fv.logical.solid.half_height_cm
+        zmax = fv.logical.position[3] + fv.logical.solid.half_height_cm
+        @printf("FV default:  R=%.1f, z=[%.1f, %.1f]\n", r, zmin, zmax)
+    end
+    fv_r_used = fv.logical.solid.radius_cm
+    fv_zmin_used = fv.logical.position[3] - fv.logical.solid.half_height_cm
+    fv_zmax_used = fv.logical.position[3] + fv.logical.solid.half_height_cm
+
     src_path = normpath(joinpath(dirname(pathof(LXeMC)), "..", "..", "data",
                                  "source_geometry_lz_v1.json"))
     sg = load_source_geometry(src_path, mats)
@@ -303,7 +340,10 @@ function main()
         "n_vetoed" => merged.n_vetoed,
         "n_no_fv" => merged.n_no_fv,
         "n_fv_deposits" => n_deposits,
-        "f_fv" => merged.n_fv / N_actual
+        "f_fv" => merged.n_fv / N_actual,
+        "fv_r_cm" => fv_r_used,
+        "fv_zmin_cm" => fv_zmin_used,
+        "fv_zmax_cm" => fv_zmax_used
     )
     write_flux_json(joinpath(cli.outdir, "metadata.json"), metadata)
 
