@@ -1079,6 +1079,23 @@ function compile_fastkernel_geometry(det::TrackingDetector)::FastKernelGeometry
 end
 
 
+"""
+    compile_fv_volume(det::TrackingDetector) -> PCyl
+
+Build a PCyl representing the fiducial volume cylinder. General
+replacement for `compile_fv_geometry` that returns a PhysicalVolume.
+"""
+function compile_fv_volume(det::TrackingDetector)::PCyl
+    fv = node_by_name(det, "FV")
+    solid = fv.lv.solid
+    solid isa Cyl || error("FV must be a cylinder")
+    cx, cy, cz = fv.placement.position_cm
+    (abs(cx) <= GEOM_VALIDATE_TOL_CM && abs(cy) <= GEOM_VALIDATE_TOL_CM) ||
+        error("FV cylinder must be centered on the detector axis")
+    PCyl("FV", LCyl(solid, Float64[cx, cy, cz]), fv.lv.material)
+end
+
+
 function compile_fv_geometry(det::TrackingDetector)::FVGeometry
     fv = node_by_name(det, "FV")
     solid = fv.lv.solid
