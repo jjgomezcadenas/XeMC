@@ -596,36 +596,6 @@ function _update_event_state(sel)
 end
 
 
-function _fold_fast_deposit(dep::FastGammaDeposit,
-                            has_fv::Bool,
-                            has_tpc_veto::Bool,
-                            has_skin_veto::Bool,
-                            fv_z_ref::Float64,
-                            cfg::SimConfig)
-    if dep.region == "FV"
-        if dep.Edep_MeV >= cfg.veto_TPC
-            if !has_fv
-                return (has_fv=true, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto,
-                        fv_z_ref=dep.position[3], vetoed=false, ms_rejected=false)
-            elseif abs(dep.position[3] - fv_z_ref) > cfg.dz_resolution
-                return (has_fv=true, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto,
-                        fv_z_ref=fv_z_ref, vetoed=true, ms_rejected=true)
-            else
-                return (has_fv=true, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto,
-                        fv_z_ref=fv_z_ref, vetoed=false, ms_rejected=false)
-            end
-        end
-    elseif dep.region == "LXeTPC" && dep.Edep_MeV >= cfg.veto_TPC
-        return (has_fv=has_fv, has_tpc_veto=true, has_skin_veto=has_skin_veto,
-                fv_z_ref=fv_z_ref, vetoed=true, ms_rejected=false)
-    elseif dep.region == "Skin" && dep.Edep_MeV >= cfg.veto_skin
-        return (has_fv=has_fv, has_tpc_veto=has_tpc_veto, has_skin_veto=true,
-                fv_z_ref=fv_z_ref, vetoed=true, ms_rejected=false)
-    end
-
-    (has_fv=has_fv, has_tpc_veto=has_tpc_veto, has_skin_veto=has_skin_veto,
-     fv_z_ref=fv_z_ref, vetoed=false, ms_rejected=false)
-end
 
 
 function _classify_fv_stack_result(deposits::Vector{Deposit}, cfg::SimConfig)::Symbol
@@ -647,7 +617,6 @@ function process_event(gammas, fk::FastKernelGeometry, vol::PhysicalVolume,
     has_fv = false
     has_tpc_veto = false
     has_skin_veto = false
-    fv_z_ref = NaN
     n_processed = 0
     fv_deposits = Deposit[]
 
@@ -656,17 +625,6 @@ function process_event(gammas, fk::FastKernelGeometry, vol::PhysicalVolume,
     for gamma in gammas
         result = transport_gamma_fastkernel(gamma, fk, cfg, rng)
         n_processed += 1
-
-        for dep in result.deposits
-            state = _fold_fast_deposit(dep, has_fv, has_tpc_veto, has_skin_veto, fv_z_ref, cfg)
-            has_fv = state.has_fv
-            has_tpc_veto = state.has_tpc_veto
-            has_skin_veto = state.has_skin_veto
-            fv_z_ref = state.fv_z_ref
-            if state.vetoed
-                return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
-            end
-        end
 
         if result.status == :handoff_fv
             deps = propagate_gamma(
