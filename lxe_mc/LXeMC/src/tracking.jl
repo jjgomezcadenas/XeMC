@@ -293,15 +293,6 @@ end
 
 
 
-struct GammaPropagationResult
-    status::Symbol
-    interaction_type::Symbol
-    deposit_E_MeV::Float64
-    position::Vector{Float64}
-    region::String
-end
-
-
 """
     EventProcessingResult
 
@@ -372,69 +363,6 @@ struct FastGammaTrackResult
     direction::Vector{Float64}
 end
 
-
-function propagate_gamma_fastkernel(gamma,
-                                    fk::FastKernelGeometry,
-                                    cfg::SimConfig,
-                                    rng::AbstractRNG;
-                                    max_cm::Float64=400.0)::GammaPropagationResult
-
-    pos = copy(gamma.position)
-    dir = copy(gamma.direction)
-    E = gamma.E_MeV
-    traveled = 0.0
-
-    while E >= cfg.Egamma_cut && traveled < max_cm
-        region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
-        region === nothing && return GammaPropagationResult(:escaped, :none, 0.0, copy(pos), "MARS")
-        region.name == "FV" && return GammaPropagationResult(:entered_fv, :none, 0.0, copy(pos), "FV")
-
-        mat = region.material
-        s_bnd = distance_to_boundary_fastkernel(region, (pos[1], pos[2], pos[3]), (dir[1], dir[2], dir[3]))
-        if !isfinite(s_bnd)
-            return GammaPropagationResult(:escaped, :none, 0.0, copy(pos), region.name)
-        end
-
-        if mat.density <= 0.0 || mat.xcom === nothing
-            pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
-            traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
-            continue
-        end
-
-        sC, sP, sPh = sigma_three(mat, E)
-        s_tot = sC + sP + sPh
-
-        if s_tot <= 0.0
-            pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
-            traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
-            continue
-        end
-
-        Σ_tot = mat.n_atom * s_tot
-        s_int = sample_distance(Σ_tot, rng)
-
-        if s_int + TRANSPORT_BOUNDARY_TOL_CM < s_bnd
-            pos .= pos .+ dir .* s_int
-            region_after = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
-            region_name = region_after === nothing ? region.name : region_after.name
-
-            proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
-            if proc === :compton
-                Egp, _ = sample_compton(E, cfg, rng)
-                return GammaPropagationResult(:interacted, :compton, E - Egp, copy(pos), region_name)
-            elseif proc === :pair
-                return GammaPropagationResult(:interacted, :pair, E, copy(pos), region_name)
-            else
-                return GammaPropagationResult(:interacted, :photoelectric, E, copy(pos), region_name)
-            end
-        end
-
-        pos .= pos .+ dir .* (s_bnd + TRANSPORT_BOUNDARY_PUSH_CM)
-        traveled += s_bnd + TRANSPORT_BOUNDARY_PUSH_CM
-    end
-
-    GammaPropagationResult(:below_cut, :none, 0.0, copy(pos), "MARS")
-end
 
 
 @inline function _visible_threshold_MeV(cfg::SimConfig, region_name::String)::Float64
