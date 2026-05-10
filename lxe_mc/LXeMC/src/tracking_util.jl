@@ -104,3 +104,55 @@ function propagate_gamma_fastkernel(gamma,
 
     GammaPropagationResult(:below_cut, :none, 0.0, copy(pos), "MARS")
 end
+
+
+"""
+    FastKernelCalibEventResult
+
+Result of a calibration event processed through the fast kernel.
+Wraps `EventProcessingResult` with calibration-specific metadata.
+Used by `process_event_fastkernel_calib` for diagnostic/validation.
+"""
+struct FastKernelCalibEventResult
+    result::EventProcessingResult
+    multiplicity::Int
+    E1_MeV::Float64
+    E2_MeV::Float64
+end
+
+
+"""
+    process_event_fastkernel_calib(fk, fv, cfg, rng; kwargs...) -> FastKernelCalibEventResult
+
+Convenience wrapper for calibration events: samples gammas via
+`sample_gammas("calib", ...)`, processes through `process_event`,
+and packs the result with multiplicity and gamma energies.
+
+Not used in the production pipeline.
+"""
+function process_event_fastkernel_calib(fk::FastKernelGeometry, fv::PhysicalVolume, cfg::SimConfig,
+                                        rng::AbstractRNG;
+                                        E_MeV::Float64=2.615,
+                                        x_cm::Float64=0.0,
+                                        y_cm::Float64=0.0,
+                                        z_cm::Float64=160.0,
+                                        ux::Float64=1.0,
+                                        uy::Float64=0.0,
+                                        uz::Float64=0.0)
+    gammas = sample_gammas("calib";
+                           calib=true,
+                           E_MeV=E_MeV,
+                           x_cm=x_cm, y_cm=y_cm, z_cm=z_cm,
+                           ux=ux, uy=uy, uz=uz,
+                           rng=rng)
+    multiplicity = length(gammas)
+
+    E1 = multiplicity >= 1 ? gammas[1].E_MeV : 0.0
+    E2 = multiplicity >= 2 ? gammas[2].E_MeV : 0.0
+    FastKernelCalibEventResult(
+        process_event(gammas, fk, fv, cfg, rng),
+        multiplicity,
+        E1,
+        E2,
+    )
+end
