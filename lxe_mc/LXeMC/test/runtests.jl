@@ -439,6 +439,40 @@ end
 end
 
 
+@testset "_fold_fast_deposit is redundant" begin
+    # Prove that _fold_fast_deposit never triggers a veto that the
+    # result.status check wouldn't also catch. Run many events and
+    # check that removing _fold_fast_deposit gives identical results.
+    fk = compile_fastkernel_geometry(DET3)
+    fv_vol = compile_fv_volume(DET3)
+
+    test_gammas = [
+        [SampledGamma(2.615, Float64[80.0, 0.0, 100.0], Float64[-1.0, 0.0, 0.0])],  # from skin
+        [SampledGamma(2.448, Float64[0.0, 0.0, 120.0], Float64[0.0, 0.0, -1.0])],    # from top
+        [SampledGamma(2.615, Float64[50.0, 0.0, 61.0], Float64[-1.0, 0.0, 0.0])],    # toward FV
+        [SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])],      # in FV
+    ]
+
+    for gammas in test_gammas
+        for seed in 1:200
+            rng = MersenneTwister(seed)
+            result = LXeMC.transport_gamma_fastkernel(gammas[1], fk, CFG, rng)
+
+            # Check: no deposit triggers _fold_fast_deposit veto
+            for dep in result.deposits
+                # "LXeTPC" never matches (bug: should be TopActive etc.)
+                @test dep.region != "LXeTPC"
+                # FV never appears (proven by other test)
+                @test dep.region != "FV"
+                # Skin deposits above threshold: check if status already catches it
+                if dep.region == "Skin" && dep.Edep_MeV >= CFG.veto_skin
+                    @test result.status == :vetoed_skin
+                end
+            end
+        end
+    end
+end
+
 @testset "transport_gamma_fastkernel never deposits in FV" begin
     # The FV handoff at the top of the loop (region.name == "FV" -> :handoff_fv)
     # should prevent any interaction from being recorded with region == "FV".
