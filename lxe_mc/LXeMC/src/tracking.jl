@@ -429,11 +429,43 @@ end
 
 
 """
+    propagate_gamma(E_MeV, vol::PhysicalVolume, cfg; position, direction, rng) -> Vector{Deposit}
+
+Propagate one gamma inside `vol` with full stack physics (photon +
+lepton cascade). Returns all deposits inside the volume.
+"""
+function propagate_gamma(E_MeV::Float64, vol::PhysicalVolume, cfg::SimConfig;
+                         position::NTuple{3,Float64}=(0.0, 0.0, 0.0),
+                         direction::NTuple{3,Float64}=(0.0, 0.0, 1.0),
+                         rng::AbstractRNG=Random.default_rng())::Vector{Deposit}
+    deposits = Deposit[]
+    stack = ParticleStack()
+    track_counter = Ref(0)
+    track_counter[] += 1
+    push!(stack, Track(:gamma, E_MeV,
+                       Float64[position...],
+                       Float64[direction...],
+                       track_counter[], 0, 0))
+
+    while !isempty(stack)
+        t = pop!(stack)
+        t.generation > cfg.generation_cap && continue
+        if t.kind === :gamma
+            transport_photon!(t, vol, deposits, stack, track_counter, cfg, rng)
+        else
+            transport_lepton!(t, vol, deposits, stack, track_counter, cfg, rng)
+        end
+    end
+
+    deposits
+end
+
+
+"""
     propagate_gamma_in_fv(E_MeV, fv::FVGeometry, cfg; position, direction, rng) -> Vector{Deposit}
 
-Propagate one gamma handed off by the fast kernel inside the canonical
-fiducial volume. Full stack physics is kept, but the geometry is reduced
-to the homogeneous LXe fiducial cylinder described by `FVGeometry`.
+Legacy wrapper. Propagate one gamma inside the FV cylinder described
+by `FVGeometry`. Delegates to `propagate_gamma` via a PCyl.
 """
 function propagate_gamma_in_fv(E_MeV::Float64, fv::FVGeometry, cfg::SimConfig;
                                position::NTuple{3,Float64}=(0.0, 0.0, 0.0),
