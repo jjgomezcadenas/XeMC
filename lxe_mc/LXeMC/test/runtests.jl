@@ -543,6 +543,69 @@ end
     end
 end
 
+@testset "process_event PhysicalVolume vs FVGeometry equivalence" begin
+    fvgeom = compile_fv_geometry(DET3)
+    pcyl = compile_fv_volume(DET3)
+    fk = compile_fastkernel_geometry(DET3)
+
+    # Test with gammas at various positions and energies
+    test_gammas = [
+        [SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])],
+        [SampledGamma(2.448, Float64[10.0, 0.0, 80.0], Float64[-0.3, 0.0, -sqrt(1-0.09)])],
+        [SampledGamma(2.615, Float64[30.0, 0.0, 50.0], Float64[0.0, 0.3, sqrt(1-0.09)])],
+    ]
+
+    for gammas in test_gammas
+        for seed in [42, 99, 2026, 5555, 9999]
+            rng1 = MersenneTwister(seed)
+            rng2 = MersenneTwister(seed)
+
+            res_fv = process_event(gammas, fk, fvgeom, CFG, rng1)
+            res_pv = process_event(gammas, fk, pcyl, CFG, rng2)
+
+            @test res_fv.status == res_pv.status
+            @test res_fv.has_fv == res_pv.has_fv
+            @test res_fv.has_tpc_veto == res_pv.has_tpc_veto
+            @test res_fv.has_skin_veto == res_pv.has_skin_veto
+            @test length(res_fv.deposits) == length(res_pv.deposits)
+            for (d1, d2) in zip(res_fv.deposits, res_pv.deposits)
+                @test d1.energy ≈ d2.energy atol=1e-12
+                @test d1.position ≈ d2.position atol=1e-10
+            end
+        end
+    end
+end
+
+@testset "PhysicalVolume transport benchmark" begin
+    # Verify no performance regression: run N events with both paths,
+    # compare wall-clock times.
+    fvgeom = compile_fv_geometry(DET3)
+    pcyl = compile_fv_volume(DET3)
+    fk = compile_fastkernel_geometry(DET3)
+    N = 2000
+
+    gamma = [SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])]
+
+    # Warmup
+    for _ in 1:100
+        process_event(gamma, fk, fvgeom, CFG, MersenneTwister(1))
+        process_event(gamma, fk, pcyl, CFG, MersenneTwister(1))
+    end
+
+    t_fv = @elapsed for i in 1:N
+        process_event(gamma, fk, fvgeom, CFG, MersenneTwister(i))
+    end
+
+    t_pv = @elapsed for i in 1:N
+        process_event(gamma, fk, pcyl, CFG, MersenneTwister(i))
+    end
+
+    ratio = t_pv / t_fv
+    @info "Benchmark" t_fv t_pv ratio
+    # PhysicalVolume path should be no more than 20% slower
+    @test ratio < 1.2
+end
+
 # =====================================================================
 # Test 3b: Geometric solids and CylShell
 # =====================================================================
