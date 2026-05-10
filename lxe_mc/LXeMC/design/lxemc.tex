@@ -18,7 +18,7 @@
   citecolor=blue!50!black
 }
 
-\title{A Fast Monte Carlo for Large Xe TPC Simulations}
+\title{LXeMC: A Staged Monte Carlo for Large LXe TPC Simulations}
 \author{LXeMC Reference Manual}
 \date{\today}
 
@@ -26,624 +26,1222 @@
 \maketitle
 
 \begin{abstract}
-This note documents the current design of the LXeMC detector and transport
-model, using the LZ detector as a concrete example of a large liquid-xenon
-time projection chamber (LXe TPC). The design goal is not maximal generality.
-The goal is to simulate very large event samples quickly while retaining the
-physics that matters for rejection and classification. The resulting approach is
-a staged simulation: a specialized fast kernel performs most of the transport
-outside the fiducial volume (FV), where most events are rejected quickly, while
-a full photon/electron stack is retained only inside the FV, where detailed
-single-site versus multi-site behavior matters.
+This note documents the design and implementation of LXeMC, a Monte Carlo
+simulation of $\gamma$ and lepton transport in liquid xenon, written to support
+neutrinoless double-beta-decay ($0\nu\beta\beta$) studies in an LZ-like detector
+geometry. The code is organized around a single design principle: physics
+fidelity should follow the analysis. Inside the fiducial volume (FV) the full
+photon/lepton cascade is tracked; inside dense radioactive sources only photon
+propagation is needed to compute the surface flux; everywhere else most $\gamma$
+histories are vetoed before they could contaminate the FV, so a fast kernel with
+two analysis-driven cuts terminates them early. The result is a staged
+simulation that runs in the $10^{6}$~events/s regime while preserving the
+detailed physics that drives single-site versus multi-site discrimination in the
+ROI.
 \end{abstract}
 
 \section{Introduction}
+\label{sec:intro}
 
-Large LXe TPCs are designed to reject backgrounds aggressively. In a detector
-such as LZ, most external gammas are rejected by active veto regions before they
-reach the fiducial volume. This observation drives the central design choice of
-the present simulation: the transport outside the FV should be optimized for
-speed and early rejection, while the transport inside the FV should preserve the
-detailed cascade structure needed for event topology studies.
+LXeMC simulates $\gamma$ and lepton transport in a large liquid-xenon time
+projection chamber (LXe TPC), using the LZ detector as the concrete reference
+configuration. The intended use cases are:
 
-The code therefore does not attempt to use one uniform transport model
-everywhere. Instead, it exploits the detector semantics directly. Outside the
-FV, the simulation only needs enough geometry and physics to decide whether a
-gamma is vetoed, absorbed in passive material, or survives into the FV. Inside
-the FV, the simulation keeps the full stack of photons and charged particles
-because the event classification depends on the spatial pattern of energy
-depositions.
+\begin{itemize}
+\item background and signal rate estimation for $0\nu\beta\beta$ at the $^{136}$Xe
+$Q$-value $Q_{\beta\beta} = 2.458$\,MeV;
+\item fiducial-volume optimization;
+\item single-site (SS) versus multi-site (MS) discrimination studies;
+\item characterization of cryostat and PMT-borne backgrounds.
+\end{itemize}
 
-\section{Problem Statement}
+Detector response --- light/charge yield, PMT digitization, S1/S2 reconstruction,
+trigger --- is downstream of LXeMC. The simulation writes per-deposit truth
+information to disk, and a separate post-processing layer is responsible for
+detector-response modeling. This decoupling is intentional: the response model
+will evolve faster than the transport, and we want to refit response parameters
+without regenerating the Monte Carlo.
 
-The practical task is to simulate a very large number of gamma events in a large
-LXe detector. In the intended use case, the number of events is so large that a
-uniform full simulation everywhere in the detector is too expensive. This is not
-primarily a software-engineering inconvenience; it is a physics-rate problem.
-The simulation must be fast enough to process event counts large enough to
-support background studies at the level of interest.
+\subsection{Three accuracy tiers}
+\label{sec:tiers}
 
-The immediate consequence is that the dominant cost must be spent only on the
-small subset of trajectories that can still affect the final physics observable.
-Any cost spent on fully tracking obviously rejected events is wasted.
+The architecture of LXeMC is shaped by three accuracy requirements that apply
+in three different parts of the geometry, with three different cost profiles.
+This is the most important organizing principle in the code, and Sections
+\ref{sec:fullstack}--\ref{sec:fastkernel} should be read as the implementation
+of these tiers.
 
-\section{Constraints and Boundary Conditions}
+\begin{enumerate}[label=\textbf{Tier \arabic*.}, leftmargin=2.0cm]
 
-The design is shaped by the following constraints.
+\item \textbf{Inside the FV: full physics.}
+The deposit topology in the FV drives the SS/MS classification, which is the
+principal handle on $0\nu\beta\beta$ versus $\gamma$ background discrimination.
+Inside the FV the full photon/lepton cascade is tracked: Compton scattering
+(Klein--Nishina, from XCOM tables), pair production (Bethe--Heitler, from XCOM),
+photoelectric absorption with a K-shell vacancy deposited locally, condensed-history
+electron transport with collisional $dE/dx$ from ESTAR, discrete bremsstrahlung
+sampled from a Bethe--Heitler--Tsai differential cross section with explicit
+Davies--Bethe--Maximon Coulomb correction, and positron annihilation into two
+back-to-back 511\,keV $\gamma$s. The implemented process list (Section
+\ref{sec:physics}) is complete enough for LXe at the few-MeV scale relevant to
+$0\nu\beta\beta$. It is \emph{not} complete enough for high-pressure gaseous Xe
+(GXe), where coherent scattering, atomic relaxation cascades, and full
+multiple-scattering treatment for the $\gamma\to e^-\to$~track topology become
+important; extending the physics list is on the roadmap for any future GXe
+configuration.
 
-\begin{enumerate}[label=\arabic*.]
-\item \textbf{Speed is dominant.} The simulation must run at the level of
-millions of events per second on representative benchmark configurations.
+\item \textbf{Inside dense source regions: photon-only transport.}
+The radioactive source volumes (cryostat steel, MLI, PMT bodies, field-cage
+structures) are simulated as photon-only material: $\gamma$s are propagated by
+Klein--Nishina scattering until they exit the source or are absorbed, and any
+charged secondary is taken to deposit its energy locally where it was created
+(kerma approximation). This is justified because the quantity of interest
+emerging from a source is the $\gamma$ flux escaping its outer surface, and the
+ranges of MeV-scale electrons in titanium, PTFE, or copper are millimetre-scale,
+short compared with the cm-to-decimetre dimensions of the source volumes. The
+source-side transport produces a tabulated $(E, u)$ probability distribution,
+where $u = \cos\theta$ to the inward surface normal (Section
+\ref{sec:source-pipeline}); it is the input to the detector-side transport, not
+part of it.
 
-\item \textbf{Most events are rejected early.} For many source configurations,
-gammas are vetoed in active xenon outside the FV, absorbed in passive material,
-or degraded to energies irrelevant for the region of interest.
-
-\item \textbf{Detailed transport is only needed locally.} The expensive part of
-the physics---full photon/electron cascades and cluster structure---matters
-primarily inside the FV.
-
-\item \textbf{The detector partition is physically meaningful.} The geometry is
-not arbitrary. It should reflect the detector regions that carry distinct
-transport or classification meaning.
+\item \textbf{Elsewhere in the detector: fast vetoed transport.}
+Most $\gamma$ histories that originate outside the FV are vetoed before they
+could contaminate it: a typical few-MeV $\gamma$ from the cryostat that passes
+through the active LXe outside the FV will deposit far more than the veto
+threshold along the way. Tracking such histories with the full stack is wasted
+work. Outside the FV we therefore use a fast kernel
+(\texttt{transport\_gamma\_fastkernel}) that combines a physics approximation ---
+photon-only transport with secondaries deposited locally, like the
+source-region kerma approximation --- with two analysis-driven veto criteria
+(see below). Histories that survive both cuts are escalated back to the
+full-physics stack at the FV boundary; histories that fail are terminated with
+a recorded status code (Section \ref{sec:fastkernel}).
 \end{enumerate}
 
-\section{Design Philosophy}
+\subsection{The two cuts that define ``fast vetoed''}
+\label{sec:two-cuts}
 
-The design is based on a simple principle: use detector semantics to reduce the
-cost of transport.
+The fast kernel is governed by two visible-energy thresholds, both stored in
+\texttt{sim\_config.json} so they can be tuned without recompiling:
 
-The detector is partitioned into regions that matter for either material
-transport or event classification. The transport kernel is then compiled
-\emph{ad hoc} from that partition. This is intentionally specialized. The
-detector geometry is not interpreted as a fully generic tree at runtime in the
-hot path. Instead, the canonical geometry is loaded once and transformed into a
-compact fast-kernel representation with explicit scalar region parameters.
+\begin{description}[leftmargin=2.5cm,style=nextline]
+\item[\texttt{veto\_skin}] LZ-specific. The LZ skin is the LXe layer outside
+the field cage that acts as an outer-detector veto for events leaking out of
+the TPC active region. The current value is $100$\,keV, set by the LZ outer-detector
+analysis. Any deposit in a Skin region above this threshold during fast-kernel
+transport vetoes the event. This cut is geometry-specific: a different
+detector with a different outer veto would set its own threshold and possibly
+its own region tag.
 
-This leads to three consequences.
-
-\begin{enumerate}[label=\arabic*.]
-\item The geometry used by the fast kernel is chosen for speed rather than for
-maximal abstraction.
-
-\item The detector partition is explicit and canonical. It is not inferred
-dynamically from overlapping semantic flags at runtime.
-
-\item The full transport stack is retained only where the physics demands it,
-namely inside the FV.
-\end{enumerate}
-
-\section{Simulation Strategy}
-
-The current simulation strategy has three stages.
-
-\subsection{Fast rejection}
-
-The first goal is to reject events as soon as they become irrelevant. If a gamma
-deposits visible energy above the veto threshold in the active xenon outside the
-FV, the event is rejected immediately. If a gamma degrades below the configured
-ROI floor in passive material, it is terminated locally because it can no longer
-produce an FV event in the energy region of interest.
-
-\subsection{Fast transport outside the FV}
-
-Outside the FV, a specialized fast kernel handles gamma transport using a small
-set of canonical detector regions. This kernel performs:
-
-\begin{itemize}
-\item point classification into canonical detector regions,
-\item analytic distance-to-boundary calculations,
-\item material-aware interaction sampling,
-\item immediate veto and ROI-floor decisions.
-\end{itemize}
-
-This stage is optimized for the common case in which the gamma is rejected or
-absorbed before it can matter to the final physics analysis.
-
-\subsection{Full transport inside the FV}
-
-If a gamma survives into the FV, the fast kernel hands off its state to a
-full photon/electron transport stack restricted to the FV geometry. This stack
-retains:
-
-\begin{itemize}
-\item photon propagation,
-\item lepton propagation,
-\item secondaries through the particle stack,
-\item deposit clustering relevant to event topology.
-\end{itemize}
-
-Inside the FV, the geometry is simple: a homogeneous LXe cylinder bounded by the
-fiducial radial and longitudinal cuts. The expensive part is therefore not the
-geometric navigation but the cascade physics itself.
-
-\section{Current Status and Benchmark}
-
-The current code implements the staged architecture described above.
-
-\begin{itemize}
-\item The detector geometry is defined in two JSON files:
-  \texttt{detector\_lz\_v3.json} (tracking) and
-  \texttt{source\_geometry\_lz\_v1.json} (source).
-\item The fast kernel is \emph{data-driven}: it reads its region list from
-  JSON and identifies the tracking envelope and passive-LXe fallback by
-  \texttt{role} and \texttt{tag} markers, not by hard-coded volume names.
-  Adding or removing a tracked region is a JSON-only change.
-\item Region capabilities (sensitive, isXe, ecut, etc.) are derived from the
-  \texttt{RegionTag} enum via \texttt{\_capabilities\_for\_tag}, with optional
-  per-volume JSON overrides.
-\item The FV transport uses a dedicated \texttt{FVGeometry} plus a full
-particle stack.
-\item The legacy flat-detector workflow has been removed from the canonical
-code path.
-\end{itemize}
-
-Representative benchmarks place the simulation in the target regime of roughly
-$10^6$ events per second for the fast calibration workflow, with exact values
-depending on source position and direction. Configurations aimed directly toward
-the FV are naturally slower than configurations rejected promptly in outer veto
-regions, but the code remains in the intended high-throughput regime.
-
-\section{Geometry Model}
-
-\subsection{Shared geometric primitives}
-
-The file \texttt{geometry\_core.jl} contains the shared shape and wrapper layer.
-It provides:
-
-\begin{itemize}
-\item primitive solids:
-  \texttt{Cyl}, \texttt{CylShell}, \texttt{Box}, \texttt{Disk},
-  \texttt{Cap}, \texttt{DomedContainer}, \texttt{CappedCylinder};
-\item logical wrappers:
-  \texttt{LCyl}, \texttt{LCylShell}, \texttt{LBox}, \texttt{LDisk};
-\item materialized wrappers:
-  \texttt{PhysicalVolume}, \texttt{PCyl}, \texttt{PCylShell},
-  \texttt{PBox}, \texttt{PDisk};
-\item common geometric operations such as containment tests, masses, and
-ray entry/exit distances.
-\end{itemize}
-
-These are general geometry tools. They are not tied to the fast kernel or to the
-FV stack specifically.
-
-\subsection{Canonical detector geometry}
-
-The file \texttt{geometry.jl} contains the canonical detector geometry
-representation. It loads the tracking detector from JSON into a tree of
-\texttt{TrackingDetector} nodes, with explicit region semantics and geometry.
-Every volume in the JSON is required to declare a \texttt{tag} (simulation
-policy) and a \texttt{role} (descriptive metadata); the code derives
-per-region capabilities from the tag via \texttt{\_capabilities\_for\_tag},
-with JSON fields available as overrides.
-
-The current LZ tracking geometry is partitioned into the following regions
-(defined entirely in \texttt{detector\_lz\_v3.json}, not in code):
-
-\begin{itemize}
-\item \texttt{LZ\_detector} — tracking envelope (\texttt{role: tracking\_envelope})
-\item \texttt{AirDome} — gas dome above the gate
-\item \texttt{LXe\_passive} — passive LXe fallback (\texttt{tag: passive\_lxe})
-\item \texttt{TopActive}, \texttt{BarrelActive}, \texttt{BottomActive} — active TPC regions (\texttt{tag: tpc\_active})
-\item \texttt{FV} — fiducial volume (\texttt{tag: fv})
-\item \texttt{Skin} — veto layer (\texttt{tag: skin})
-\item \texttt{FC\_PTFE}, \texttt{FC\_rings} — structural field-cage elements (\texttt{tag: structural})
-\end{itemize}
-
-This partition is exhaustive for the current detector model. Adding or removing
-a region requires editing only the JSON file; no code changes are needed.
-
-\subsection{Meaning of the canonical regions}
-
-\begin{description}[leftmargin=2.0cm,style=nextline]
-\item[\texttt{AirDome}] Gas region above the liquid xenon.
-\item[\texttt{LXe\_passive}] Passive liquid xenon outside the active veto
-regions and below the cathode.
-\item[\texttt{TopActive}] Active xenon cylinder between the gate and the top of
-the FV.
-\item[\texttt{BarrelActive}] Active xenon shell around the FV over the FV
-longitudinal span.
-\item[\texttt{BottomActive}] Active xenon cylinder between the bottom of the FV
-and the cathode.
-\item[\texttt{FV}] Fiducial xenon volume used for event selection and topology.
-\item[\texttt{Skin}] Active xenon skin outside the field-cage region.
-\item[\texttt{FC\_PTFE}] PTFE part of the field cage.
-\item[\texttt{FC\_rings}] Titanium ring part of the field cage.
+\item[\texttt{veto\_TPC}] Detector-wide visible-energy floor. Any deposit in
+the active TPC outside the FV (\texttt{TopActive}, \texttt{BarrelActive},
+\texttt{BottomActive}) above this threshold vetoes the event. The current
+value is $10$\,keV. This is \emph{not} the analysis floor used by dark-matter
+searches such as XENONnT or LZ, which set $\sim$1\,keV thresholds tuned to
+single-electron noise; for $0\nu\beta\beta$ the relevant signal at $Q_{\beta\beta}
+= 2.458$\,MeV has a much wider resolution-broadened tail, and a 1\,keV veto
+floor would risk rejecting genuine signal events whose tail leaks into the
+active TPC outside the FV. XENONnT quotes $\sim 5$\,keV as a safe floor for
+$0\nu\beta\beta$-style analyses; LXeMC therefore treats \texttt{veto\_TPC} as a
+tunable parameter with a recommended range of $5$--$10$\,keV. The default is
+the conservative end of the range.
 \end{description}
 
-\subsection{Source geometry}
+A third parameter, \texttt{E\_roi\_floor} ($2.3$\,MeV by default), is a
+fast-kernel optimization rather than a veto: once a $\gamma$ degrades below
+this energy by Compton scattering, it can no longer contribute to the ROI
+window around $Q_{\beta\beta}$, and the fast kernel terminates it locally.
+This is an analysis-motivated approximation discussed in Section
+\ref{sec:fastkernel}.
 
-The source geometry is described in a separate JSON file from the detector
-tracking geometry. The separation is by \emph{contents}, not by dimensions:
+\subsection{What lives downstream of LXeMC}
+\label{sec:downstream}
 
-\begin{itemize}
-\item Source geometry hosts radioactive emission locations and source-side
-      transport. It includes the cryostat Ti shells, MLI insulation, and the
-      PMT structures whose effect is absorbed into the source-flux step before
-      tracking begins.
-\item Tracking geometry contains only what affects per-step photon transport
-      after the source-flux step: the detector envelope, sensitive LXe regions,
-      veto regions, and the field-cage structures that obstruct photons in
-      transit.
-\end{itemize}
+The simulation deliberately stops at the per-deposit truth level. Three things
+are downstream and not part of this document:
 
-When a volume appears in both files (\texttt{FC\_PTFE}, \texttt{FC\_rings},
-\texttt{Skin}), it carries identical geometric dimensions on the two sides:
-the source side is anchored to the bb0nu measured mass, and the tracking side
-inherits the same R, z, and wall thickness. This means the fast-kernel
-point-in-volume tests use anatomically correct dimensions and the
-geometric-mass invariant is validated against the same reference on both
-sides. Strict source/tracking dimensional consistency is enforced by the test
-suite.
-
-The split is therefore a \emph{subset} relation: tracking geometry is a subset
-of source geometry, restricted to volumes the per-step transport actually
-needs to see. It is not a license to draw the same volume with different
-dimensions on the two sides.
-
-\section{Transport Model}
-
-\subsection{Fast kernel outside the FV}
-
-The fast kernel operates on a compiled geometry representation generated from the
-canonical detector tree. It performs:
-
-\begin{enumerate}[label=\arabic*.]
-\item region classification,
-\item analytic distance-to-boundary calculation,
-\item material lookup,
-\item interaction-distance sampling,
-\item immediate region-dependent decisions.
+\begin{enumerate}[label=(\alph*)]
+\item Detector response: light/charge yield, electron drift, PMT
+digitization, S1/S2 reconstruction.
+\item Energy-resolution smearing and ROI window cuts (currently applied
+in Python, Section \ref{sec:source-pipeline}).
+\item SS/MS classification beyond the simple $z$-clustering offered in
+\texttt{analysis.jl}; a more elaborate clustering or pattern-recognition layer
+will likely sit between the deposit stack and the final classifier.
 \end{enumerate}
 
-This kernel treats transport in the outer detector as a problem of fast
-geometric and material decisions, not as a full generic cascade simulation.
+The handoff format is a flat list of \texttt{Deposit(position, energy, source)}
+records per accepted event (Section \ref{sec:event}); whatever the downstream
+pipeline does with that list is its own concern.
 
-\subsection{Data-driven FastKernel construction}
+%--------------------------------------------------------------------
+\section{Physics}
+\label{sec:physics}
 
-The \texttt{FastKernelGeometry} is compiled from the tracking detector tree at
-startup. The construction is fully data-driven:
+LXeMC implements one $\gamma$ process list and one charged-particle process
+list, with all energy-dependent quantities driven by tabulated NIST data.
+This section is a complete inventory of \emph{what is in}; Section
+\ref{sec:limitations} enumerates what is deliberately left out.
+
+\subsection{Photon processes}
+\label{sec:physics-photons}
+
+For each step the photon transport (\texttt{transport\_photon!} in the FV stack
+and \texttt{transport\_gamma\_fastkernel} elsewhere) requests three cross
+sections from the material in a single call,
+\begin{equation*}
+(\sigma_C,\ \sigma_P,\ \sigma_{\mathrm{Ph}}) \;=\; \texttt{sigma\_three(mat, E)},
+\end{equation*}
+returning per-atom cross sections [cm$^2$/atom] for incoherent (Compton), pair
+production (nuclear $+$ electron), and photoelectric absorption. The interaction
+distance is sampled exponentially from the total macroscopic cross section
+$\Sigma_{\mathrm{tot}} = n_{\mathrm{atom}}\,(\sigma_C + \sigma_P + \sigma_{\mathrm{Ph}})$,
+and the channel is selected by branching ratios.
+
+\paragraph{Compton scattering.}
+The total cross section is the NIST XCOM \emph{incoherent} channel
+($Z\,\sigma_{\mathrm{KN}}$ tabulated per atom, with binding effects folded in).
+Kinematics are sampled from the Klein--Nishina differential cross section by
+the standard mixed inverse-CDF/rejection algorithm in
+\texttt{sample\_compton}; the recoil electron is added to the particle stack
+and the scattered $\gamma$ continues with the reduced energy and the rotated
+direction.
+
+\paragraph{Pair production.}
+The total cross section is the sum of the XCOM \texttt{pair\_nuclear} and
+\texttt{pair\_electron} channels (Bethe--Heitler with full screening).
+The threshold is $2 m_e c^2 = 1.022$\,MeV; below it the channel is closed.
+The energy fraction of the positron $\epsilon = E_{\mathrm{pos}}/E_\gamma$ is
+sampled from the Bethe--Heitler differential cross section in
+\texttt{sample\_pair}; both leptons are pushed onto the particle stack with
+their kinetic energies $T = \epsilon E_\gamma - m_e c^2$ and the parent $\gamma$
+is killed. Positron annihilation at rest produces two back-to-back 511\,keV
+photons, generated at the end of \texttt{transport\_lepton!} when the parent
+particle was a positron.
+
+\paragraph{Photoelectric absorption.}
+The total cross section is the XCOM \texttt{photoelectric} channel, summed
+over all atomic shells, and includes the K-edge discontinuity at the
+material's $E_K$ (for xenon, $E_K = 34.561$\,keV). On absorption, the K-shell
+binding energy is deposited locally as a \texttt{:photoelectric} deposit, and
+the photoelectron is created with kinetic energy $T_e = E_\gamma - E_K$. If
+$T_e$ exceeds the lepton tracking cut \texttt{Te\_cut}, it is pushed onto the
+stack; otherwise it is deposited locally. Below the K-edge the absorbed
+$\gamma$ deposits its full energy locally with no electron emission. Atomic
+relaxation (fluorescence and Auger cascades following the K-vacancy) is
+\emph{not} simulated; the K-edge energy is treated as locally deposited.
+
+\subsection{Charged-particle processes}
+\label{sec:physics-leptons}
+
+Electrons and positrons are propagated by condensed-history stepping
+(\texttt{transport\_lepton!}). At each step of fixed length \texttt{ds\_step}
+($0.10$\,cm by default), three things happen:
 
 \begin{enumerate}[label=\arabic*.]
-\item Every volume in the JSON declares a \texttt{tag} (one of \texttt{world},
+\item \textbf{Continuous collisional energy loss.} The collisional mass
+stopping power $S_{\mathrm{col}}(T)$ is interpolated from NIST ESTAR
+(\texttt{dEdx\_collision}) and the energy lost over the step
+$\Delta E = (S_{\mathrm{col}}/\rho)\,\rho\,\Delta s$ is deposited at the step
+midpoint with the source label \texttt{:electron} or \texttt{:positron}. The
+step is shortened (to $0.9\,T/(dE/dx)$) if the nominal step would deposit more
+energy than the particle has.
+\item \textbf{Boundary check.} The particle is advanced by \texttt{ds\_step}
+and tested against the volume boundary; if it exits, transport terminates with
+no further deposit on this step.
+\item \textbf{Discrete bremsstrahlung.} A per-step probability
+$P_{\mathrm{brems}} = \min(n_{\mathrm{atom}}\,\sigma_{\mathrm{brems}}(T)\,\Delta s,\,0.5)$
+is computed from the pre-tabulated total $\sigma_{\mathrm{brems}}(T)$ for
+$k > k_{\min}$ ($k_{\min} = 50$\,keV by default). On a hit, the photon
+energy $k$ is sampled by rejection from the Bethe--Heitler--Tsai differential
+cross section (Section \ref{sec:physics-bremsformula}), the photon is pushed
+onto the stack, and the parent kinetic energy is reduced by $k$.
+\end{enumerate}
+
+When the particle's kinetic energy falls below \texttt{Te\_cut} ($400$\,keV
+by default), the residual $T$ is deposited locally and the track ends.
+For positrons, an additional pair of 511\,keV $\gamma$s is generated
+isotropically (back-to-back) at the termination point and pushed onto the
+stack.
+
+\subsubsection{Bremsstrahlung differential cross section}
+\label{sec:physics-bremsformula}
+
+The differential bremsstrahlung cross section in
+\texttt{physics\_utils.jl::dsigma\_dk\_brems} is the Bethe--Heitler--Tsai
+form with explicit Davies--Bethe--Maximon Coulomb correction $f_c(Z)$,
+\begin{equation*}
+f_c(Z) \;=\; (\alpha Z)^2 \!\left[\frac{1}{1 + (\alpha Z)^2} + 0.20206
+- 0.0369\,(\alpha Z)^2 + 0.0083\,(\alpha Z)^4 - 0.002\,(\alpha Z)^6\right],
+\end{equation*}
+\begin{equation*}
+\frac{d\sigma}{dk} \;=\; \frac{4\,\alpha\,r_e^2}{3\,k} \!\left[
+\bigl(y^2 + 2(1 + (1 - y)^2)\bigr)\,\bigl(Z^2 (F_{\mathrm{el}} - f_c) + Z\,F_{\mathrm{inel}}\bigr)
++ \frac{(1 - y)(Z^2 + Z)}{3}\right],
+\end{equation*}
+with $y = k/E_{\mathrm{tot}}$, $E_{\mathrm{tot}} = T + m_e$,
+$F_{\mathrm{el}} = \ln(184.15\,Z^{-1/3})$, and
+$F_{\mathrm{inel}} = \ln(1194\,Z^{-2/3})$. At material load time, the total
+cross section above $k_{\min}$ and a rejection-sampling ceiling $M(T) =
+\max_{k}\bigl(k\,d\sigma/dk\bigr) \times 1.05$ are pre-tabulated on a
+200-point logarithmic $T$ grid; both are stored on the \texttt{Material}
+object as pre-logged arrays for fast log-log interpolation.
+
+\subsection{Cross-section data: XCOM and ESTAR}
+\label{sec:physics-tables}
+
+All photon and electron tabulated data come from NIST:
+
+\begin{description}[leftmargin=2.0cm,style=nextline]
+\item[XCOM] photon mass attenuation coefficients [cm$^2$/g] on a per-material
+energy grid, with seven channels: coherent, incoherent, photoelectric,
+pair-nuclear, pair-electron, total-with-coherent, total-without-coherent.
+LXeMC uses incoherent + photoelectric + (pair-nuclear $+$ pair-electron) =
+$\sigma_C + \sigma_{\mathrm{Ph}} + \sigma_P$ for transport; the coherent
+(Rayleigh) channel is loaded into the table but \emph{not} used in the active
+transport (Section \ref{sec:limitations}). Per-atom cross sections are
+obtained from per-mass values via $\sigma = (\mu/\rho)\,A_{\mathrm{eff}}/N_A$.
+
+\item[ESTAR] electron mass collision and radiative stopping powers
+[MeV\,cm$^2$/g] and CSDA range [g/cm$^2$]. The collisional $S_{\mathrm{col}}$
+drives the lepton energy loss in \texttt{transport\_lepton!}.
+$S_{\mathrm{rad}}$ and the CSDA range are loaded but not used in production
+transport; the bremsstrahlung discrete sampling above provides radiative
+energy loss with explicit secondaries.
+\end{description}
+
+The CSV loaders are in \texttt{nist\_data.jl}, the per-material storage and
+log-log interpolation helpers are in \texttt{materials.jl}, and the
+hot-path interpolator
+(\texttt{interp\_loglog\_prelogged}) uses pre-computed log arrays so a single
+$\log$ call on the query point covers all three channels in
+\texttt{sigma\_three}.
+
+\subsection{Energy cuts and tracking thresholds}
+\label{sec:physics-cuts}
+
+All cuts come from \texttt{sim\_config.json} and live on the \texttt{SimConfig}
+struct. They are summarized in Table \ref{tab:cuts} for reference. The values
+are conservative for $0\nu\beta\beta$ at $Q_{\beta\beta} = 2.458$\,MeV; a
+GXe configuration would likely tighten them, particularly \texttt{ds\_step}
+and \texttt{Te\_cut} where multiple-scattering effects matter.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcl}
+\toprule
+Parameter & Default value & Role \\
+\midrule
+\texttt{Egamma\_cut}  & 10\,keV   & Photon tracking cutoff (full stack and fast kernel) \\
+\texttt{Te\_cut}      & 400\,keV  & Lepton tracking cutoff; below it $T$ is deposited locally \\
+\texttt{k\_min}       & 50\,keV   & Minimum bremsstrahlung photon energy \\
+\texttt{ds\_step}     & 0.10\,cm  & Lepton condensed-history step length \\
+\texttt{generation\_cap} & 100   & Maximum cascade depth (safety) \\
+\texttt{E\_roi\_floor} & 2.3\,MeV & Fast-kernel ROI termination floor \\
+\texttt{veto\_TPC}    & 10\,keV   & TPC-active veto threshold (tunable, 5--10\,keV) \\
+\texttt{veto\_skin}   & 100\,keV  & LZ Skin veto threshold \\
+\texttt{dz\_resolution} & 0.30\,cm & SS/MS $z$-clustering scale (offline) \\
+\texttt{E\_cluster\_min} & 10\,keV & Minimum cluster energy in SS/MS classification (offline) \\
+\bottomrule
+\end{tabular}
+\caption{Transport, fast-kernel, and clustering parameters. The fast-kernel
+veto thresholds (\texttt{veto\_TPC}, \texttt{veto\_skin}) and the ROI floor
+(\texttt{E\_roi\_floor}) determine the staged-simulation behavior; the
+clustering parameters drive offline analysis and are not used during
+transport.}
+\label{tab:cuts}
+\end{table}
+
+%--------------------------------------------------------------------
+\section{Geometry}
+\label{sec:geometry}
+
+The geometry layer is split into three responsibilities: a generic library of
+geometric primitives, a canonical detector representation loaded from JSON,
+and a compiled fast-kernel partition optimized for the hot path. The split
+between source-side and tracking-side geometry, and the consistency
+requirement that ties them together, is described at the end of this section.
+
+\subsection{Geometric primitives}
+\label{sec:geometry-core}
+
+The file \texttt{geometry\_core.jl} provides the shared shape and wrapper
+layer. It is detector-agnostic and is used by both the detector geometry
+and the source pipeline:
+
+\begin{itemize}
+\item primitive solids: \texttt{Cyl}, \texttt{CylShell}, \texttt{Box},
+\texttt{Disk}, \texttt{Cap}, \texttt{DomedContainer}, \texttt{CappedCylinder};
+\item logical wrappers (solid + position $\pm$ orientation):
+\texttt{LCyl}, \texttt{LCylShell}, \texttt{LBox}, \texttt{LDisk};
+\item materialized wrappers (logical $+$ \texttt{Material}):
+\texttt{PCyl}, \texttt{PCylShell}, \texttt{PBox}, \texttt{PDisk}, all
+$<:$ \texttt{PhysicalVolume};
+\item geometric operations: containment tests \texttt{is\_inside}, mass
+computation, analytic ray entry/exit distances for cylinders, cylindrical
+shells, and ellipsoidal disks (\texttt{distance\_to\_entry},
+\texttt{distance\_to\_exit}).
+\end{itemize}
+
+These primitives are not specialized for the fast kernel or for the FV stack;
+they are the lingua franca of all geometric tests in LXeMC.
+
+\subsection{Canonical tracking detector}
+\label{sec:geometry-tracking}
+
+The tracking detector is loaded from \texttt{detector\_lz\_v3.json} into a
+tree of \texttt{TrackingDetector} nodes by \texttt{load\_tracking\_detector}.
+Every volume declares two markers:
+
+\begin{description}[leftmargin=2.0cm,style=nextline]
+\item[\texttt{tag}] simulation policy --- one of \texttt{world},
 \texttt{vacuum}, \texttt{passive\_lxe}, \texttt{tpc\_active}, \texttt{fv},
-\texttt{skin}, \texttt{structural}) and a \texttt{role} (free-form descriptive
-string).
+\texttt{skin}, \texttt{structural}, parsed into the integer enum
+\texttt{RegionTag} (\texttt{TAG\_WORLD}, \texttt{TAG\_VACUUM}, \dots).
+\item[\texttt{role}] descriptive metadata used to identify distinguished
+regions; the only role that carries semantic weight in the code is
+\texttt{tracking\_envelope}.
+\end{description}
 
-\item The function \texttt{\_capabilities\_for\_tag(tag)} provides default
-capabilities for each tag: \texttt{inFastKernel}, \texttt{isXe},
-\texttt{sensitive}, \texttt{ecut\_keV}, \texttt{dz\_mm}, \texttt{fv\_target}.
-JSON fields can override any of these defaults per volume.
+Per-region capabilities (\texttt{inFastKernel}, \texttt{isXe},
+\texttt{sensitive}, \texttt{ecut\_keV}, \texttt{dz\_mm}, \texttt{fv\_target})
+are derived from the tag via \texttt{\_capabilities\_for\_tag}, with optional
+JSON-level overrides. Adding or removing a region is therefore a JSON-only
+change; no Julia code references the volume name strings in classification or
+compilation logic.
 
-\item The compiler iterates all volumes with \texttt{inFastKernel = true} and
-compiles each into a \texttt{FastKernelRegion} with precomputed scalar geometry
-(rmin, rmax, zmin, zmax, cap parameters).
+The current LZ tracking partition (\texttt{detector\_lz\_v3.json}) is shown
+in Table \ref{tab:tracking-regions}.
 
-\item Two distinguished regions are identified by markers, not by name:
-\begin{itemize}
-\item \textbf{Envelope}: the unique region with \texttt{role = "tracking\_envelope"}.
-\item \textbf{Fallback}: the unique region with \texttt{tag = passive\_lxe}.
-\end{itemize}
-The compiler validates that exactly one of each exists.
+\begin{table}[h]
+\centering
+\begin{tabular}{llrrr}
+\toprule
+Volume & \texttt{tag} & $R$ [cm] & $z_{\min}$ [cm] & $z_{\max}$ [cm] \\
+\midrule
+\texttt{LZ\_detector}  & \texttt{vacuum}      & 82.1                  & $-13.75$ & 145.6 \\
+\texttt{AirDome}       & \texttt{vacuum}      & 82.1 (dome)           & 148.5    & ---   \\
+\texttt{AirCyl}        & \texttt{vacuum}      & 82.1                  & 145.6    & 148.5 \\
+\texttt{LXe\_passive}  & \texttt{passive\_lxe}& 82.1                  & ---      & ---   \\
+\texttt{TopActive}     & \texttt{tpc\_active} & 72.8                  & 96.0     & 145.6 \\
+\texttt{BarrelActive}  & \texttt{tpc\_active} & 39.0--72.8 (shell)    & 26.0     & 96.0  \\
+\texttt{BottomActive}  & \texttt{tpc\_active} & 72.8                  & 0.0      & 26.0  \\
+\texttt{FV}            & \texttt{fv}          & 39.0                  & 26.0     & 96.0  \\
+\texttt{FC\_PTFE}      & \texttt{structural}  & 72.8--73.95 (shell)   & $-13.75$ & 145.6 \\
+\texttt{FC\_rings}     & \texttt{structural}  & 74.30--74.577 (shell) & $-13.75$ & 145.6 \\
+\texttt{Skin}          & \texttt{skin}        & 74.577--82.1 (shell)  & $-13.75$ & 145.6 \\
+\bottomrule
+\end{tabular}
+\caption{LZ tracking detector partition. \texttt{LZ\_detector} is the
+tracking envelope (role \texttt{tracking\_envelope}); \texttt{LXe\_passive}
+is the fallback region (any point inside the envelope but not in any inner
+region falls here). Coaxial cylindrical layout: all volumes are centered on
+the detector axis. AirDome is an ellipsoidal dome above the gate plane;
+AirCyl fills the small gas gap between the gate ($z = 145.6$\,cm) and the
+dome equator ($z = 148.5$\,cm).}
+\label{tab:tracking-regions}
+\end{table}
 
-\item The \texttt{classify\_fastkernel} function tests the envelope first
-(early exit if outside), then loops over all other regions in JSON declaration
-order, and falls back to the passive LXe if no inner region matches.
+\subsection{Fast-kernel geometry}
+\label{sec:geometry-fastkernel}
 
-\item The \texttt{select\_interaction\_fastkernel} function classifies
-interactions by comparing integer \texttt{RegionTag} values, not volume name
-strings.
+The \texttt{FastKernelGeometry} is compiled once from the
+\texttt{TrackingDetector} tree by \texttt{compile\_fastkernel\_geometry}. The
+construction is fully data-driven:
+
+\begin{enumerate}[label=\arabic*.]
+\item Iterate over every volume with capability \texttt{inFastKernel = true}.
+\item Compile each into a \texttt{FastKernelRegion} carrying precomputed
+scalar geometry (\texttt{rmin}, \texttt{rmax}, \texttt{zmin}, \texttt{zmax},
+cap parameters), the integer \texttt{RegionTag}, and the material reference.
+\item Identify the unique region with role \texttt{tracking\_envelope} as
+the envelope (early-exit test in \texttt{classify\_fastkernel}), and the
+unique region with tag \texttt{TAG\_PASSIVE\_LXE} as the fallback (any point
+inside the envelope but not in any inner region falls here). The compiler
+errors out if either of these is missing or duplicated.
 \end{enumerate}
 
-Because no volume name appears in the classification or compilation logic,
-adding or removing a tracked region is a JSON-only change: add the volume entry
-with the appropriate \texttt{tag}, \texttt{role}, and shape parameters, and the
-FastKernel picks it up automatically.
+The hot-path classifier \texttt{classify\_fastkernel(fk, pos)} tests the
+envelope first (\texttt{nothing} on miss), then loops over all other regions
+in JSON declaration order, and returns the fallback if no inner region
+matched. The interaction-policy dispatcher
+\texttt{select\_interaction\_fastkernel} compares integer
+\texttt{RegionTag} values; no volume name appears in the classification or
+compilation logic.
 
-\subsection{Full stack inside the FV}
+The fast-kernel boundary distance \texttt{distance\_to\_boundary\_fastkernel}
+is analytic for the supported region shapes (cylinder, cylindrical shell,
+ellipsoidal cap), which is what makes the kernel fast: no generic CSG ray
+intersection.
 
-The FV transport uses a dedicated \texttt{FVGeometry} object compiled directly
-from the canonical detector geometry. The FV stack keeps:
+\subsection{Source vs. tracking geometry: the two-file model}
+\label{sec:geometry-twofile}
 
-\begin{itemize}
-\item photons,
-\item electrons and positrons,
-\item bremsstrahlung,
-\item the particle stack and deposit list.
-\end{itemize}
-
-The geometry inside the FV is reduced to what is physically needed:
-the LXe material and the cylindrical FV boundary.
-
-\subsection{Handoff logic}
-
-The fast kernel tracks a gamma until one of the following occurs:
+The detector is described by \emph{two} JSON files:
 
 \begin{itemize}
-\item it is vetoed outside the FV,
-\item it is absorbed or terminated below the ROI floor in passive material,
-\item it escapes,
-\item it reaches the FV and remains relevant.
+\item \texttt{source\_geometry\_lz\_v1.json} --- source-side geometry. Hosts
+the radioactive emission volumes used by the source pipeline (Section
+\ref{sec:source-pipeline}): the OCV and ICV titanium shells, the MLI
+insulation, the field-cage PTFE and rings, the PMT components.
+\item \texttt{detector\_lz\_v3.json} --- tracking-side geometry. Hosts only
+the volumes that the per-step transport actually needs to see: the detector
+envelope, the LXe regions (passive, active, FV), the Skin veto, the
+field-cage structures that obstruct in-flight $\gamma$s, the gas dome and
+gas gap above the gate.
 \end{itemize}
 
-Only in the last case is the gamma handed to the FV transport stack.
+The split is by \emph{contents}, not by dimensions. Tracking geometry is a
+\emph{subset} of source geometry, restricted to volumes the per-step
+transport must consider. Volumes that appear in both files
+(\texttt{FC\_PTFE}, \texttt{FC\_rings}, \texttt{Skin}) carry identical
+geometric dimensions on the two sides; the test suite enforces this strictly.
+
+\subsection{ICV consistency fix}
+\label{sec:geometry-icvfix}
+
+A geometric ambiguity in earlier versions of the source geometry was that
+the inner radius of the inner cryostat barrel was not exactly equal to the
+inner radii of its top and bottom domes, so the surface where the source
+flux was sampled (the ICV inner surface) did not coincide with the tracking
+detector envelope at $R = 82.1$\,cm. The Virtual Envelope used by the source
+pipeline (Section \ref{sec:source-pipeline}) had to be extracted from
+\texttt{FastKernelGeometry} to paper over this; tests of geometric mass
+became fragile.
+
+The fix, applied in the current geometry, enforces a single inner radius
+$R_{\mathrm{inner}} = 82.1$\,cm for all three ICV surfaces (barrel, top
+head, bottom head). The wall thicknesses of the dome heads are then adjusted
+to preserve the original measured dome masses (top: 0.802\,cm wall, 107.7\,kg;
+bottom: 1.192\,cm wall, 141.4\,kg; barrel: 0.9\,cm wall). On the tracking
+side, the gas region above the gate plane was split into two volumes ---
+\texttt{AirCyl} (cylindrical gas gap, $z \in [145.6, 148.5]$\,cm at
+$R = 82.1$\,cm) and \texttt{AirDome} (ellipsoidal dome above the equator at
+$z = 148.5$\,cm) --- so that the tracking detector envelope coincides
+exactly with the ICV inner surface where the Virtual Envelope sits. The
+Virtual Envelope is now built directly from the source geometry (Section
+\ref{sec:source-pipeline}) and no longer depends on the FastKernel.
+
+%--------------------------------------------------------------------
+\section{Full-stack transport}
+\label{sec:fullstack}
+
+The full-stack transport is the high-fidelity tier (Tier 1, Section
+\ref{sec:tiers}). It is invoked only inside the FV after the fast kernel
+hands off a $\gamma$ that has survived all veto cuts. The implementation is
+in \texttt{tracking.jl} and is built around three functions and a stack
+data structure.
+
+\subsection{Stack model}
+\label{sec:fullstack-stack}
+
+A particle on the stack is a \texttt{Track}:
+\begin{verbatim}
+struct Track
+    kind::Symbol           # :gamma, :electron, :positron
+    energy::Float64        # MeV — kinetic for leptons, total for photons
+    position::Vector{Float64}
+    direction::Vector{Float64}  # unit
+    track_id::Int          # unique
+    parent_id::Int
+    generation::Int        # cascade depth (0 = primary)
+end
+\end{verbatim}
+The \texttt{ParticleStack} is a LIFO \texttt{Vector\{Track\}}; secondaries
+created during a step are pushed and resumed by \texttt{propagate\_gamma}
+when their parent's transport returns. A safety cap
+\texttt{cfg.generation\_cap} (default $100$) prevents runaway cascades:
+tracks with \texttt{generation > cap} are silently discarded when popped.
+
+Energy deposits are recorded as \texttt{Deposit(position, energy, source)}
+with a \texttt{source} symbol identifying their origin
+(\texttt{:electron}, \texttt{:positron}, \texttt{:photoelectric},
+\texttt{:gamma\_local}). The deposit list is shared across the full cascade
+of one primary $\gamma$ and is returned at the end as
+\texttt{Vector\{Deposit\}}.
+
+\subsection{\texttt{propagate\_gamma}: the cascade driver}
+\label{sec:fullstack-driver}
+
+\texttt{propagate\_gamma(E\_MeV, vol, cfg; position, direction, rng)} is the
+public entry point. It pushes the primary $\gamma$ onto a fresh stack, then
+loops:
+\begin{enumerate}[label=\arabic*.]
+\item pop a track; skip if \texttt{generation > generation\_cap};
+\item dispatch on \texttt{kind}: $\gamma$s go to \texttt{transport\_photon!},
+leptons go to \texttt{transport\_lepton!};
+\item the called function transports the particle until it exits, dies, or
+falls below the cutoff, pushing any secondaries it produces onto the same
+stack;
+\item repeat until the stack is empty.
+\end{enumerate}
+The result is the full deposit list inside \texttt{vol}. Note that the
+\texttt{vol} passed to \texttt{propagate\_gamma} is the FV
+\texttt{PhysicalVolume} (a \texttt{PCyl} compiled from the FV node by
+\texttt{compile\_fv\_volume}); transport stops at the FV boundary because
+\texttt{is\_inside(vol, pos)} returns false.
+
+\subsection{\texttt{transport\_photon!}: photon stepping}
+\label{sec:fullstack-photon}
+
+The photon transport loop runs while $E \geq$ \texttt{Egamma\_cut} ($10$\,keV):
+
+\begin{enumerate}[label=\arabic*.]
+\item Compute $(\sigma_C, \sigma_P, \sigma_{\mathrm{Ph}})$ at the current
+energy via \texttt{sigma\_three(mat, E)}; sample interaction distance
+$s \sim \mathrm{Exp}(\Sigma_{\mathrm{tot}})$.
+\item Advance: $\mathbf{x} \leftarrow \mathbf{x} + s\,\hat{\mathbf{d}}$. If the
+new position is outside \texttt{vol}, return (the $\gamma$ has escaped the FV).
+\item Choose process by branching ratios:
+\begin{itemize}
+\item \textbf{Compton.} Sample $E_\gamma'$, $\cos\theta$ from Klein--Nishina;
+push the recoil electron of kinetic energy $T_e = E - E_\gamma'$ onto the
+stack; rotate the $\gamma$ direction in the local frame by
+$(\theta, \phi)$ and continue with $E \leftarrow E_\gamma'$.
+\item \textbf{Pair.} Sample $\epsilon = E_{\mathrm{pos}}/E$; push positron
+($T_{\mathrm{pos}} = \epsilon E - m_e$) and electron
+($T_{\mathrm{ele}} = (1 - \epsilon) E - m_e$) onto the stack with sampled
+polar angles; the parent $\gamma$ dies (\texttt{return}).
+\item \textbf{Photoelectric.} Deposit $E_K$ locally as
+\texttt{:photoelectric}; if $T_e = E - E_K > $ \texttt{Te\_cut}, push the
+photoelectron with sampled angle; otherwise deposit $T_e$ locally; return.
+If $E < E_K$, deposit the full $E$ locally.
+\end{itemize}
+\end{enumerate}
+
+When the loop exits because $E < $ \texttt{Egamma\_cut}, the residual
+energy is deposited locally as \texttt{:gamma\_local}.
+
+\subsection{\texttt{transport\_lepton!}: condensed-history stepping}
+\label{sec:fullstack-lepton}
+
+The lepton transport loop runs while $T \geq $ \texttt{Te\_cut} ($400$\,keV):
+
+\begin{enumerate}[label=\arabic*.]
+\item Compute $S_{\mathrm{col}}/\rho$ at the current $T$ via
+\texttt{dEdx\_collision}; the linear stopping power is
+$dE/dx = S_{\mathrm{col}}\,\rho$.
+\item Choose step length \texttt{ds = ds\_step}; if the nominal energy loss
+$\Delta E = (dE/dx)\,\Delta s$ would exceed $T$, shorten the step to
+$0.9\,T/(dE/dx)$.
+\item Deposit $\Delta E$ at the step midpoint with source
+\texttt{:electron} or \texttt{:positron}.
+\item Advance the position by $\Delta s$. If the new position is outside
+\texttt{vol}, return.
+\item If $T > k_{\min}$, sample discrete bremsstrahlung with per-step
+probability $P_{\mathrm{brems}} = \min(n_{\mathrm{atom}}\,
+\sigma_{\mathrm{brems}}(T)\,\Delta s,\ 0.5)$. On a hit, sample $k$ from
+$d\sigma/dk$ by rejection (using the pre-tabulated ceiling $M(T)$), push the
+photon with sampled angle, and reduce $T$ by $k$.
+\end{enumerate}
+
+When the loop exits ($T < $ \texttt{Te\_cut}), the residual $T$ is
+deposited locally if the particle is still inside the volume. If the parent
+\texttt{kind} was \texttt{:positron}, two 511\,keV $\gamma$s are pushed
+back-to-back in a random direction at the termination position to model
+in-flight or at-rest annihilation.
+
+\subsection{Material lookup}
+\label{sec:fullstack-materials}
+
+\texttt{transport\_photon!} and \texttt{transport\_lepton!} read material
+properties from \texttt{vol.material::Material}. For the FV, the material is
+liquid xenon (active, with XCOM and ESTAR loaded and bremsstrahlung
+pre-tabulated). The same transport routines could in principle be used for
+any active \texttt{PhysicalVolume}, which is how the same code is reused for
+calibration tests in passive volumes; in production they are called only
+inside the FV.
+
+%--------------------------------------------------------------------
+\section{Fast-kernel transport}
+\label{sec:fastkernel}
+
+The fast kernel implements Tiers 2 and 3 (Section \ref{sec:tiers}) for
+$\gamma$ transport outside the FV. It is in \texttt{tracking\_fast.jl} and
+is the production entry point for every primary $\gamma$ before any FV
+handoff.
+
+\subsection{\texttt{transport\_gamma\_fastkernel}: the loop}
+\label{sec:fastkernel-loop}
+
+The function \texttt{transport\_gamma\_fastkernel(gamma, fk, cfg, rng;
+max\_cm=400.0)} returns a \texttt{FastGammaTrackResult} with one of the
+status values listed in Table \ref{tab:fastkernel-status}.
+
+The main loop runs while $E \geq $ \texttt{Egamma\_cut} and the path length
+remains below \texttt{max\_cm}:
+
+\begin{enumerate}[label=\arabic*.]
+\item Classify the current position: \texttt{region =
+classify\_fastkernel(fk, pos)}. If \texttt{nothing}, the $\gamma$ has left the
+detector envelope; return \texttt{:escaped}.
+\item If the region is \texttt{FV}, return \texttt{:handoff\_fv} with the
+current state (\texttt{event.jl} will hand the state to
+\texttt{propagate\_gamma}).
+\item Compute the analytic boundary distance $s_{\mathrm{bnd}}$ within the
+current region. If the material is vacuum (no XCOM data, density $\leq 0$),
+advance to the boundary and continue.
+\item Sample interaction distance
+$s_{\mathrm{int}} \sim \mathrm{Exp}(\Sigma_{\mathrm{tot}})$. If
+$s_{\mathrm{int}} > s_{\mathrm{bnd}}$ within tolerance, advance to the
+boundary and continue (no interaction this step).
+\item Otherwise advance to the interaction point, sample the process by
+\texttt{(sC/s\_tot, sP/s\_tot, sPh/s\_tot)}, and apply region-dependent
+policy (next subsection).
+\end{enumerate}
+
+\subsection{Interaction policy and veto checks}
+\label{sec:fastkernel-policy}
+
+The fast kernel does \emph{not} push secondaries; charged particles produced
+in a step are taken to deposit locally (kerma approximation, justified by
+the $<\!1$\,mm range of MeV electrons in dense detector materials). Each
+process therefore makes a single energy-deposit decision:
+
+\begin{description}[leftmargin=2.0cm,style=nextline]
+\item[Compton.] Deposit the recoil energy $E - E_\gamma'$ locally in the
+current region. Then check the veto threshold for that region:
+$\geq$ \texttt{veto\_skin} in a Skin region returns
+\texttt{:vetoed\_skin}; $\geq$ \texttt{veto\_TPC} in any
+\texttt{TopActive}/\texttt{BarrelActive}/\texttt{BottomActive} region
+returns \texttt{:vetoed\_tpc}. If neither veto fires, the $\gamma$ continues
+with reduced energy $E_\gamma'$ along the rotated direction --- but first
+the ROI floor is checked (next paragraph).
+\item[Photoelectric / Pair.] Terminal: the full $\gamma$ energy is deposited
+locally and the loop exits with the appropriate region-dependent status
+(\texttt{:vetoed\_skin}, \texttt{:vetoed\_tpc},
+\texttt{:absorbed\_passive}, or \texttt{:below\_cut}).
+\end{description}
 
 \subsection{ROI floor}
+\label{sec:fastkernel-roifloor}
 
-The simulation uses an ROI floor in gamma energy. Once a gamma energy drops
-below this threshold, the code assumes that it can no longer generate a relevant
-contribution to the final ROI and terminates it locally. This is a deliberate
-analysis-motivated approximation used to gain speed.
+After a Compton scatter, if the surviving $\gamma$ energy is below
+\texttt{E\_roi\_floor} (default $2.3$\,MeV), the $\gamma$ can no longer
+contribute a deposit in the ROI window around $Q_{\beta\beta} = 2.458$\,MeV
+under any reasonable resolution model. The fast kernel therefore collapses
+the remaining energy onto the most recent deposit (replacing it with the
+sum), and exits with the region-dependent terminal status. This is an
+analysis-motivated approximation: it overestimates local energy deposition
+slightly but is safe for background estimation because any history
+terminated this way is far below the ROI window. The floor is configurable;
+it should be lowered for analyses with wider ROI windows or with an
+energy-resolution tail that extends below the default.
 
-\subsection{Veto logic}
+\subsection{FV handoff}
+\label{sec:fastkernel-handoff}
 
-The fast kernel uses region-dependent visible-energy thresholds:
+The handoff is the only place where the fast kernel and the full stack
+communicate. When \texttt{classify\_fastkernel} returns the FV region, the
+fast kernel returns immediately with status \texttt{:handoff\_fv}, the
+current $\gamma$ energy, position, and direction. The event loop
+(\texttt{process\_event}) recognizes this status and calls
+\texttt{propagate\_gamma} with the handed-off state, appending the resulting
+deposits to the FV deposit list. Compton scatters that occurred in passive
+or active regions outside the FV before the handoff produced their own local
+deposits during fast-kernel transport; those deposits drive veto decisions
+\emph{during} fast-kernel transport but are \emph{not} returned in
+\texttt{EventProcessingResult.deposits} (Section \ref{sec:event}), because
+they are not relevant to the topology classification of the FV event.
 
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+Status & Meaning \\
+\midrule
+\texttt{:handoff\_fv}      & Reached the FV; hand off to \texttt{propagate\_gamma} \\
+\texttt{:escaped}          & Left the detector envelope \\
+\texttt{:below\_cut}       & Energy fell below \texttt{Egamma\_cut} \\
+\texttt{:absorbed\_passive}& Absorbed in passive LXe or structural material \\
+\texttt{:below\_roi\_fv}   & ROI-floor termination after a Compton scatter \\
+\texttt{:vetoed\_tpc}      & Deposit in active TPC outside FV exceeded \texttt{veto\_TPC} \\
+\texttt{:vetoed\_skin}     & Deposit in Skin exceeded \texttt{veto\_skin} \\
+\bottomrule
+\end{tabular}
+\caption{Status values returned by
+\texttt{transport\_gamma\_fastkernel} (defined in
+\texttt{tracking\_fast.jl::FastGammaTrackResult}).}
+\label{tab:fastkernel-status}
+\end{table}
+
+\subsection{Diagnostic single-step variant}
+\label{sec:fastkernel-diagnostic}
+
+A single-interaction variant \texttt{propagate\_gamma\_fastkernel} lives in
+\texttt{tracking\_util.jl}. It returns after the first interaction (Compton,
+pair, or photoelectric) rather than continuing the multi-scatter loop. It is
+used for geometry validation, transport debugging, and per-channel
+diagnostic studies, and is \emph{not} part of the production event pipeline.
+The same file holds \texttt{process\_event\_fastkernel\_calib}, a
+calibration wrapper that samples a controlled $\gamma$ multiplicity from the
+\texttt{"calib"} dispatch and packs the per-event multiplicity and primary
+energies into a \texttt{FastKernelCalibEventResult} for reporting.
+
+%--------------------------------------------------------------------
+\section{Event processing}
+\label{sec:event}
+
+A physics event in LXeMC is a list of correlated primary $\gamma$s --- for
+example, the four lines of a single Tl-208 decay (main 2.615\,MeV plus up to
+three companions). Event-level processing is the orchestration of the fast
+kernel and the FV stack across all $\gamma$s of one event, and the production
+of the truth-level deposit list consumed by offline analysis. It lives in
+\texttt{event.jl}.
+
+\subsection{\texttt{process\_event}: the orchestrator}
+\label{sec:event-process}
+
+\texttt{process\_event(gammas, fk, vol, cfg, rng)} loops over the gammas of
+one event:
+
+\begin{enumerate}[label=\arabic*.]
+\item For each $\gamma$, call \texttt{transport\_gamma\_fastkernel}.
+\item If the result is \texttt{:vetoed\_tpc} or \texttt{:vetoed\_skin},
+short-circuit the entire event: set the corresponding boolean flag and
+return immediately with status \texttt{:vetoed} and an empty deposit list.
+\item If the result is \texttt{:handoff\_fv}, call
+\texttt{propagate\_gamma(E, vol, cfg; pos, dir, rng)} with the handed-off
+state and append the returned deposits to the cumulative FV deposit list.
+\item Any other status (\texttt{:escaped}, \texttt{:below\_cut},
+\texttt{:absorbed\_passive}, \texttt{:below\_roi\_fv}) is treated as a
+silent termination of that one $\gamma$; the loop continues with the next
+$\gamma$.
+\end{enumerate}
+
+After the loop:
 \begin{itemize}
-\item active xenon outside the FV:
-  veto at the configured TPC threshold;
-\item skin:
-  veto at the configured skin threshold;
-\item passive regions:
-  no veto, only transport and possible local termination.
+\item if any FV deposits accumulated, return \texttt{:fv} with the full
+deposit list;
+\item otherwise return \texttt{:no\_fv} with an empty list.
 \end{itemize}
 
-\section{Event Logic}
+\subsection{\texttt{EventProcessingResult}}
+\label{sec:event-result}
 
-\subsection{Calibration sampling}
+The return value is
+\begin{verbatim}
+struct EventProcessingResult
+    status::Symbol            # :fv, :vetoed, :no_fv
+    has_tpc_veto::Bool
+    has_skin_veto::Bool
+    n_processed::Int          # gammas processed before short-circuit
+    deposits::Vector{Deposit} # FV deposits for :fv events; empty otherwise
+end
+\end{verbatim}
 
-The calibration path samples a small multiplicity of gammas and injects them
-with controlled energy, position, and direction. This path is used for
-benchmarks, controlled studies, and debugging.
-
-\subsection{Veto conditions}
-
-Deposits in active xenon outside the FV veto the event when they exceed the
-configured threshold. This allows the event to be rejected immediately without
-continuing detailed transport.
-
-\subsection{FV acceptance and multi-site rejection}
-
-Once in the FV, the event is classified using the deposit pattern returned by
-the full stack. The key observable is whether the deposit pattern is consistent
-with a single-site or multi-site event under the configured clustering model.
-
-\subsection{Role of \texttt{dz\_resolution}}
-
-The FV clustering logic uses a longitudinal clustering scale
-\texttt{dz\_resolution}. Deposits separated beyond this scale contribute to
-multi-site structure, while deposits consistent within this scale may be merged
-into a single-site candidate.
-
-\section{Source Flux Pipeline}
-
-The source flux pipeline computes the rate and spectral distribution of
-background gammas arriving at the detector from radioactive source volumes. It
-is implemented as a three-stage process that decouples the expensive Monte Carlo
-generation from the detector-side analysis.
-
-\subsection{Factored flux tables}
-
-The central data product of the source pipeline is a set of two-dimensional
-probability tables in $(E, u)$, where $E$ is the gamma energy at the exit of the
-source material and $u = \cos\theta$ is the angle of the gamma direction to the
-inward surface normal (toward the detector).
-
-For Bi-214 (single 2.448\,MeV gamma per decay), one table suffices. For Tl-208
-(2.615\,MeV main gamma plus up to three companion lines at 583, 511, and
-861\,keV), the main gamma and each companion line have independent tables. The
-companions fire as independent Bernoulli trials with their respective branching
-ratios (85\%, 23\%, 12\%), so a single decay can produce 1--4 gammas. Each
-companion table also carries a survival fraction through the source material.
-
-The tables are normalized per generated decay: $\texttt{pdf}[i,j] =
-N_{\text{surviving in bin}}/N_{\text{generated}}$. Absolute rates are obtained
-later by multiplying by activity $\times$ mass $\times$ BR from the decay chain.
-
-\subsection{Compound propagation}
-
-Gammas from the outer cryostat (OCV) must traverse the vacuum gap and then the
-inner cryostat (ICV) before entering the detector. This is handled by
-\texttt{propagate\_through\_layers}, which takes a sequence of
-\texttt{PhysicalVolume} objects and propagates the gamma through each in order.
-Between layers the gamma travels in a straight line; within each layer it
-undergoes Klein-Nishina photon transport. Ray-volume entry distances use
-analytic solutions for cylinders, cylindrical shells, and ellipsoidal disks.
-
-\subsection{Cryostat source model}
-
-For the LZ cryostat, three independent surface fluxes are computed:
+The three status values have the following meanings:
 
 \begin{description}[leftmargin=2.0cm,style=nextline]
-\item[Barrel] Three contributing sources: OCV barrel $\to$ ICV
-barrel (compound), MLI insulation $\to$ MLI (vacuum, straight-line) $\to$ ICV
-barrel (compound), and ICV barrel self-emission. Each produces its own flux
-table; an activity-weighted sum gives the combined rate.
-\item[Top head] Two sources: OCV top $\to$ vacuum $\to$ ICV top (compound) and
-ICV top self-emission.
-\item[Bottom head] Two sources: OCV bottom $\to$ vacuum $\to$ ICV bottom
-(compound) and ICV bottom self-emission.
+\item[\texttt{:fv}] At least one $\gamma$ reached the FV and produced
+deposits there; \texttt{deposits} contains the full per-deposit truth list
+for offline SS/MS classification.
+\item[\texttt{:vetoed}] An anti-coincidence veto fired on some $\gamma$
+during fast-kernel transport; the event is rejected. The booleans
+\texttt{has\_tpc\_veto} and \texttt{has\_skin\_veto} indicate which veto
+fired (one will be true at the moment of return; both can be relevant in
+extensions). \texttt{n\_processed} is the index of the gamma that triggered
+the veto.
+\item[\texttt{:no\_fv}] No $\gamma$ reached the FV --- all were escaped,
+absorbed, or terminated below the ROI floor. The event is not vetoed but
+contributes no FV deposits.
 \end{description}
 
-Cross-contributions (e.g., OCV barrel $\to$ ICV top) are neglected.
+\subsection{Deposit output}
+\label{sec:event-output}
+
+For \texttt{:fv} events, \texttt{deposits} is a flat list of
+\texttt{Deposit(position::Vector\{Float64\}, energy::Float64,
+source::Symbol)} records, where \texttt{position} is in cm and
+\texttt{energy} in MeV. The \texttt{source} symbol identifies the deposit
+origin:
+\begin{itemize}
+\item \texttt{:electron}, \texttt{:positron} --- collisional energy loss
+along a charged-track step;
+\item \texttt{:photoelectric} --- the K-shell binding $E_K$ deposited
+locally on photoelectric absorption (and any below-cut photoelectron
+residual);
+\item \texttt{:gamma\_local} --- residual $\gamma$ energy deposited locally
+when $E$ falls below \texttt{Egamma\_cut} inside the FV.
+\end{itemize}
+
+This list is the \emph{only} output of LXeMC for accepted events. It is
+written to disk by the offline workflow (Section \ref{sec:source-pipeline})
+and consumed by the FV analysis on the \texttt{offline\_fv\_analysis} branch
+for clustering, energy-resolution smearing, ROI cuts, and SS/MS
+classification.
+
+\subsection{Offline clustering helpers}
+\label{sec:event-clustering}
+
+For convenience, \texttt{analysis.jl} provides two helpers used by both
+in-process diagnostics and the offline pipeline:
+
+\begin{itemize}
+\item \texttt{cluster\_deposits\_in\_z(deposits, dz\_cm; E\_min)} --- merge
+deposits into clusters whose $z$-extent is within \texttt{dz\_cm}; clusters
+below \texttt{E\_min} are discarded. Returns
+\texttt{(z\_centroid, total\_energy)} tuples.
+\item \texttt{is\_single\_site(deposits, dz\_cm; E\_min)} --- convenience
+wrapper that returns \texttt{true} iff the deposit list forms at most one
+cluster above \texttt{E\_min}.
+\end{itemize}
+
+The default values \texttt{cfg.dz\_resolution = 0.30}\,cm and
+\texttt{cfg.E\_cluster\_min = 10}\,keV are placeholders; SS/MS classification
+is expected to evolve, and any production analysis should set its own
+values explicitly.
+
+%--------------------------------------------------------------------
+\section{Source flux pipeline}
+\label{sec:source-pipeline}
+
+The source flux pipeline computes the rate and spectral distribution of
+$\gamma$s arriving at the detector from radioactive source volumes. It is
+the implementation of Tier 2 (Section \ref{sec:tiers}) and is decoupled from
+the detector-side transport: the expensive Monte Carlo step runs once per
+source configuration, produces tabulated $(E, u)$ surface fluxes, and the
+detector pipeline reuses those tables across many analysis variants.
+
+\subsection{Source taxonomy}
+\label{sec:source-taxonomy}
+
+Sources are loaded from \texttt{source\_geometry\_lz\_v1.json} into
+\texttt{SourceVolumeInfo} records by \texttt{load\_source\_geometry}. Each
+source carries a geometry (a \texttt{PhysicalVolume}), a material, an
+activity dictionary (mBq/kg per isotope), a mass (computed from geometry or
+overridden via \texttt{equivalent\_mass\_kg}), a transport mode
+(\texttt{:KN} or \texttt{:transparent}), and a class
+(\texttt{shell\_source} or \texttt{virtual\_source}).
+
+The currently supported sources (\texttt{supported\_sources()}) are:
+\begin{itemize}
+\item \texttt{cryostat\_barrel} --- compound: OCV barrel, MLI, ICV barrel.
+\item \texttt{cryostat\_top} --- compound: OCV top head, ICV top head.
+\item \texttt{cryostat\_bottom} --- compound: OCV bottom head, ICV bottom
+head.
+\item \texttt{pmt\_top} --- merged transparent disk over the three top PMT
+sub-components (PMTs, bases, structure).
+\item \texttt{pmt\_bottom} --- merged transparent disk over the four bottom
+PMT sub-components (PMTs, bases, structure, R8778 dome).
+\end{itemize}
+
+Supported isotopes (\texttt{supported\_isotopes()}) are \texttt{Bi214} and
+\texttt{Tl208}, the two dominant late-chain $\gamma$ emitters in the
+$0\nu\beta\beta$ ROI window. Extending to a new (source, isotope) pair
+requires adding a dispatch entry and (for non-trivial geometries) a flux
+function.
+
+\subsection{Flux tables}
+\label{sec:source-fluxtables}
+
+The central data product of the source pipeline is a two-dimensional
+probability table in $(E, u)$ where $E$ is the $\gamma$ energy at the exit
+of the source material and $u = \cos\theta$ is the angle between the
+$\gamma$ direction and the inward surface normal (toward the LXe). Per
+generated decay,
+\begin{equation*}
+\texttt{pdf}[i,j] \;=\; \frac{N_{\mathrm{surviving\ in\ bin\ }(i,j)}}{N_{\mathrm{generated}}}.
+\end{equation*}
+Absolute rates are obtained downstream by multiplying by activity $\times$
+mass $\times$ branching ratio.
+
+Two concrete flux types live in \texttt{source\_flux.jl}:
+
+\begin{description}[leftmargin=2.0cm,style=nextline]
+\item[\texttt{SourceFluxBi214}] One table for the single $2.448$\,MeV
+$\gamma$ per $^{214}$Bi decay. The chain-to-line branching is
+\texttt{BR\_BI214\_2448 = 0.015}.
+\item[\texttt{SourceFluxTl208}] One table for the main $2.615$\,MeV $\gamma$
+plus one table per companion line ($583$\,keV at 85\%, $511$\,keV at 23\%,
+$861$\,keV at 12\%). At sampling time the main line always fires; each
+companion fires as an independent Bernoulli trial with its branching ratio,
+producing 1--4 $\gamma$s per decay. The chain-to-main-line branching is
+\texttt{BR\_TL208\_2615 = 0.3594 $\times$ 0.998 $\approx$ 0.3587} (the
+$^{212}$Bi $\to$ $^{208}$Tl branch times the $^{208}$Tl $\to$ 2.615\,MeV
+branch).
+\end{description}
+
+A \texttt{SourceRateTable} carries the activity-weighted sum of component
+flux tables for one ICV surface, in units of $\gamma$s/sec per $(E, u)$
+bin: $\mathrm{pdf\_rate}[i,j] = \sum_k A_k\,m_k\,\mathrm{BR}\,\mathrm{pdf}_k[i,j]$.
+
+\subsection{Compound propagation}
+\label{sec:source-compound}
+
+$\gamma$s emitted from the outer cryostat must traverse the vacuum gap and
+the inner cryostat before entering the LXe. This is handled by
+\texttt{propagate\_through\_layers(E, pos, dir, layers, cfg, rng)}: the
+$\gamma$ flies in a straight line to the entry of the next layer's logical
+volume (analytic \texttt{distance\_to\_entry} for cylinders, shells, and
+ellipsoidal disks), then \texttt{propagate\_in\_source} runs Klein--Nishina
+photon-only transport inside the layer until exit or absorption. The status
+return is \texttt{:exited}, \texttt{:absorbed}, or \texttt{:lost} (if the
+ray misses a layer).
+
+The source-side photon transport in \texttt{propagate\_in\_source} is the
+photon part of the full stack: same XCOM cross sections, same Klein--Nishina
+sampler, same energy cutoffs --- but no electron stack and no bremsstrahlung,
+which is the kerma approximation appropriate to dense source materials at
+MeV energies.
+
+\subsection{Cryostat sources}
+\label{sec:source-cryostat}
+
+For the LZ cryostat, each surface (barrel, top head, bottom head) sums over
+the contributing source layers:
+
+\begin{description}[leftmargin=2.0cm,style=nextline]
+\item[Barrel] Three components: OCV barrel $\to$ ICV barrel (compound; MLI
+is vacuum and is correctly skipped from the layer chain because the $\gamma$
+flies straight through it), MLI $\to$ ICV barrel (compound, with MLI as a
+transparent source), and ICV barrel self-emission.
+\item[Top head] Two components: OCV top $\to$ vacuum $\to$ ICV top
+(compound), and ICV top self-emission.
+\item[Bottom head] Two components: OCV bottom $\to$ vacuum $\to$ ICV bottom
+(compound), and ICV bottom self-emission.
+\end{description}
+
+Each component produces its own \texttt{SourceFluxBi214} and
+\texttt{SourceFluxTl208}; an activity-weighted sum (\texttt{\_build\_rate\_table})
+gives the combined rate table per surface. Cross-contributions
+(e.g., OCV barrel $\to$ ICV top) are neglected because their solid-angle
+acceptance is small compared to the same-surface contributions.
+
+\subsection{PMT sources}
+\label{sec:source-pmt}
+
+The top and bottom PMT arrays are bundled groups of small components (PMTs,
+bases, structure, R8778 dome on the bottom). Because they are transparent
+sources and share a common geometric configuration, the per-component flux
+tables are essentially identical (a $\sim 50\%$ hemisphere acceptance, no
+material attenuation). The pipeline lumps each group into a single merged
+flat \texttt{PDisk} spanning the full $z$ extent of its sub-components
+(\texttt{\_merge\_pmt\_volume}), generates one shared flux table, and
+recovers per-component rates by mass$\,\times\,$activity bookkeeping in the
+final rate table. The orientation (\texttt{:up} for top, \texttt{:down} for
+bottom) controls the hemisphere filter via \texttt{cos\_theta\_to\_lxe}.
 
 \subsection{Virtual envelope}
+\label{sec:source-ve}
 
-Gammas sampled from the flux tables must be placed on a physical surface with a
-concrete 3D position and direction before being injected into the fast kernel.
-This surface is called the \emph{virtual envelope} (VE).
+$\gamma$s sampled from the flux tables must be placed on a physical surface
+with a concrete 3D position and direction before being injected into the
+fast kernel. This surface is the \emph{Virtual Envelope} (VE). It is built
+directly from the source geometry by
+\texttt{make\_virtual\_envelope(source, sg)}; thanks to the ICV consistency
+fix (Section \ref{sec:geometry-icvfix}), the cryostat VE sits exactly on the
+ICV inner surface at $R = 82.1$\,cm and there is no longer a need to
+extract VE parameters from the FastKernel.
 
-The VE is built from the \emph{source geometry} (\texttt{sg}), not from the
-tracking detector. A geometry fix ensures that the ICV inner surface matches
-the tracking detector boundary exactly: all three ICV surfaces (barrel, top
-head, bottom head) share $R_{\text{inner}} = 82.1$\,cm, with head wall
-thicknesses adjusted to preserve the original dome masses. This eliminates the
-geometric mismatch that previously required extracting VE parameters from
-\texttt{FastKernelGeometry}.
-
-For cryostat sources the VE sits on the ICV inner surface. For PMT sources
-(already inside the detector) the VE is the source volume itself. A small
-inset (0.01\,cm) is applied to all VEs to avoid floating-point boundary issues
-with the fast-kernel region classifier.
-
-The \texttt{VirtualEnvelope} struct supports four surface kinds:
-
+The four supported envelope kinds are:
 \begin{center}
 \begin{tabular}{llrl}
 \toprule
-Surface & Kind & $R$ [cm] & Source \\
+Surface & \texttt{kind} & $R$ [cm] & Source geometry \\
 \midrule
-Cryostat barrel & \texttt{:barrel} & 82.09 & ICV\_barrel inner \\
-Cryostat top & \texttt{:cap\_up} & 82.09 & ICV\_top inner dome \\
-Cryostat bottom & \texttt{:cap\_down} & 82.09 & ICV\_bottom inner dome \\
-PMT top & \texttt{:disk\_flat} & 72.8 & merged PMT disk \\
-PMT bottom & \texttt{:disk\_flat} & 72.8 & merged PMT disk \\
+Cryostat barrel & \texttt{:barrel}    & $82.09$ & ICV\_barrel inner cylinder \\
+Cryostat top    & \texttt{:cap\_up}   & $82.09$ & ICV\_top inner ellipsoidal cap \\
+Cryostat bottom & \texttt{:cap\_down} & $82.09$ & ICV\_bottom inner ellipsoidal cap \\
+PMT top         & \texttt{:disk\_flat}& $72.8$  & merged top PMT disk \\
+PMT bottom      & \texttt{:disk\_flat}& $72.8$  & merged bottom PMT disk \\
 \bottomrule
 \end{tabular}
 \end{center}
+A small inset \texttt{ENVELOPE\_INSET\_CM = 0.01}\,cm is applied to all VEs
+(hence $R = 82.09$ instead of $82.1$\,cm) to avoid floating-point boundary
+ambiguity in the fast-kernel region classifier.
 
-The tracking detector geometry was also updated to match: the AirDome equator
-was moved from $z = 145.6$\,cm (gate plane) to $z = 148.5$\,cm (ICV top
-equator), and a new AirCyl volume fills the gas gap between the gate and the
-dome.
+\subsection{Three-stage offline workflow}
+\label{sec:source-stages}
 
-\subsection{Three-stage background computation}
-
-The background computation is split into three stages, each handled by a
-separate script:
+The end-to-end background computation is split into three scripts:
 
 \begin{enumerate}[label=\arabic*.]
 \item \textbf{Flux generation} (\texttt{generate\_flux\_tables.jl}). For one
-(source, isotope) pair, generates $N$ decays, propagates through source
-material, and writes $(E, u)$ flux tables as CSV files plus a
-\texttt{metadata.json}. This is the expensive MC step; parallelized via
-\texttt{julia -t N}. Run once per configuration.
-
+(source, isotope) pair, generate $N$ decays, propagate through the source
+material (and any compound layers), and write the $(E, u)$ flux tables as
+CSV files plus a \texttt{metadata.json}. This is the expensive Monte Carlo
+step; it parallelizes naturally over Julia threads (\texttt{julia -t N}).
+Run once per source configuration.
 \item \textbf{Background preselection} (\texttt{run\_source\_backgrounds.jl}).
-Loads flux tables, samples gammas onto the virtual envelope, and processes each
-event through the fast kernel and FV stack. Single-site candidates are written
-to \texttt{candidates.csv} with columns $(x, y, z, E_{\text{deposited}})$.
-Rejection statistics are written to \texttt{statistics.csv}. Parallelized.
-
-\item \textbf{Final analysis} (\texttt{compute\_backgrounds.py}). Applies
-Gaussian energy resolution smearing and an ROI energy window cut to the
-candidates. Computes absolute background rates in counts/year. Produces summary
+Load the flux tables, sample $\gamma$s onto the Virtual Envelope, run each
+event through \texttt{process\_event}, and write the surviving events
+(status \texttt{:fv}) to \texttt{candidates.csv} as
+$(x, y, z, E_{\mathrm{deposited}})$ rows. Per-source rejection statistics
+(veto fractions, no-FV fractions) go to \texttt{statistics.csv}. Also
+parallelized.
+\item \textbf{Final analysis} (\texttt{compute\_backgrounds.py}). Apply
+Gaussian energy-resolution smearing and an ROI window cut to the candidate
+list, compute absolute background rates in counts/year, and produce summary
 plots and a background table.
 \end{enumerate}
 
-This decoupling allows the flux tables to be generated once and reused with
-different analysis cuts, resolution assumptions, or ROI windows without
-regenerating the Monte Carlo.
+The flux tables are the natural reuse boundary: a change to the energy
+resolution or the ROI window only requires re-running stage 3, and a change
+to the analysis cuts only requires re-running stages 2 and 3.
 
-\subsection{Internal sources}
+%--------------------------------------------------------------------
+\section{Code map}
+\label{sec:codemap}
 
-Internal sources sit inside the ICV and emit directly into the LXe or gas
-dome. They do not require compound propagation through cryostat layers.
+The current source organization is summarized in Table \ref{tab:codemap}.
+Files are listed in their \texttt{include} order from
+\texttt{LXeMC.jl}; later files depend on earlier ones.
 
-\paragraph{Implemented: PMT top and bottom.}
-The top PMT array (3 sub-components: PMTs, bases, structure) and bottom PMT
-array (4 sub-components: PMTs, bases, structure, R8778 dome) are implemented
-as merged transparent volumes. Each group is lumped into a single vacuum PDisk
-spanning the full $z$ extent of its sub-components; the orientation (\texttt{:up}
-for top, \texttt{:down} for bottom) controls the hemisphere filter. Since all
-components share the same trivial flux table ($\sim$50\% survival from the
-hemisphere cut, no material attenuation), per-component background rates are
-recovered by bookkeeping: mass $\times$ specific activity.
-
-\paragraph{Remaining: PMT barrel.}
-Three transparent cylindrical-shell sources (cables, R8520 skin PMTs,
-R8778 lower-ring PMTs) at $R \approx 81.2$--$81.4$\,cm along the FC outer
-wall. Same pattern as PMT top/bottom but with a barrel VE.
-
-\paragraph{Remaining: field cage sources.}
-Six sources inside or on the field cage: FC\_PTFE and FC\_rings (dense, KN
-self-shielding), FC\_topgrid and FC\_botgrid (stainless steel, KN),
-FC\_resistors and FC\_sensors (transparent). These emit directly into the LXe
-with single-source flux generation (no compound propagation). Each source has
-its own dispatch entry and barrel-type VE.
-
-\section{Code Map}
-
-The current code ownership is as follows.
-
-\begin{description}[leftmargin=2.5cm,style=nextline]
-\item[\texttt{geometry\_core.jl}] shared geometric primitives, wrappers,
-ray entry/exit (analytic for Cyl, CylShell, Disk), and geometric helpers.
-\item[\texttt{geometry.jl}] canonical detector geometry, tracking tree, region
-semantics, fast-kernel compilation, FV geometry compilation.
-\item[\texttt{tracking.jl}] fast transport outside the FV, FV-only full stack,
-event-level logic. \texttt{process\_event} returns FV deposits for accepted
-events.
-\item[\texttt{source\_propagation.jl}] photon-only KN transport inside source
-volumes (with vacuum shortcut for transparent sources), uniform position
-sampling, direction classification.
-\item[\texttt{source\_flux.jl}] flux table structs (\texttt{SourceFluxBi214},
-\texttt{SourceFluxTl208}, \texttt{SourceRateTable}), source geometry loader,
-single-source and compound flux generators.
-\item[\texttt{source\_sampling.jl}] 2D PDF sampling, surface point generation
-(barrel, ellipsoidal caps, flat disks), direction reconstruction,
-gamma-from-flux sampling.
-\item[\texttt{source\_dispatch.jl}] \texttt{VirtualEnvelope} (built from
-source geometry for all sources), \texttt{make\_surface\_sampler}, source
-dispatch (\texttt{dispatch\_source\_flux}) and thread-result merging.
-\item[\texttt{cryostat\_sources.jl}] cryostat-specific flux functions (barrel,
-top, bottom) with activity-weighted rate table construction.
-\item[\texttt{pmt\_sources.jl}] PMT flux functions (\texttt{pmt\_top\_flux},
-\texttt{pmt\_bottom\_flux}), merged transparent volume construction with
-per-component rate bookkeeping.
-\item[\texttt{flux\_utils.jl}] flux table merging, CSV I/O, JSON metadata
-helpers.
-\item[\texttt{decays.jl}] decay and calibration sampling.
-\end{description}
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+File & Responsibility \\
+\midrule
+\texttt{config.jl}             & \texttt{SimConfig} struct, JSON loader, defaults \\
+\texttt{nist\_data.jl}         & XCOM/ESTAR CSV loaders, log-log interpolation primitives \\
+\texttt{physics\_utils.jl}     & Bethe--Heitler--Tsai $d\sigma/dk$ and Coulomb correction \\
+\texttt{materials.jl}          & \texttt{Material} struct, cross-section methods, brems pre-tabulation \\
+\texttt{geometry\_core.jl}     & Primitive solids and wrappers, containment, ray entry/exit \\
+\texttt{geometry.jl}           & Canonical \texttt{TrackingDetector}, \texttt{FastKernelGeometry} compiler, FV volume \\
+\texttt{sampling.jl}           & MC samplers (Compton, pair, photoelectric angle, brems angle, distance) \\
+\texttt{tracking.jl}           & Full-stack transport: \texttt{Track}, \texttt{Deposit}, \texttt{transport\_photon!}, \texttt{transport\_lepton!}, \texttt{propagate\_gamma} \\
+\texttt{tracking\_fast.jl}     & Fast-kernel transport: \texttt{transport\_gamma\_fastkernel}, \texttt{FastGammaTrackResult} \\
+\texttt{event.jl}              & Event orchestration: \texttt{process\_event}, \texttt{EventProcessingResult} \\
+\texttt{tracking\_util.jl}     & Diagnostics: single-step \texttt{propagate\_gamma\_fastkernel}, \texttt{process\_event\_fastkernel\_calib} \\
+\texttt{decays.jl}             & Decay schemes, calibration sampling, \texttt{sample\_gammas} \\
+\texttt{source\_propagation.jl}& Photon-only KN transport in source, position sampling, $\cos\theta$ to LXe \\
+\texttt{source\_flux.jl}       & Flux tables, source geometry loader, single \& compound flux generators \\
+\texttt{source\_sampling.jl}   & 2D PDF sampler, surface point generators, \texttt{sample\_gamma\_from\_flux} \\
+\texttt{cryostat\_sources.jl}  & \texttt{cryostat\_barrel\_flux}, \texttt{cryostat\_top\_flux}, \texttt{cryostat\_bottom\_flux} \\
+\texttt{pmt\_sources.jl}       & \texttt{pmt\_top\_flux}, \texttt{pmt\_bottom\_flux}, merged transparent volumes \\
+\texttt{flux\_utils.jl}        & Flux table merging, CSV I/O, JSON metadata \\
+\texttt{source\_dispatch.jl}   & \texttt{dispatch\_source\_flux}, \texttt{VirtualEnvelope}, \texttt{make\_surface\_sampler} \\
+\texttt{analysis.jl}           & Offline helpers: \texttt{cluster\_deposits\_in\_z}, \texttt{is\_single\_site} \\
+\bottomrule
+\end{tabular}
+\caption{Source files and their responsibilities. The split between
+\texttt{tracking.jl}, \texttt{tracking\_fast.jl}, \texttt{event.jl}, and
+\texttt{tracking\_util.jl} reflects the three-tier model: full stack,
+fast kernel, orchestration, and diagnostics each in their own file.}
+\label{tab:codemap}
+\end{table}
 
 The public entry points of primary interest are:
 
 \begin{itemize}
-\item \texttt{load\_tracking\_detector},
-      \texttt{compile\_fastkernel\_geometry},
-      \texttt{compile\_fv\_geometry}
-\item \texttt{process\_event},
-      \texttt{propagate\_gamma\_in\_fv}
-\item \texttt{load\_source\_geometry},
-      \texttt{make\_virtual\_envelope},
-      \texttt{make\_surface\_sampler}
-\item \texttt{dispatch\_source\_flux},
-      \texttt{supported\_sources},
-      \texttt{supported\_isotopes}
-\item \texttt{generate\_flux\_bi214},
-      \texttt{generate\_flux\_tl208},
-      \texttt{generate\_flux\_compound\_bi214},
-      \texttt{generate\_flux\_compound\_tl208}
-\item \texttt{cryostat\_barrel\_flux},
-      \texttt{cryostat\_top\_flux},
-      \texttt{cryostat\_bottom\_flux}
-\item \texttt{pmt\_top\_flux},
-      \texttt{pmt\_bottom\_flux}
-\item \texttt{sample\_from\_flux},
-      \texttt{sample\_gamma\_from\_flux}
+\item Loading: \texttt{default\_config}, \texttt{load\_materials},
+\texttt{load\_tracking\_detector},
+\texttt{compile\_fastkernel\_geometry}, \texttt{compile\_fv\_volume},
+\texttt{load\_source\_geometry}.
+\item Detector-side transport: \texttt{process\_event} (production),
+\texttt{propagate\_gamma} (full stack, FV), \texttt{transport\_gamma\_fastkernel}
+(fast kernel).
+\item Source-side transport: \texttt{generate\_flux\_bi214},
+\texttt{generate\_flux\_tl208}, \texttt{generate\_flux\_compound\_bi214},
+\texttt{generate\_flux\_compound\_tl208}.
+\item Source dispatch: \texttt{dispatch\_source\_flux},
+\texttt{supported\_sources}, \texttt{supported\_isotopes},
+\texttt{make\_virtual\_envelope}, \texttt{make\_surface\_sampler}.
+\item Per-source flux convenience: \texttt{cryostat\_barrel\_flux},
+\texttt{cryostat\_top\_flux}, \texttt{cryostat\_bottom\_flux},
+\texttt{pmt\_top\_flux}, \texttt{pmt\_bottom\_flux}.
+\item Sampling and analysis: \texttt{sample\_gamma\_from\_flux},
+\texttt{cluster\_deposits\_in\_z}, \texttt{is\_single\_site}.
 \end{itemize}
 
-\section{Current Limitations}
+%--------------------------------------------------------------------
+\section{Limitations}
+\label{sec:limitations}
 
-The current simulation is fast and purposeful, but it is not intended to be an
-arbitrary general detector framework. The main limitations are:
+LXeMC is purposefully specialized: a fast staged simulation for an LZ-like
+LXe TPC, accurate enough in the FV for $0\nu\beta\beta$ studies. The
+following are known approximations and limitations; each is acceptable for
+the current use case but would be a starting point for future work.
 
-\begin{enumerate}[label=\arabic*.]
-\item The fast kernel reads its region list from JSON and is data-driven, but
-it assumes coaxial cylindrical geometry (all volumes centered on the detector
-axis). Non-coaxial or non-cylindrical detector topologies would require
-extending the kernel's geometric predicates.
-\item The ROI-floor termination is an intentional approximation.
-\item The outside-FV transport is optimized for rapid rejection rather than for
-full generic cascade tracking in every material.
-\item The \texttt{RegionTag} enum defines a fixed set of simulation policies
-(\texttt{TAG\_FV}, \texttt{TAG\_TPC\_ACTIVE}, \texttt{TAG\_SKIN}, etc.). A
-detector with a genuinely new kind of sensitive region would require extending
-the enum and \texttt{\_capabilities\_for\_tag}.
-\end{enumerate}
+\paragraph{Photon physics.}
+\begin{itemize}
+\item \emph{No coherent (Rayleigh) scattering in the active transport.}
+The XCOM coherent channel is loaded but \texttt{sigma\_three} returns only
+incoherent + photoelectric + pair. Coherent scattering matters at
+sub-100\,keV in heavy materials and at small angles; for $\gamma$s with
+energies of interest near $Q_{\beta\beta}$ it is a $\sim$1\% effect on the
+total cross section and a small angular bias. For a GXe configuration with a
+broader low-energy reach this should be revisited.
+\item \emph{No atomic relaxation cascade.} On photoelectric absorption the
+K-shell binding is deposited locally as a single \texttt{:photoelectric}
+deposit; fluorescent X-rays and Auger electrons that would carry that energy
+on $\sim$mm scales are not generated explicitly. For SS/MS classification
+in the LXe FV the spatial scale of the unmodelled cascade is below
+\texttt{dz\_resolution} and the approximation is safe; in GXe it would
+not be.
+\end{itemize}
 
-These limitations are acceptable because they follow directly from the project
-goal: simulate extremely large event samples as fast as possible while retaining
-the detailed physics only where it matters.
+\paragraph{Lepton physics.}
+\begin{itemize}
+\item \emph{No multiple Coulomb scattering.} Charged-particle steps are
+straight lines between collisional energy losses. In LXe at MeV energies
+the CSDA range is sub-mm and the directional information of the secondary
+electron is rapidly lost in any case; in GXe the centimetre-scale electron
+tracks make multiple scattering essential and \texttt{transport\_lepton!}
+would need a Highland-style step or full MS sampling.
+\item \emph{No $\delta$-rays.} Hard knock-on electrons above a production
+threshold are not produced as explicit secondaries; their energy is folded
+into the continuous collisional loss via $S_{\mathrm{col}}$. Acceptable in
+LXe, less so in GXe.
+\item \emph{Positron annihilation only at end-of-track.} In-flight
+annihilation is approximated by emitting two $m_e$ $\gamma$s back-to-back at
+the termination position once the positron's kinetic energy falls below
+\texttt{Te\_cut}. Genuine in-flight annihilation kinematics (boosted
+back-to-back pair) is not sampled.
+\end{itemize}
+
+\paragraph{Fast kernel.}
+\begin{itemize}
+\item \emph{Photon-only transport with secondaries deposited locally.}
+Charged secondaries from Compton, pair, or photoelectric in regions outside
+the FV are taken to deposit at the interaction point. Justified by sub-mm
+electron range in dense materials, but it does mean the spatial pattern of
+energy deposition outside the FV is coarse-grained at the Compton-scatter
+scale.
+\item \emph{ROI-floor termination.} Histories whose $\gamma$ energy falls
+below \texttt{E\_roi\_floor} after a Compton scatter are terminated locally
+with the residual energy collapsed onto the last deposit. This is an
+analysis-motivated approximation and slightly overestimates local deposits;
+it is safe for background estimation in the ROI window but should be
+disabled for any analysis whose region of interest extends below the floor.
+\item \emph{Coaxial cylindrical geometry assumption.} The fast-kernel region
+predicates assume all volumes are coaxial cylinders, shells, or ellipsoidal
+caps centered on the detector axis. A non-coaxial geometry would require
+extending \texttt{\_is\_inside\_fastkernel\_region} and
+\texttt{distance\_to\_boundary\_fastkernel}.
+\end{itemize}
+
+\paragraph{Geometry.}
+\begin{itemize}
+\item The ICV is modelled as a perfect cylinder $+$ two ellipsoidal domes,
+with dome wall thicknesses adjusted to preserve the measured masses
+(Section \ref{sec:geometry-icvfix}). The real ICV is not a perfect dome;
+the simplification is deliberate to keep the source/tracking inner-surface
+match exact at $R = 82.1$\,cm.
+\item The \texttt{RegionTag} enum is closed: adding a genuinely new kind of
+sensitive region requires extending the enum and
+\texttt{\_capabilities\_for\_tag}.
+\end{itemize}
+
+\paragraph{Analysis layer.}
+\begin{itemize}
+\item SS/MS classification is currently a one-dimensional $z$-clustering
+with a fixed scale (\texttt{dz\_resolution}). A real classifier will need
+to combine $z$ and ($r$ or $xy$) clustering and probably an explicit
+detector-response stage. The deposit-list output (Section
+\ref{sec:event-output}) is designed to make this evolution easy without
+touching the transport code.
+\item Energy-resolution smearing and ROI cuts live in the Python stage
+(\texttt{compute\_backgrounds.py}). The Julia transport produces only
+truth-level energy.
+\end{itemize}
+
+These limitations are acceptable because they follow directly from the
+project goal: simulate extremely large event samples quickly while
+retaining the physics that drives the FV-side classification. They are
+not architectural blockers --- each can be lifted independently.
 
 \end{document}
