@@ -54,6 +54,7 @@ include("cryostat_sources.jl")
 include("pmt_sources.jl")
 include("flux_utils.jl")
 include("source_dispatch.jl")
+include("analysis.jl")
 
 # --- Config ---
 export SimConfig, load_config, default_config
