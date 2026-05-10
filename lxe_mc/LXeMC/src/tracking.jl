@@ -83,112 +83,8 @@ end
 
 
 # =====================================================================
-# Photon transport (full mode)
+# Photon transport in FV
 # =====================================================================
-
-"""
-    transport_photon!(track, vol, deposits, stack, track_counter, cfg, rng)
-
-Transport one gamma in the active volume `vol` until escape, absorption,
-or energy falls below `Egamma_cut`.
-
-At each interaction point, cross sections are looked up via
-[`sigma_three`](@ref) (single binary search for Compton + pair + photo).
-The interaction channel is sampled, and secondaries are pushed onto
-`stack` with IDs from `track_counter`. Material properties (cross
-sections, n_atom, EK) come from `vol.material`.
-
-Photoelectric absorption deposits E_K locally (relaxation cascade is
-sub-mm) and only tracks the photoelectron if T_e > Te_cut.
-"""
-function transport_photon!(track::Track, vol::PhysicalVolume,
-                           deposits::Vector{Deposit}, stack::ParticleStack,
-                           track_counter::Ref{Int},
-                           cfg::SimConfig, rng::AbstractRNG)
-    mat = vol.material
-    pos = copy(track.position)
-    dir = copy(track.direction)
-    E = track.energy
-    tid = track.track_id
-    gen = track.generation
-
-    while E >= cfg.Egamma_cut
-        sC, sP, sPh = sigma_three(mat, E)
-        s_tot = sC + sP + sPh
-        Σ_tot = mat.n_atom * s_tot
-
-        s = sample_distance(Σ_tot, rng)
-        pos .= pos .+ dir .* s
-        is_inside(vol, pos) || return
-
-        proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
-
-        if proc === :compton
-            Egp, cos_t = sample_compton(E, cfg, rng)
-            ϕ = 2π * rand(rng)
-
-            n_e = compton_electron_direction(cos_t, ϕ, E, dir, cfg)
-            T_e = E - Egp
-            track_counter[] += 1
-            push!(stack, Track(:electron, T_e, copy(pos), n_e,
-                               track_counter[], tid, gen + 1))
-
-            sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
-            local_vec = Float64[sin_t*cos(ϕ), sin_t*sin(ϕ), cos_t]
-            dir = rotate_to_global(local_vec, dir)
-            E = Egp
-
-        elseif proc === :pair
-            eps = sample_pair(E, cfg, rng)
-            E_pos_total = eps * E
-            E_ele_total = (1.0 - eps) * E
-            T_pos = E_pos_total - cfg.me
-            T_ele = E_ele_total - cfg.me
-
-            θ_pos = pair_polar_angle(E_pos_total, cfg, rng)
-            θ_ele = pair_polar_angle(E_ele_total, cfg, rng)
-            ϕ = 2π * rand(rng)
-
-            for (sign_val, θ, T, kind) in [(1.0, θ_pos, T_pos, :positron),
-                                            (-1.0, θ_ele, T_ele, :electron)]
-                ϕ_lep = ϕ + (sign_val < 0.0 ? π : 0.0)
-                local_vec = Float64[sin(θ)*cos(ϕ_lep), sin(θ)*sin(ϕ_lep), cos(θ)]
-                d_lep = rotate_to_global(local_vec, dir)
-                if T > 0.0
-                    track_counter[] += 1
-                    push!(stack, Track(kind, T, copy(pos), d_lep,
-                                       track_counter[], tid, gen + 1))
-                end
-            end
-            return
-
-        elseif proc === :photoelectric
-            if E < mat.EK
-                push!(deposits, Deposit(copy(pos), E, :photoelectric))
-                return
-            end
-
-            push!(deposits, Deposit(copy(pos), mat.EK, :photoelectric))
-
-            T_e = E - mat.EK
-            if T_e > cfg.Te_cut
-                θ_e = sample_photoelectron_angle(T_e, cfg, rng)
-                ϕ_e = 2π * rand(rng)
-                local_vec = Float64[sin(θ_e)*cos(ϕ_e), sin(θ_e)*sin(ϕ_e), cos(θ_e)]
-                d_e = rotate_to_global(local_vec, dir)
-                track_counter[] += 1
-                push!(stack, Track(:electron, T_e, copy(pos), d_e,
-                                   track_counter[], tid, gen + 1))
-            else
-                push!(deposits, Deposit(copy(pos), T_e, :photoelectric))
-            end
-            return
-        end
-    end
-
-    push!(deposits, Deposit(pos, E, :gamma_local))
-end
-
 
 function transport_photon_in_fv!(track::Track, fv::FVGeometry,
                                  deposits::Vector{Deposit}, stack::ParticleStack,
@@ -201,6 +97,8 @@ function transport_photon_in_fv!(track::Track, fv::FVGeometry,
     tid = track.track_id
     gen = track.generation
 
+    # Egamma_cut (10 keV).
+    # Photons below 10 keV are absorbed (tracking stops).
     while E >= cfg.Egamma_cut
         sC, sP, sPh = sigma_three(mat, E)
         s_tot = sC + sP + sPh
@@ -252,6 +150,8 @@ function transport_photon_in_fv!(track::Track, fv::FVGeometry,
             return
 
         elseif proc === :photoelectric
+            # EK = 0.034561 MeV (34.6 keV) for LXe.
+            # the xenon K-shell binding energy
             if E < mat.EK
                 push!(deposits, Deposit(copy(pos), E, :photoelectric))
                 return
