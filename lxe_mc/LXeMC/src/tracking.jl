@@ -325,18 +325,13 @@ end
     FastGammaDeposit
 
 One local gamma energy deposit used by the continued fast-kernel event
-path. `coarse_region` is the transport region where the interaction
-occurred, while `region` stores the analysis-refined region:
-
-- `FV`
-- `LXeTPC`
-- `Skin`
-- passive transport region name (`LXe_det`, `FC_PTFE`, `FC_rings`, ...)
+path. `region` is the detector region where the interaction occurred:
+`FV`, `TopActive`, `BarrelActive`, `BottomActive`, `Skin`, `LXe_passive`,
+`FC_PTFE`, `FC_rings`, etc.
 """
 struct FastGammaDeposit
     Edep_MeV::Float64
     position::Vector{Float64}
-    coarse_region::String
     region::String
 end
 
@@ -493,17 +488,17 @@ function transport_gamma_fastkernel(gamma,
     deposits = FastGammaDeposit[]
 
     while E >= cfg.Egamma_cut && traveled < max_cm
-        coarse_region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
-        coarse_region === nothing && return _fast_track_result(:escaped, deposits, "MARS", E, pos, dir)
+        region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
+        region === nothing && return _fast_track_result(:escaped, deposits, "MARS", E, pos, dir)
 
-        if coarse_region.name == "FV"
+        if region.name == "FV"
             return _fast_track_result(:handoff_fv, deposits, "FV", E, pos, dir)
         end
 
-        mat = coarse_region.material
-        s_bnd = distance_to_boundary_fastkernel(coarse_region, (pos[1], pos[2], pos[3]), (dir[1], dir[2], dir[3]))
+        mat = region.material
+        s_bnd = distance_to_boundary_fastkernel(region, (pos[1], pos[2], pos[3]), (dir[1], dir[2], dir[3]))
         if !isfinite(s_bnd)
-            return _fast_track_result(:escaped, deposits, coarse_region.name, E, pos, dir)
+            return _fast_track_result(:escaped, deposits, region.name, E, pos, dir)
         end
 
         if mat.density <= 0.0 || mat.xcom === nothing
@@ -526,19 +521,19 @@ function transport_gamma_fastkernel(gamma,
 
         if s_int + TRANSPORT_BOUNDARY_TOL_CM < s_bnd
             pos .= pos .+ dir .* s_int
-            refined_region = coarse_region.name
+            rname = region.name
 
             proc = sample_process(sC/s_tot, sP/s_tot, sPh/s_tot, rng)
             if proc === :compton
                 Egp, cos_theta = sample_compton(E, cfg, rng)
                 dep = E - Egp
-                push!(deposits, FastGammaDeposit(dep, copy(pos), coarse_region.name, refined_region))
+                push!(deposits, FastGammaDeposit(dep, copy(pos), rname))
 
-                if refined_region == "Skin" && dep >= cfg.veto_skin
-                    return _fast_track_result(:vetoed_skin, deposits, refined_region, Egp, pos, dir)
-                elseif refined_region in ("TopActive", "BarrelActive", "BottomActive") && dep >= cfg.veto_TPC
-                    return _fast_track_result(:vetoed_tpc, deposits, refined_region, Egp, pos, dir)
-                elseif refined_region == "FV" && dep >= cfg.veto_TPC
+                if rname == "Skin" && dep >= cfg.veto_skin
+                    return _fast_track_result(:vetoed_skin, deposits, rname, Egp, pos, dir)
+                elseif rname in ("TopActive", "BarrelActive", "BottomActive") && dep >= cfg.veto_TPC
+                    return _fast_track_result(:vetoed_tpc, deposits, rname, Egp, pos, dir)
+                elseif rname == "FV" && dep >= cfg.veto_TPC
                     sin_theta = sqrt(max(0.0, 1.0 - cos_theta^2))
                     phi = 2π * rand(rng)
                     local_dir = Float64[sin_theta * cos(phi), sin_theta * sin(phi), cos_theta]
@@ -548,9 +543,8 @@ function transport_gamma_fastkernel(gamma,
                         dep_total = deposits[end].Edep_MeV + E
                         _replace_last_deposit!(deposits,
                             FastGammaDeposit(dep_total, deposits[end].position,
-                                             deposits[end].coarse_region,
                                              deposits[end].region))
-                        return _fast_track_result(:below_roi_fv, deposits, refined_region, 0.0, pos, dir)
+                        return _fast_track_result(:below_roi_fv, deposits, rname, 0.0, pos, dir)
                     end
                     continue
                 else
@@ -559,19 +553,18 @@ function transport_gamma_fastkernel(gamma,
                         dep_total = deposits[end].Edep_MeV + E
                         _replace_last_deposit!(deposits,
                             FastGammaDeposit(dep_total, deposits[end].position,
-                                             deposits[end].coarse_region,
                                              deposits[end].region))
 
-                        if refined_region == "Skin"
-                            return _fast_track_result(:vetoed_skin, deposits, refined_region, 0.0, pos, dir)
-                        elseif refined_region in ("TopActive", "BarrelActive", "BottomActive")
-                            return _fast_track_result(:vetoed_tpc, deposits, refined_region, 0.0, pos, dir)
-                        elseif refined_region == "FV"
-                            return _fast_track_result(:below_roi_fv, deposits, refined_region, 0.0, pos, dir)
-                        elseif _is_passive_region(refined_region)
-                            return _fast_track_result(:absorbed_passive, deposits, refined_region, 0.0, pos, dir)
+                        if rname == "Skin"
+                            return _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
+                        elseif rname in ("TopActive", "BarrelActive", "BottomActive")
+                            return _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
+                        elseif rname == "FV"
+                            return _fast_track_result(:below_roi_fv, deposits, rname, 0.0, pos, dir)
+                        elseif _is_passive_region(rname)
+                            return _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
                         else
-                            return _fast_track_result(:below_cut, deposits, refined_region, 0.0, pos, dir)
+                            return _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
                         end
                     end
 
@@ -582,30 +575,30 @@ function transport_gamma_fastkernel(gamma,
                     continue
                 end
             elseif proc === :pair
-                push!(deposits, FastGammaDeposit(E, copy(pos), coarse_region.name, refined_region))
-                if refined_region == "Skin"
-                    return _fast_track_result(:vetoed_skin, deposits, refined_region, 0.0, pos, dir)
-                elseif refined_region in ("TopActive", "BarrelActive", "BottomActive")
-                    return _fast_track_result(:vetoed_tpc, deposits, refined_region, 0.0, pos, dir)
-                elseif refined_region == "FV"
-                    return _fast_track_result(:below_roi_fv, deposits, refined_region, 0.0, pos, dir)
-                elseif _is_passive_region(refined_region)
-                    return _fast_track_result(:absorbed_passive, deposits, refined_region, 0.0, pos, dir)
+                push!(deposits, FastGammaDeposit(E, copy(pos), rname))
+                if rname == "Skin"
+                    return _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
+                elseif rname in ("TopActive", "BarrelActive", "BottomActive")
+                    return _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
+                elseif rname == "FV"
+                    return _fast_track_result(:below_roi_fv, deposits, rname, 0.0, pos, dir)
+                elseif _is_passive_region(rname)
+                    return _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
                 else
-                    return _fast_track_result(:below_cut, deposits, refined_region, 0.0, pos, dir)
+                    return _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
                 end
             else
-                push!(deposits, FastGammaDeposit(E, copy(pos), coarse_region.name, refined_region))
-                if refined_region == "Skin"
-                    return _fast_track_result(:vetoed_skin, deposits, refined_region, 0.0, pos, dir)
-                elseif refined_region in ("TopActive", "BarrelActive", "BottomActive")
-                    return _fast_track_result(:vetoed_tpc, deposits, refined_region, 0.0, pos, dir)
-                elseif refined_region == "FV"
-                    return _fast_track_result(:below_roi_fv, deposits, refined_region, 0.0, pos, dir)
-                elseif _is_passive_region(refined_region)
-                    return _fast_track_result(:absorbed_passive, deposits, refined_region, 0.0, pos, dir)
+                push!(deposits, FastGammaDeposit(E, copy(pos), rname))
+                if rname == "Skin"
+                    return _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
+                elseif rname in ("TopActive", "BarrelActive", "BottomActive")
+                    return _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
+                elseif rname == "FV"
+                    return _fast_track_result(:below_roi_fv, deposits, rname, 0.0, pos, dir)
+                elseif _is_passive_region(rname)
+                    return _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
                 else
-                    return _fast_track_result(:below_cut, deposits, refined_region, 0.0, pos, dir)
+                    return _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
                 end
             end
         end
