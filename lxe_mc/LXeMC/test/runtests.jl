@@ -439,6 +439,33 @@ end
 end
 
 
+@testset "transport_gamma_fastkernel never deposits in FV" begin
+    # The FV handoff at the top of the loop (region.name == "FV" -> :handoff_fv)
+    # should prevent any interaction from being recorded with region == "FV".
+    # If any deposit has region "FV", the dead-code branches were reached.
+    fk = compile_fastkernel_geometry(DET3)
+
+    # Fire gammas from various positions toward/through the FV
+    test_gammas = [
+        SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0]),    # inside FV
+        SampledGamma(2.615, Float64[50.0, 0.0, 61.0], Float64[-1.0, 0.0, 0.0]),   # toward FV
+        SampledGamma(2.448, Float64[0.0, 0.0, 120.0], Float64[0.0, 0.0, -1.0]),   # from above
+        SampledGamma(2.615, Float64[80.0, 0.0, 61.0], Float64[-1.0, 0.0, 0.0]),   # from skin
+        SampledGamma(2.615, Float64[0.0, 0.0, 10.0], Float64[0.0, 0.0, 1.0]),     # from below
+    ]
+
+    n_fv_deposits = 0
+    for g in test_gammas
+        for seed in 1:200
+            result = LXeMC.transport_gamma_fastkernel(g, fk, CFG, MersenneTwister(seed))
+            for dep in result.deposits
+                dep.region == "FV" && (n_fv_deposits += 1)
+            end
+        end
+    end
+    @test n_fv_deposits == 0
+end
+
 @testset "FV-only stack transport" begin
     fv_vol = compile_fv_volume(DET3)
     rng1 = MersenneTwister(20260508)
