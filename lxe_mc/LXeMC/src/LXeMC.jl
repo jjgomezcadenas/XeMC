@@ -14,10 +14,10 @@ cfg  = default_config()
 mats = load_materials(cfg)
 det  = load_tracking_detector(default_tracking_detector_path(), mats)
 fk   = compile_fastkernel_geometry(det)
-fv   = compile_fv_geometry(det)
+fv   = compile_fv_volume(det)
 rng  = MersenneTwister(42)
 
-deposits = propagate_gamma_in_fv(2.615, fv, cfg; rng=rng)
+deposits = propagate_gamma(2.615, fv, cfg; rng=rng)
 ss = is_single_site(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
 ```
 
@@ -81,18 +81,17 @@ export PhysicalVolume, PCyl, PCylShell, PBox, PDisk, mass
 export distance_to_entry, distance_to_exit
 # Canonical detector geometry and compiled fast-kernel support.
 export RegionTag, Placement, LogicalVolume, DetectorNode, TrackingDetector
-export FastKernelRegion, FastKernelGeometry, FVGeometry
+export FastKernelRegion, FastKernelGeometry
 export Cap, DomedContainer, CappedCylinder
 export TAG_WORLD, TAG_VACUUM, TAG_STRUCTURAL, TAG_TPC_ACTIVE
 export TAG_FV, TAG_SKIN, TAG_PASSIVE_LXE
 export root_node, node_by_name, child_nodes, detector_summary
 export load_tracking_detector
-export compile_fastkernel_geometry, compile_fv_geometry, compile_fv_volume, classify_fastkernel, distance_to_boundary_fastkernel
+export compile_fastkernel_geometry, compile_fv_volume, classify_fastkernel, distance_to_boundary_fastkernel
 export validate_tracking_detector, tree_dump, sibling_overlaps
 export region_tag, is_fv, is_active_lxe, is_veto_lxe, is_passive_lxe
 export is_structural, is_vacuum, is_sensitive, is_fv_target, ecut_keV, dz_mm
 export find_tracking_node
-export is_inside_fv
 export select_interaction_fastkernel
 export propagate_gamma_fastkernel
 export FastKernelCalibEventResult, process_event_fastkernel_calib
@@ -108,7 +107,7 @@ export sample_brems, brems_photon_angle
 # --- Tracking ---
 export Track, ParticleStack, Deposit
 export transport_photon!, transport_lepton!
-export propagate_gamma, propagate_gamma_in_fv
+export propagate_gamma
 export EventProcessingResult
 export GammaPropagationResult
 export process_event

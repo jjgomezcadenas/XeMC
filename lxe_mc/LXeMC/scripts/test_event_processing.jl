@@ -179,7 +179,7 @@ function main()
     mats = load_materials(cfg)
     det = load_tracking_detector(default_tracking_detector_path(), mats)
     fk = compile_fastkernel_geometry(det)
-    fv = compile_fv_geometry(det)
+    fv = compile_fv_volume(det)
     rng = MersenneTwister(seed)
 
     status_counts = Dict{Symbol,Int}()

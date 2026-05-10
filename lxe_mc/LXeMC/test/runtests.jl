@@ -121,15 +121,14 @@ end
     @test classify_fastkernel(fk3, (0.0, 0.0, 61.0)).name == "FV"
     @test classify_fastkernel(fk3, (0.0, 0.0, -20.0)).name == "LXe_passive"
 
-    fvgeom = compile_fv_geometry(DET3)
-    @test fvgeom.radius_cm ≈ 39.0 atol=GEOM_TOL
-    @test fvgeom.zmin_cm ≈ 26.0 atol=GEOM_TOL
-    @test fvgeom.zmax_cm ≈ 96.0 atol=GEOM_TOL
-    @test fvgeom.material.name == "LXe"
-    @test is_inside_fv(fvgeom, (0.0, 0.0, 61.0))
-    @test !is_inside_fv(fvgeom, (40.0, 0.0, 61.0))
-    @test !is_inside_fv(fvgeom, (0.0, 0.0, 20.0))
-    @test !is_inside_fv(fvgeom, (0.0, 0.0, 100.0))
+    fv_vol = compile_fv_volume(DET3)
+    @test fv_vol isa PCyl
+    @test fv_vol.logical.solid.radius_cm ≈ 39.0 atol=GEOM_TOL
+    @test fv_vol.material.name == "LXe"
+    @test is_inside(fv_vol, Float64[0.0, 0.0, 61.0])
+    @test !is_inside(fv_vol, Float64[40.0, 0.0, 61.0])
+    @test !is_inside(fv_vol, Float64[0.0, 0.0, 20.0])
+    @test !is_inside(fv_vol, Float64[0.0, 0.0, 100.0])
 end
 
 @testset "Source geometry schema" begin
@@ -367,9 +366,9 @@ end
 
 @testset "FastKernel event processing" begin
     fk = compile_fastkernel_geometry(DET3)
-    fvgeom = compile_fv_geometry(DET3)
+    fv_vol = compile_fv_volume(DET3)
 
-    empty_fk = process_event(SampledGamma[], fk, fvgeom, CFG, MersenneTwister(1))
+    empty_fk = process_event(SampledGamma[], fk, fv_vol, CFG, MersenneTwister(1))
     @test empty_fk.status == :no_fv
     @test empty_fk.n_processed == 0
     @test isempty(empty_fk.deposits)
@@ -409,8 +408,8 @@ end
         rng1 = MersenneTwister(seed)
         rng2 = MersenneTwister(seed)
         gammas = sample_gammas("calib"; calib=true, rng=rng1)
-        vec_res = process_event(gammas, fk, fvgeom, CFG, rng1)
-        fused_res = process_event_fastkernel_calib(fk, fvgeom, CFG, rng2)
+        vec_res = process_event(gammas, fk, fv_vol, CFG, rng1)
+        fused_res = process_event_fastkernel_calib(fk, fv_vol, CFG, rng2)
 
         @test fused_res.result.status == vec_res.status
         @test fused_res.result.has_fv == vec_res.has_fv
@@ -429,7 +428,7 @@ end
     # Accepted events carry FV deposits; rejected events don't
     fv_gamma = SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])
     for seed in (100, 200, 300, 400, 500)
-        res = process_event([fv_gamma], fk, fvgeom, CFG, MersenneTwister(seed))
+        res = process_event([fv_gamma], fk, fv_vol, CFG, MersenneTwister(seed))
         if res.status == :accepted
             @test !isempty(res.deposits)
             @test sum(d.energy for d in res.deposits) > 0.0
@@ -441,170 +440,41 @@ end
 
 
 @testset "FV-only stack transport" begin
-    fvgeom = compile_fv_geometry(DET3)
+    fv_vol = compile_fv_volume(DET3)
     rng1 = MersenneTwister(20260508)
-    deps1 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
-                                  position=(0.0, 0.0, 61.0),
-                                  direction=(0.0, 0.0, 1.0),
-                                  rng=rng1)
+    deps1 = propagate_gamma(2.61, fv_vol, CFG;
+                            position=(0.0, 0.0, 61.0),
+                            direction=(0.0, 0.0, 1.0),
+                            rng=rng1)
     rng2 = MersenneTwister(20260508)
-    deps2 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
-                                  position=(0.0, 0.0, 61.0),
-                                  direction=(0.0, 0.0, 1.0),
-                                  rng=rng2)
+    deps2 = propagate_gamma(2.61, fv_vol, CFG;
+                            position=(0.0, 0.0, 61.0),
+                            direction=(0.0, 0.0, 1.0),
+                            rng=rng2)
 
     @test length(deps2) == length(deps1)
-    @test all(is_inside_fv(fvgeom, d.position) for d in deps1)
+    @test all(is_inside(fv_vol, d.position) for d in deps1)
     @test sum(d.energy for d in deps2) ≈ sum(d.energy for d in deps1) atol=1e-9
     @test [d.source for d in deps2] == [d.source for d in deps1]
 
     rng3 = MersenneTwister(12345)
-    deps3 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
-                                  position=(10.0, 0.0, 80.0),
-                                  direction=(0.0, 0.0, -1.0),
-                                  rng=rng3)
+    deps3 = propagate_gamma(2.61, fv_vol, CFG;
+                            position=(10.0, 0.0, 80.0),
+                            direction=(0.0, 0.0, -1.0),
+                            rng=rng3)
     rng4 = MersenneTwister(12345)
-    deps4 = propagate_gamma_in_fv(2.61, fvgeom, CFG;
-                                  position=(10.0, 0.0, 80.0),
-                                  direction=(0.0, 0.0, -1.0),
-                                  rng=rng4)
+    deps4 = propagate_gamma(2.61, fv_vol, CFG;
+                            position=(10.0, 0.0, 80.0),
+                            direction=(0.0, 0.0, -1.0),
+                            rng=rng4)
 
     @test length(deps4) == length(deps3)
-    @test all(is_inside_fv(fvgeom, d.position) for d in deps3)
+    @test all(is_inside(fv_vol, d.position) for d in deps3)
     @test sum(d.energy for d in deps4) ≈ sum(d.energy for d in deps3) atol=1e-9
     @test [d.source for d in deps4] == [d.source for d in deps3]
 end
 
 
-@testset "transport_photon!/lepton! vs _in_fv equivalence" begin
-    # Build a PCyl that matches the FVGeometry
-    fvgeom = compile_fv_geometry(DET3)
-    fv_solid = Cyl(fvgeom.radius_cm,
-                   (fvgeom.zmax_cm - fvgeom.zmin_cm) / 2.0)
-    fv_z_center = (fvgeom.zmax_cm + fvgeom.zmin_cm) / 2.0
-    fv_pcyl = PCyl("FV_test", LCyl(fv_solid, Float64[0.0, 0.0, fv_z_center]),
-                   fvgeom.material)
-
-    # --- Photon equivalence ---
-    for seed in [42, 99, 2026, 5555, 9999]
-        # _in_fv version
-        track = Track(:gamma, 2.615, Float64[0.0, 0.0, 61.0],
-                       Float64[0.3, 0.0, sqrt(1 - 0.09)], 1, 0, 0)
-        deps_fv = Deposit[]
-        stack_fv = ParticleStack()
-        tc_fv = Ref(1)
-        rng_fv = MersenneTwister(seed)
-        LXeMC.transport_photon_in_fv!(track, fvgeom, deps_fv, stack_fv, tc_fv, CFG, rng_fv)
-
-        # PhysicalVolume version
-        track2 = Track(:gamma, 2.615, Float64[0.0, 0.0, 61.0],
-                        Float64[0.3, 0.0, sqrt(1 - 0.09)], 1, 0, 0)
-        deps_pv = Deposit[]
-        stack_pv = ParticleStack()
-        tc_pv = Ref(1)
-        rng_pv = MersenneTwister(seed)
-        transport_photon!(track2, fv_pcyl, deps_pv, stack_pv, tc_pv, CFG, rng_pv)
-
-        # Results must be identical
-        @test length(deps_fv) == length(deps_pv)
-        @test length(stack_fv) == length(stack_pv)
-        for (d1, d2) in zip(deps_fv, deps_pv)
-            @test d1.energy ≈ d2.energy atol=1e-12
-            @test d1.position ≈ d2.position atol=1e-10
-            @test d1.source == d2.source
-        end
-    end
-
-    # --- Lepton equivalence ---
-    for seed in [42, 99, 2026, 5555, 9999]
-        track = Track(:electron, 1.5, Float64[5.0, 0.0, 61.0],
-                       Float64[0.0, 0.0, 1.0], 1, 0, 0)
-        deps_fv = Deposit[]
-        stack_fv = ParticleStack()
-        tc_fv = Ref(1)
-        rng_fv = MersenneTwister(seed)
-        LXeMC.transport_lepton_in_fv!(track, fvgeom, deps_fv, stack_fv, tc_fv, CFG, rng_fv)
-
-        track2 = Track(:electron, 1.5, Float64[5.0, 0.0, 61.0],
-                        Float64[0.0, 0.0, 1.0], 1, 0, 0)
-        deps_pv = Deposit[]
-        stack_pv = ParticleStack()
-        tc_pv = Ref(1)
-        rng_pv = MersenneTwister(seed)
-        transport_lepton!(track2, fv_pcyl, deps_pv, stack_pv, tc_pv, CFG, rng_pv)
-
-        @test length(deps_fv) == length(deps_pv)
-        @test length(stack_fv) == length(stack_pv)
-        for (d1, d2) in zip(deps_fv, deps_pv)
-            @test d1.energy ≈ d2.energy atol=1e-12
-            @test d1.position ≈ d2.position atol=1e-10
-            @test d1.source == d2.source
-        end
-    end
-end
-
-@testset "process_event PhysicalVolume vs FVGeometry equivalence" begin
-    fvgeom = compile_fv_geometry(DET3)
-    pcyl = compile_fv_volume(DET3)
-    fk = compile_fastkernel_geometry(DET3)
-
-    # Test with gammas at various positions and energies
-    test_gammas = [
-        [SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])],
-        [SampledGamma(2.448, Float64[10.0, 0.0, 80.0], Float64[-0.3, 0.0, -sqrt(1-0.09)])],
-        [SampledGamma(2.615, Float64[30.0, 0.0, 50.0], Float64[0.0, 0.3, sqrt(1-0.09)])],
-    ]
-
-    for gammas in test_gammas
-        for seed in [42, 99, 2026, 5555, 9999]
-            rng1 = MersenneTwister(seed)
-            rng2 = MersenneTwister(seed)
-
-            res_fv = process_event(gammas, fk, fvgeom, CFG, rng1)
-            res_pv = process_event(gammas, fk, pcyl, CFG, rng2)
-
-            @test res_fv.status == res_pv.status
-            @test res_fv.has_fv == res_pv.has_fv
-            @test res_fv.has_tpc_veto == res_pv.has_tpc_veto
-            @test res_fv.has_skin_veto == res_pv.has_skin_veto
-            @test length(res_fv.deposits) == length(res_pv.deposits)
-            for (d1, d2) in zip(res_fv.deposits, res_pv.deposits)
-                @test d1.energy ≈ d2.energy atol=1e-12
-                @test d1.position ≈ d2.position atol=1e-10
-            end
-        end
-    end
-end
-
-@testset "PhysicalVolume transport benchmark" begin
-    # Verify no performance regression: run N events with both paths,
-    # compare wall-clock times.
-    fvgeom = compile_fv_geometry(DET3)
-    pcyl = compile_fv_volume(DET3)
-    fk = compile_fastkernel_geometry(DET3)
-    N = 2000
-
-    gamma = [SampledGamma(2.615, Float64[0.0, 0.0, 61.0], Float64[0.0, 0.0, 1.0])]
-
-    # Warmup
-    for _ in 1:100
-        process_event(gamma, fk, fvgeom, CFG, MersenneTwister(1))
-        process_event(gamma, fk, pcyl, CFG, MersenneTwister(1))
-    end
-
-    t_fv = @elapsed for i in 1:N
-        process_event(gamma, fk, fvgeom, CFG, MersenneTwister(i))
-    end
-
-    t_pv = @elapsed for i in 1:N
-        process_event(gamma, fk, pcyl, CFG, MersenneTwister(i))
-    end
-
-    ratio = t_pv / t_fv
-    @info "Benchmark" t_fv t_pv ratio
-    # PhysicalVolume path should be no more than 20% slower
-    @test ratio < 1.2
-end
 
 # =====================================================================
 # Test 3b: Geometric solids and CylShell
@@ -1777,7 +1647,7 @@ end
     src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
     sg = load_source_geometry(src_path, MATS)
     fk3 = compile_fastkernel_geometry(DET3)
-    fv3 = compile_fv_geometry(DET3)
+    fv3 = compile_fv_volume(DET3)
 
     for (source_name, isotope) in [("cryostat_barrel", "Bi214"),
                                     ("cryostat_top", "Bi214"),

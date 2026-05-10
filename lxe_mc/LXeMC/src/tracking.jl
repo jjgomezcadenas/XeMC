@@ -260,174 +260,6 @@ function transport_lepton!(track::Track, vol::PhysicalVolume,
 end
 
 
-# =====================================================================
-# Photon transport in FV (legacy, uses FVGeometry)
-# =====================================================================
-
-function transport_photon_in_fv!(track::Track, fv::FVGeometry,
-                                 deposits::Vector{Deposit}, stack::ParticleStack,
-                                 track_counter::Ref{Int},
-                                 cfg::SimConfig, rng::AbstractRNG)
-    mat = fv.material
-    pos = copy(track.position)
-    dir = copy(track.direction)
-    E = track.energy
-    tid = track.track_id
-    gen = track.generation
-
-    # Egamma_cut (10 keV).
-    # Photons below 10 keV are absorbed (tracking stops).
-    while E >= cfg.Egamma_cut
-        sC, sP, sPh = sigma_three(mat, E)
-        s_tot = sC + sP + sPh
-        Σ_tot = mat.n_atom * s_tot
-
-        s = sample_distance(Σ_tot, rng)
-        pos .= pos .+ dir .* s
-        is_inside_fv(fv, pos) || return
-
-        proc = sample_process(sC / s_tot, sP / s_tot, sPh / s_tot, rng)
-
-        if proc === :compton
-            Egp, cos_t = sample_compton(E, cfg, rng)
-            ϕ = 2π * rand(rng)
-
-            n_e = compton_electron_direction(cos_t, ϕ, E, dir, cfg)
-            T_e = E - Egp
-            track_counter[] += 1
-            push!(stack, Track(:electron, T_e, copy(pos), n_e,
-                               track_counter[], tid, gen + 1))
-
-            sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
-            local_vec = Float64[sin_t * cos(ϕ), sin_t * sin(ϕ), cos_t]
-            dir = rotate_to_global(local_vec, dir)
-            E = Egp
-
-        elseif proc === :pair
-            eps = sample_pair(E, cfg, rng)
-            E_pos_total = eps * E
-            E_ele_total = (1.0 - eps) * E
-            T_pos = E_pos_total - cfg.me
-            T_ele = E_ele_total - cfg.me
-
-            θ_pos = pair_polar_angle(E_pos_total, cfg, rng)
-            θ_ele = pair_polar_angle(E_ele_total, cfg, rng)
-            ϕ = 2π * rand(rng)
-
-            for (sign_val, θ, T, kind) in [(1.0, θ_pos, T_pos, :positron),
-                                            (-1.0, θ_ele, T_ele, :electron)]
-                ϕ_lep = ϕ + (sign_val < 0.0 ? π : 0.0)
-                local_vec = Float64[sin(θ) * cos(ϕ_lep), sin(θ) * sin(ϕ_lep), cos(θ)]
-                d_lep = rotate_to_global(local_vec, dir)
-                if T > 0.0
-                    track_counter[] += 1
-                    push!(stack, Track(kind, T, copy(pos), d_lep,
-                                       track_counter[], tid, gen + 1))
-                end
-            end
-            return
-
-        elseif proc === :photoelectric
-            # EK = 0.034561 MeV (34.6 keV) for LXe.
-            # the xenon K-shell binding energy
-            if E < mat.EK
-                push!(deposits, Deposit(copy(pos), E, :photoelectric))
-                return
-            end
-
-            push!(deposits, Deposit(copy(pos), mat.EK, :photoelectric))
-
-            T_e = E - mat.EK
-            if T_e > cfg.Te_cut
-                θ_e = sample_photoelectron_angle(T_e, cfg, rng)
-                ϕ_e = 2π * rand(rng)
-                local_vec = Float64[sin(θ_e) * cos(ϕ_e), sin(θ_e) * sin(ϕ_e), cos(θ_e)]
-                d_e = rotate_to_global(local_vec, dir)
-                track_counter[] += 1
-                push!(stack, Track(:electron, T_e, copy(pos), d_e,
-                                   track_counter[], tid, gen + 1))
-            else
-                push!(deposits, Deposit(copy(pos), T_e, :photoelectric))
-            end
-            return
-        end
-    end
-
-    push!(deposits, Deposit(pos, E, :gamma_local))
-end
-
-
-# =====================================================================
-# Lepton transport in FV
-# =====================================================================
-
-function transport_lepton_in_fv!(track::Track, fv::FVGeometry,
-                                 deposits::Vector{Deposit}, stack::ParticleStack,
-                                 track_counter::Ref{Int},
-                                 cfg::SimConfig, rng::AbstractRNG)
-    mat = fv.material
-    pos = copy(track.position)
-    dir = copy(track.direction)
-    T = track.energy
-    tid = track.track_id
-    gen = track.generation
-
-    while T >= cfg.Te_cut
-        dEdx_col = dEdx_collision(mat, T) * mat.density
-        ds = cfg.ds_step
-        dE_col = dEdx_col * ds
-        if dE_col >= T
-            ds = T / dEdx_col * 0.9
-            dE_col = dEdx_col * ds
-        end
-
-        mid_pos = pos .+ dir .* (ds * 0.5)
-        push!(deposits, Deposit(copy(mid_pos), dE_col, track.kind))
-        T -= dE_col
-
-        pos .= pos .+ dir .* ds
-        is_inside_fv(fv, pos) || return
-
-        T < cfg.Te_cut && break
-
-        if T > cfg.k_min
-            sig_b = sigma_brems(mat, T)
-            P_brems = min(mat.n_atom * sig_b * ds, 0.5)
-            if rand(rng) < P_brems
-                M_rej = brems_rejection_M(mat, T)
-                k = sample_brems(T, cfg.k_min, mat.Z_eff, M_rej, cfg, rng)
-                if k !== nothing && k < T
-                    θ_g = brems_photon_angle(T, cfg, rng)
-                    ϕ_g = 2π * rand(rng)
-                    local_vec = Float64[sin(θ_g) * cos(ϕ_g), sin(θ_g) * sin(ϕ_g), cos(θ_g)]
-                    d_g = rotate_to_global(local_vec, dir)
-                    track_counter[] += 1
-                    push!(stack, Track(:gamma, k, copy(pos), d_g,
-                                       track_counter[], tid, gen + 1))
-                    T -= k
-                end
-            end
-        end
-    end
-
-    if T > 0.0 && is_inside_fv(fv, pos)
-        push!(deposits, Deposit(copy(pos), T, track.kind))
-    end
-
-    if track.kind === :positron
-        cos_t = -1.0 + 2.0 * rand(rng)
-        ϕ = 2π * rand(rng)
-        sin_t = sqrt(1.0 - cos_t^2)
-        d_g = Float64[sin_t * cos(ϕ), sin_t * sin(ϕ), cos_t]
-        for d in [d_g, -d_g]
-            track_counter[] += 1
-            push!(stack, Track(:gamma, cfg.me, copy(pos), d,
-                               track_counter[], tid, gen + 1))
-        end
-    end
-end
-
-
 """
     propagate_gamma(E_MeV, vol::PhysicalVolume, cfg; position, direction, rng) -> Vector{Deposit}
 
@@ -460,38 +292,6 @@ function propagate_gamma(E_MeV::Float64, vol::PhysicalVolume, cfg::SimConfig;
     deposits
 end
 
-
-"""
-    propagate_gamma_in_fv(E_MeV, fv::FVGeometry, cfg; position, direction, rng) -> Vector{Deposit}
-
-Legacy wrapper. Propagate one gamma inside the FV cylinder described
-by `FVGeometry`. Delegates to `propagate_gamma` via a PCyl.
-"""
-function propagate_gamma_in_fv(E_MeV::Float64, fv::FVGeometry, cfg::SimConfig;
-                               position::NTuple{3,Float64}=(0.0, 0.0, 0.0),
-                               direction::NTuple{3,Float64}=(0.0, 0.0, 1.0),
-                               rng::AbstractRNG=Random.default_rng())::Vector{Deposit}
-    deposits = Deposit[]
-    stack = ParticleStack()
-    track_counter = Ref(0)
-    track_counter[] += 1
-    push!(stack, Track(:gamma, E_MeV,
-                       Float64[position...],
-                       Float64[direction...],
-                       track_counter[], 0, 0))
-
-    while !isempty(stack)
-        t = pop!(stack)
-        t.generation > cfg.generation_cap && continue
-        if t.kind === :gamma
-            transport_photon_in_fv!(t, fv, deposits, stack, track_counter, cfg, rng)
-        else
-            transport_lepton_in_fv!(t, fv, deposits, stack, track_counter, cfg, rng)
-        end
-    end
-
-    deposits
-end
 
 
 struct GammaPropagationResult
@@ -867,64 +667,6 @@ function _classify_fv_stack_result(deposits::Vector{Deposit}, cfg::SimConfig)::S
 end
 
 
-function process_event(gammas, fk::FastKernelGeometry, fv::FVGeometry,
-                       cfg::SimConfig, rng::AbstractRNG)
-    has_fv = false
-    has_tpc_veto = false
-    has_skin_veto = false
-    fv_z_ref = NaN
-    n_processed = 0
-    fv_deposits = Deposit[]
-
-    empty_deps = Deposit[]
-
-    for gamma in gammas
-        result = transport_gamma_fastkernel(gamma, fk, cfg, rng)
-        n_processed += 1
-
-        for dep in result.deposits
-            state = _fold_fast_deposit(dep, has_fv, has_tpc_veto, has_skin_veto, fv_z_ref, cfg)
-            has_fv = state.has_fv
-            has_tpc_veto = state.has_tpc_veto
-            has_skin_veto = state.has_skin_veto
-            fv_z_ref = state.fv_z_ref
-            if state.vetoed
-                return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
-            end
-        end
-
-        if result.status == :handoff_fv
-            deps = propagate_gamma_in_fv(
-                result.energy_MeV,
-                fv,
-                cfg;
-                position=(result.position[1], result.position[2], result.position[3]),
-                direction=(result.direction[1], result.direction[2], result.direction[3]),
-                rng=rng,
-            )
-            fv_status = _classify_fv_stack_result(deps, cfg)
-            if fv_status == :accepted
-                has_fv = true
-                append!(fv_deposits, deps)
-            elseif fv_status == :ms_rejected
-                return EventProcessingResult(:ms_rejected, true, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
-            end
-        elseif result.status == :vetoed_tpc
-            has_tpc_veto = true
-            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
-        elseif result.status == :vetoed_skin
-            has_skin_veto = true
-            return EventProcessingResult(:vetoed, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
-        end
-    end
-
-    if has_fv
-        return EventProcessingResult(:accepted, has_fv, has_tpc_veto, has_skin_veto, n_processed, fv_deposits)
-    end
-    EventProcessingResult(:no_fv, has_fv, has_tpc_veto, has_skin_veto, n_processed, empty_deps)
-end
-
-
 """
     process_event(gammas, fk, vol::PhysicalVolume, cfg, rng) -> EventProcessingResult
 
@@ -989,7 +731,7 @@ function process_event(gammas, fk::FastKernelGeometry, vol::PhysicalVolume,
 end
 
 
-function process_event_fastkernel_calib(fk::FastKernelGeometry, fv::FVGeometry, cfg::SimConfig,
+function process_event_fastkernel_calib(fk::FastKernelGeometry, fv::PhysicalVolume, cfg::SimConfig,
                                         rng::AbstractRNG;
                                         E_MeV::Float64=2.615,
                                         x_cm::Float64=0.0,

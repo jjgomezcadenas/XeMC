@@ -113,7 +113,7 @@ end
 
 
 function process_batch(flux, surface_sampler::Function,
-                        fk::FastKernelGeometry, fv::FVGeometry,
+                        fk::FastKernelGeometry, fv::PhysicalVolume,
                         cfg::SimConfig, rng::AbstractRNG,
                         N::Int, isotope::String)::ThreadResult
     candidates = CandidateEvent[]
@@ -231,7 +231,7 @@ function main()
     mats = load_materials(cfg)
     det = load_tracking_detector(default_tracking_detector_path(), mats)
     fk = compile_fastkernel_geometry(det)
-    fv = compile_fv_geometry(det)
+    fv = compile_fv_volume(det)
     src_path = normpath(joinpath(dirname(pathof(LXeMC)), "..", "..", "data",
                                  "source_geometry_lz_v1.json"))
     sg = load_source_geometry(src_path, mats)
