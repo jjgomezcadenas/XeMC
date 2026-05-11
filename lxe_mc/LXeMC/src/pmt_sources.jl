@@ -175,11 +175,15 @@ function pmt_bottom_lxe_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
     z_cathode = _cathode_z(sg)
     z_pmt = merged.logical.position[3]  # top face of merged disk
     R_pmt = merged.logical.solid.radius_cm
-    hh = (z_cathode - z_pmt) / 2.0
-    z_center = (z_pmt + z_cathode) / 2.0
+    # Slab starts just above the PMT exit so the gamma (which exits
+    # the source at z_pmt + 1e-4) is clearly below the slab bottom.
+    # This ensures distance_to_entry finds the bottom face, not the top.
+    z_slab_bottom = z_pmt + 0.01
+    hh = (z_cathode - z_slab_bottom) / 2.0
+    z_center = (z_slab_bottom + z_cathode) / 2.0
 
     verbose && @printf("  [pmt_bot_lxe] LXe slab: z=[%.2f, %.2f], R=%.1f\n",
-                       z_pmt, z_cathode, R_pmt)
+                       z_slab_bottom, z_cathode, R_pmt)
 
     lxe_mat = mats["LXe"]
     lxe_slab = PCyl("LXe_passive_slab",

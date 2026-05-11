@@ -2019,15 +2019,28 @@ end
     z_cathode = LXeMC._cathode_z(sg)
     @test z_cathode ≈ z_expected atol=1e-10
 
-    # Generate flux tables (small N for speed)
-    result = pmt_bottom_lxe_flux(5000, sg, MATS, CFG, MersenneTwister(42))
+    # Generate flux tables (50k for reasonable statistics)
+    result = pmt_bottom_lxe_flux(50000, sg, MATS, CFG, MersenneTwister(42))
+    result_bare = pmt_bottom_flux(50000, sg, CFG, MersenneTwister(42))
 
-    # Survival fraction should be < pmt_bottom (LXe absorbs some)
-    result_bare = pmt_bottom_flux(5000, sg, CFG, MersenneTwister(42))
     f_lxe = sum(result.bi214.pdf)
     f_bare = sum(result_bare.bi214.pdf)
-    @test f_lxe < f_bare  # LXe slab attenuates
-    @test f_lxe > 0       # some gammas survive
+
+    # LXe slab must attenuate significantly (~16 cm of LXe at 2.4 MeV)
+    # Bare is ~50% (hemisphere), LXe should be noticeably less
+    @test f_lxe < f_bare
+    @test f_lxe > 0
+    @test f_lxe / f_bare < 0.95  # at least 5% attenuation through ~16 cm LXe
+
+    # Some gammas must be absorbed (not just lost)
+    @test result.bi214.N_absorbed > 0
+
+    # Flux must have entries below the line energy (Compton-degraded gammas)
+    # The bare flux is all in the top energy bin; LXe flux should spread
+    pdf = result.bi214.pdf
+    n_E = result.bi214.n_E
+    top_bin_frac = sum(pdf[n_E, :]) / sum(pdf)
+    @test top_bin_frac < 0.99  # not all in the top bin
 
     # Rate table has 4 components (same PMT sub-components)
     @test length(result.bi214_rate.component_names) == 4
