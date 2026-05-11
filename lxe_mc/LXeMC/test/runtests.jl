@@ -575,39 +575,79 @@ end
 
 @testset "FV-only stack transport" begin
     fv_vol = compile_fv_volume(DET3)
+    fk = compile_fastkernel_geometry(DET3)
     rng1 = MersenneTwister(20260508)
-    deps1 = propagate_gamma(2.61, fv_vol, CFG;
+    deps1 = propagate_gamma(2.61, fv_vol, fk, CFG;
                             position=(0.0, 0.0, 61.0),
                             direction=(0.0, 0.0, 1.0),
                             rng=rng1)
     rng2 = MersenneTwister(20260508)
-    deps2 = propagate_gamma(2.61, fv_vol, CFG;
+    deps2 = propagate_gamma(2.61, fv_vol, fk, CFG;
                             position=(0.0, 0.0, 61.0),
                             direction=(0.0, 0.0, 1.0),
                             rng=rng2)
 
     @test length(deps2) == length(deps1)
-    @test all(is_inside(fv_vol, d.position) for d in deps1)
+    fv_deps1 = filter(d -> d.volume == :fv, deps1)
+    @test all(is_inside(fv_vol, d.position) for d in fv_deps1)
     @test sum(d.energy for d in deps2) ≈ sum(d.energy for d in deps1) atol=1e-9
     @test [d.source for d in deps2] == [d.source for d in deps1]
 
     rng3 = MersenneTwister(12345)
-    deps3 = propagate_gamma(2.61, fv_vol, CFG;
+    deps3 = propagate_gamma(2.61, fv_vol, fk, CFG;
                             position=(10.0, 0.0, 80.0),
                             direction=(0.0, 0.0, -1.0),
                             rng=rng3)
     rng4 = MersenneTwister(12345)
-    deps4 = propagate_gamma(2.61, fv_vol, CFG;
+    deps4 = propagate_gamma(2.61, fv_vol, fk, CFG;
                             position=(10.0, 0.0, 80.0),
                             direction=(0.0, 0.0, -1.0),
                             rng=rng4)
 
     @test length(deps4) == length(deps3)
-    @test all(is_inside(fv_vol, d.position) for d in deps3)
+    fv_deps3 = filter(d -> d.volume == :fv, deps3)
+    @test all(is_inside(fv_vol, d.position) for d in fv_deps3)
     @test sum(d.energy for d in deps4) ≈ sum(d.energy for d in deps3) atol=1e-9
     @test [d.source for d in deps4] == [d.source for d in deps3]
 end
 
+@testset "Energy balance with escape deposits" begin
+    fv_vol = compile_fv_volume(DET3)
+    fk = compile_fastkernel_geometry(DET3)
+    E_gamma = 2.615
+
+    # Run many events and check energy conservation
+    n_events = 100
+    for seed in 1:n_events
+        rng = MersenneTwister(seed)
+        deps = propagate_gamma(E_gamma, fv_vol, fk, CFG;
+                               position=(0.0, 0.0, 61.0),
+                               direction=(0.0, 0.0, 1.0),
+                               rng=rng)
+
+        etot = sum(d.energy for d in deps)
+        @test etot ≈ E_gamma atol=1e-6
+
+        # Every deposit must have a valid volume
+        for d in deps
+            @test d.volume in (:fv, :active, :passive)
+        end
+
+        # Every deposit must have a valid interaction
+        for d in deps
+            @test d.interaction in (:compton, :photoelectric, :pair,
+                                    :collisional, :gamma_local,
+                                    :escaped_gamma, :escaped_lepton)
+        end
+
+        # FV deposits must be inside the volume
+        for d in deps
+            if d.volume == :fv
+                @test is_inside(fv_vol, d.position)
+            end
+        end
+    end
+end
 
 
 # =====================================================================

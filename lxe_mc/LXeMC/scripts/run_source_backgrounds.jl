@@ -174,12 +174,12 @@ end
 
 function write_fv_deposits_csv(path::String, fv_events::Vector{Vector{Deposit}})
     open(path, "w") do io
-        println(io, "event_id,x_cm,y_cm,z_cm,energy_MeV,source")
+        println(io, "event_id,x_cm,y_cm,z_cm,energy_MeV,source,interaction,volume")
         for (eid, deps) in enumerate(fv_events)
             for d in deps
-                @printf(io, "%d,%.6f,%.6f,%.6f,%.8e,%s\n",
+                @printf(io, "%d,%.6f,%.6f,%.6f,%.8e,%s,%s,%s\n",
                         eid, d.position[1], d.position[2], d.position[3],
-                        d.energy, d.source)
+                        d.energy, d.source, d.interaction, d.volume)
             end
         end
     end

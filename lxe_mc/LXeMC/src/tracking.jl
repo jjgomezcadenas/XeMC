@@ -36,6 +36,9 @@ Fields:
 - `track_id`: unique integer id (assigned by event loop counter)
 - `parent_id`: track_id of parent (0 for primaries)
 - `generation`: cascade depth (0 for primaries)
+- `interaction`: what created this track (`:primary`, `:compton`, `:photoelectric`,
+  `:pair`, `:bremsstrahlung`)
+- `volume`: where this track was created (`:fv`, `:active`, `:passive`)
 """
 struct Track
     kind::Symbol
@@ -45,6 +48,8 @@ struct Track
     track_id::Int
     parent_id::Int
     generation::Int
+    interaction::Symbol
+    volume::Symbol
 end
 
 
@@ -73,11 +78,40 @@ Fields:
 - `energy`: deposited energy [MeV]
 - `source`: origin label (`:electron`, `:positron`, `:photoelectric`,
   `:pair`, `:gamma_local`)
+- `interaction`: what interaction produced this deposit (`:compton`,
+  `:photoelectric`, `:pair`, `:bremsstrahlung`, `:collisional`,
+  `:escaped_gamma`, `:escaped_lepton`)
+- `volume`: where the deposit occurred (`:fv`, `:active`, `:passive`)
 """
 struct Deposit
     position::Vector{Float64}
     energy::Float64
     source::Symbol
+    interaction::Symbol
+    volume::Symbol
+end
+
+
+# =====================================================================
+# Escape-point volume classification
+# =====================================================================
+
+"""
+    _classify_escape_volume(fk, pos) -> Symbol
+
+Classify the volume at position `pos` using the fast-kernel geometry.
+Returns `:active` (Skin, TopActive, BarrelActive, BottomActive),
+`:passive` (LXe_passive, FC_PTFE, FC_rings, or outside detector),
+or `:fv` (should not happen for escapes, but included for completeness).
+"""
+@inline function _classify_escape_volume(fk::FastKernelGeometry, pos::Vector{Float64})::Symbol
+    region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
+    region === nothing && return :passive
+    rname = region.name
+    rname == "FV" && return :fv
+    rname == "Skin" && return :active
+    rname in ("TopActive", "BarrelActive", "BottomActive") && return :active
+    return :passive
 end
 
 
@@ -86,13 +120,15 @@ end
 # =====================================================================
 
 """
-    transport_photon!(track, vol, deposits, stack, track_counter, cfg, rng)
+    transport_photon!(track, vol, fk, deposits, stack, track_counter, cfg, rng)
 
 Transport one gamma in `vol::PhysicalVolume` until escape, absorption,
 or energy falls below `Egamma_cut`. Uses `is_inside(vol, pos)` for
-boundary checking.
+boundary checking. On escape, records a deposit with the escaping
+energy classified by `fk`.
 """
 function transport_photon!(track::Track, vol::PhysicalVolume,
+                           fk::FastKernelGeometry,
                            deposits::Vector{Deposit}, stack::ParticleStack,
                            track_counter::Ref{Int},
                            cfg::SimConfig, rng::AbstractRNG)
@@ -110,7 +146,11 @@ function transport_photon!(track::Track, vol::PhysicalVolume,
 
         s = sample_distance(Σ_tot, rng)
         pos .= pos .+ dir .* s
-        is_inside(vol, pos) || return
+        if !is_inside(vol, pos)
+            evol = _classify_escape_volume(fk, pos)
+            push!(deposits, Deposit(copy(pos), E, :gamma, :escaped_gamma, evol))
+            return
+        end
 
         proc = sample_process(sC / s_tot, sP / s_tot, sPh / s_tot, rng)
 
@@ -122,7 +162,8 @@ function transport_photon!(track::Track, vol::PhysicalVolume,
             T_e = E - Egp
             track_counter[] += 1
             push!(stack, Track(:electron, T_e, copy(pos), n_e,
-                               track_counter[], tid, gen + 1))
+                               track_counter[], tid, gen + 1,
+                               :compton, :fv))
 
             sin_t = sqrt(max(0.0, 1.0 - cos_t^2))
             local_vec = Float64[sin_t * cos(ϕ), sin_t * sin(ϕ), cos_t]
@@ -148,18 +189,19 @@ function transport_photon!(track::Track, vol::PhysicalVolume,
                 if T > 0.0
                     track_counter[] += 1
                     push!(stack, Track(kind, T, copy(pos), d_lep,
-                                       track_counter[], tid, gen + 1))
+                                       track_counter[], tid, gen + 1,
+                                       :pair, :fv))
                 end
             end
             return
 
         elseif proc === :photoelectric
             if E < mat.EK
-                push!(deposits, Deposit(copy(pos), E, :photoelectric))
+                push!(deposits, Deposit(copy(pos), E, :photoelectric, :photoelectric, :fv))
                 return
             end
 
-            push!(deposits, Deposit(copy(pos), mat.EK, :photoelectric))
+            push!(deposits, Deposit(copy(pos), mat.EK, :photoelectric, :photoelectric, :fv))
 
             T_e = E - mat.EK
             if T_e > cfg.Te_cut
@@ -169,15 +211,16 @@ function transport_photon!(track::Track, vol::PhysicalVolume,
                 d_e = rotate_to_global(local_vec, dir)
                 track_counter[] += 1
                 push!(stack, Track(:electron, T_e, copy(pos), d_e,
-                                   track_counter[], tid, gen + 1))
+                                   track_counter[], tid, gen + 1,
+                                   :photoelectric, :fv))
             else
-                push!(deposits, Deposit(copy(pos), T_e, :photoelectric))
+                push!(deposits, Deposit(copy(pos), T_e, :photoelectric, :photoelectric, :fv))
             end
             return
         end
     end
 
-    push!(deposits, Deposit(pos, E, :gamma_local))
+    push!(deposits, Deposit(pos, E, :gamma_local, :gamma_local, :fv))
 end
 
 
@@ -186,13 +229,15 @@ end
 # =====================================================================
 
 """
-    transport_lepton!(track, vol, deposits, stack, track_counter, cfg, rng)
+    transport_lepton!(track, vol, fk, deposits, stack, track_counter, cfg, rng)
 
 Transport an electron or positron through `vol::PhysicalVolume` using
 condensed-history stepping. Uses `is_inside(vol, pos)` for boundary
-checking.
+checking. On escape, records a deposit with the remaining energy
+classified by `fk`.
 """
 function transport_lepton!(track::Track, vol::PhysicalVolume,
+                           fk::FastKernelGeometry,
                            deposits::Vector{Deposit}, stack::ParticleStack,
                            track_counter::Ref{Int},
                            cfg::SimConfig, rng::AbstractRNG)
@@ -213,11 +258,15 @@ function transport_lepton!(track::Track, vol::PhysicalVolume,
         end
 
         mid_pos = pos .+ dir .* (ds * 0.5)
-        push!(deposits, Deposit(copy(mid_pos), dE_col, track.kind))
+        push!(deposits, Deposit(copy(mid_pos), dE_col, track.kind, :collisional, :fv))
         T -= dE_col
 
         pos .= pos .+ dir .* ds
-        is_inside(vol, pos) || return
+        if !is_inside(vol, pos)
+            evol = _classify_escape_volume(fk, pos)
+            push!(deposits, Deposit(copy(pos), T, track.kind, :escaped_lepton, evol))
+            return
+        end
 
         T < cfg.Te_cut && break
 
@@ -234,7 +283,8 @@ function transport_lepton!(track::Track, vol::PhysicalVolume,
                     d_g = rotate_to_global(local_vec, dir)
                     track_counter[] += 1
                     push!(stack, Track(:gamma, k, copy(pos), d_g,
-                                       track_counter[], tid, gen + 1))
+                                       track_counter[], tid, gen + 1,
+                                       :bremsstrahlung, :fv))
                     T -= k
                 end
             end
@@ -242,10 +292,13 @@ function transport_lepton!(track::Track, vol::PhysicalVolume,
     end
 
     if T > 0.0 && is_inside(vol, pos)
-        push!(deposits, Deposit(copy(pos), T, track.kind))
+        push!(deposits, Deposit(copy(pos), T, track.kind, :collisional, :fv))
+    elseif T > 0.0
+        evol = _classify_escape_volume(fk, pos)
+        push!(deposits, Deposit(copy(pos), T, track.kind, :escaped_lepton, evol))
     end
 
-    if track.kind === :positron
+    if track.kind === :positron && is_inside(vol, pos)
         cos_t = -1.0 + 2.0 * rand(rng)
         ϕ = 2π * rand(rng)
         sin_t = sqrt(1.0 - cos_t^2)
@@ -253,19 +306,23 @@ function transport_lepton!(track::Track, vol::PhysicalVolume,
         for d in [d_g, -d_g]
             track_counter[] += 1
             push!(stack, Track(:gamma, cfg.me, copy(pos), d,
-                               track_counter[], tid, gen + 1))
+                               track_counter[], tid, gen + 1,
+                               :pair, :fv))
         end
     end
 end
 
 
 """
-    propagate_gamma(E_MeV, vol::PhysicalVolume, cfg; position, direction, rng) -> Vector{Deposit}
+    propagate_gamma(E_MeV, vol::PhysicalVolume, fk::FastKernelGeometry, cfg;
+                    position, direction, rng) -> Vector{Deposit}
 
 Propagate one gamma inside `vol` with full stack physics (photon +
-lepton cascade). Returns all deposits inside the volume.
+lepton cascade). Returns all deposits, including escape deposits
+classified by volume (`:fv`, `:active`, `:passive`).
 """
-function propagate_gamma(E_MeV::Float64, vol::PhysicalVolume, cfg::SimConfig;
+function propagate_gamma(E_MeV::Float64, vol::PhysicalVolume,
+                         fk::FastKernelGeometry, cfg::SimConfig;
                          position::NTuple{3,Float64}=(0.0, 0.0, 0.0),
                          direction::NTuple{3,Float64}=(0.0, 0.0, 1.0),
                          rng::AbstractRNG=Random.default_rng())::Vector{Deposit}
@@ -276,15 +333,16 @@ function propagate_gamma(E_MeV::Float64, vol::PhysicalVolume, cfg::SimConfig;
     push!(stack, Track(:gamma, E_MeV,
                        Float64[position...],
                        Float64[direction...],
-                       track_counter[], 0, 0))
+                       track_counter[], 0, 0,
+                       :primary, :fv))
 
     while !isempty(stack)
         t = pop!(stack)
         t.generation > cfg.generation_cap && continue
         if t.kind === :gamma
-            transport_photon!(t, vol, deposits, stack, track_counter, cfg, rng)
+            transport_photon!(t, vol, fk, deposits, stack, track_counter, cfg, rng)
         else
-            transport_lepton!(t, vol, deposits, stack, track_counter, cfg, rng)
+            transport_lepton!(t, vol, fk, deposits, stack, track_counter, cfg, rng)
         end
     end
 

@@ -56,6 +56,7 @@ function process_event(gammas, fk::FastKernelGeometry, vol::PhysicalVolume,
             deps = propagate_gamma(
                 result.energy_MeV,
                 vol,
+                fk,
                 cfg;
                 position=(result.position[1], result.position[2], result.position[3]),
                 direction=(result.direction[1], result.direction[2], result.direction[3]),

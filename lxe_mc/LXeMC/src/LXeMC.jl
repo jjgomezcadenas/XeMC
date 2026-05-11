@@ -17,7 +17,7 @@ fk   = compile_fastkernel_geometry(det)
 fv   = compile_fv_volume(det)
 rng  = MersenneTwister(42)
 
-deposits = propagate_gamma(2.615, fv, cfg; rng=rng)
+deposits = propagate_gamma(2.615, fv, fk, cfg; rng=rng)
 ss = is_single_site(deposits, cfg.dz_resolution; E_min=cfg.E_cluster_min)
 ```
 
