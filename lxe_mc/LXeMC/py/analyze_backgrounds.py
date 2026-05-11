@@ -358,14 +358,18 @@ def plot_ssms_analysis(
     ax.set_title(f"FV-only={n_surv}  Vetoed={n_vetoed}")
     ax.set_ylim(0, 1)
 
-    # (0,1) MS multiplicity (FV-only events)
+    # (0,1) Cluster multiplicity (FV-only events), SS bar in different color
     ax = axes[0, 1]
     max_sep = surv["n_separated"].max() if len(surv) > 0 else 1
-    ax.hist(surv["n_separated"].values, bins=range(0, max_sep + 2),
-            edgecolor="black", linewidth=0.3, align="left")
-    ax.set_xlabel("N separated clusters")
+    n_sep = surv["n_separated"].values
+    bins = list(range(0, max_sep + 1))
+    counts_per_bin = [int((n_sep == k).sum()) for k in bins]
+    bar_colors = ["steelblue" if k == 0 else "coral" for k in bins]
+    ax.bar(bins, counts_per_bin, color=bar_colors,
+           edgecolor="black", linewidth=0.3)
+    ax.set_xlabel("N separated clusters (0 = SS)")
     ax.set_ylabel("Counts")
-    ax.set_title("MS multiplicity (FV-only)")
+    ax.set_title("Cluster multiplicity (FV-only)")
 
     # (0,2) SS vs MS bar chart (FV-only events)
     ax = axes[0, 2]
