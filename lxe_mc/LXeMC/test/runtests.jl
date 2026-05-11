@@ -649,6 +649,28 @@ end
     end
 end
 
+@testset "FV boundary region classification" begin
+    fv_vol = compile_fv_volume(DET3)
+    fk = compile_fastkernel_geometry(DET3)
+    r_fv = fv_vol.logical.solid.radius_cm
+    zc = fv_vol.logical.position[3]
+    hh = fv_vol.logical.solid.half_height_cm
+
+    # Points just outside FV in each direction should be active (TPC)
+    test_cases = [
+        ("radial +0.5",  Float64[r_fv + 0.5, 0.0, zc],         :active),
+        ("radial +5.0",  Float64[r_fv + 5.0, 0.0, zc],         :active),
+        ("top +0.5",     Float64[0.0, 0.0, zc + hh + 0.5],     :active),
+        ("top +5.0",     Float64[0.0, 0.0, zc + hh + 5.0],     :active),
+        ("bottom -0.5",  Float64[0.0, 0.0, zc - hh - 0.5],     :active),
+        ("bottom -5.0",  Float64[0.0, 0.0, zc - hh - 5.0],     :active),
+    ]
+    for (label, pos, expected) in test_cases
+        vol = LXeMC._classify_escape_volume(fk, pos)
+        @test vol == expected
+    end
+end
+
 
 # =====================================================================
 # Test 3b: Geometric solids and CylShell

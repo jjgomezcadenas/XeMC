@@ -326,6 +326,28 @@ function main()
     write_fv_deposits_csv(joinpath(cli.outdir, "fv_deposits.csv"), merged.fv_events)
     write_statistics_csv(joinpath(cli.outdir, "statistics.csv"), merged)
 
+    # --- Build per-component source details ---
+    activity_key = cli.isotope == "Bi214" ? "Bi214_mBq_per_kg" : "Tl208_mBq_per_kg"
+    gamma_BR = cli.isotope == "Bi214" ? BR_BI214_2448 : BR_TL208_2615
+
+    source_components = []
+    for (i, cname) in enumerate(rate_table.component_names)
+        sv = get(sg, cname, nothing)
+        if sv !== nothing
+            a_mBq = get(sv.activity, activity_key, 0.0)
+            raw_rate = a_mBq * 1e-3 * sv.mass_kg * gamma_BR
+            geom_surv = raw_rate > 0 ? rate_table.component_rates[i] / raw_rate : 0.0
+            push!(source_components, Dict{String,Any}(
+                "name" => cname,
+                "mass_kg" => sv.mass_kg,
+                "activity_mBq_per_kg" => a_mBq,
+                "gamma_BR" => gamma_BR,
+                "geometric_survival" => geom_surv,
+                "rate_gammas_per_s" => rate_table.component_rates[i],
+            ))
+        end
+    end
+
     metadata = Dict{String,Any}(
         "source" => cli.source,
         "isotope" => cli.isotope,
@@ -335,7 +357,9 @@ function main()
         "seed" => cli.seed,
         "nthreads" => nt,
         "elapsed_processing_s" => elapsed,
+        "gamma_BR" => gamma_BR,
         "rate_total_gammas_per_s" => rate_table.total_rate,
+        "source_components" => source_components,
         "n_fv" => merged.n_fv,
         "n_vetoed" => merged.n_vetoed,
         "n_no_fv" => merged.n_no_fv,

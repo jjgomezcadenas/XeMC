@@ -5,6 +5,7 @@ All energies in keV.
 """
 
 import argparse
+import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -21,10 +22,12 @@ def parse_args() -> argparse.Namespace:
         description="Histogram analysis of FV deposits from background simulation."
     )
     parser.add_argument(
-        "-i", "--input", required=True, type=Path, help="Path to fv_deposits.csv"
+        "-i", "--input", required=True, type=Path,
+        help="Input directory containing fv_deposits.csv and metadata.json"
     )
     parser.add_argument(
-        "-o", "--output", required=True, type=Path, help="Output directory for .png files"
+        "-o", "--output", type=Path, default=None,
+        help="Output directory (default: <input>/analysis)"
     )
     parser.add_argument(
         "--display", action="store_true", help="Show plots interactively"
@@ -44,6 +47,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ks", type=float, default=3.0,
         help="Significance factor: E_i > ks * sigma(E1) (default: 3.0)"
+    )
+    parser.add_argument(
+        "--eveto", type=float, default=10.0,
+        help="Active veto threshold in keV (default: 10.0)"
     )
     return parser.parse_args()
 
@@ -94,25 +101,87 @@ def analyze(df: pd.DataFrame) -> tuple[pd.DataFrame, np.ndarray]:
 
 
 # =========================================================================
-# Stage 2: SS/MS classification
+# Stage 2: active veto + SS/MS classification
 # =========================================================================
+#
+# Selection steps (applied per event):
+#
+#   Step 1 — ACTIVE VETO: scan all deposits. If any deposit has
+#            volume == "active" and energy >= eveto_keV, reject.
+#
+#   Step 2 — FV-ONLY: keep only deposits with volume == "fv".
+#            (Passive deposits are lost energy, not vetoed.)
+#
+#   Step 3 — SS/MS CLASSIFICATION on FV deposits:
+#            E1 = largest FV deposit, z1 = its z position.
+#            For each other FV deposit E_i:
+#              if |z_i - z1| > dz AND E_i > ks * sigma(E1) -> separated
+#              else -> attached to E1
+#            SS = 0 separated clusters, MS = >= 1.
+#
+#   Step 4 — E_CLUSTER (SS only): E1 + sum(attached E_i).
+#
+#   Step 5 — SMEARING: E_smeared = Gaussian(E_cluster, sigma * E_cluster).
+#
+#   Step 6 — ROI CUT: roi_low <= E_smeared <= roi_high.
 
 def classify_events(
-    df: pd.DataFrame, sigma_rel: float, dz_mm: float, ks: float, rng: np.random.Generator
+    df: pd.DataFrame,
+    sigma_rel: float,
+    dz_mm: float,
+    ks: float,
+    eveto_keV: float,
+    rng: np.random.Generator,
 ) -> pd.DataFrame:
-    """Classify events as SS/MS and compute E_cluster and E_smeared for SS."""
+    """Apply active veto, then classify surviving events as SS/MS."""
     records = []
 
     for event_id, grp in df.groupby("event_id"):
-        idx_max = grp["energy_keV"].idxmax()
-        e1 = grp.loc[idx_max, "energy_keV"]
-        z1_cm = grp.loc[idx_max, "z_cm"]
+        # --- Step 1: active veto ---
+        active_deps = grp[grp["volume"] == "active"]
+        active_vetoed = (active_deps["energy_keV"] >= eveto_keV).any()
+
+        if active_vetoed:
+            records.append(
+                {
+                    "event_id": event_id,
+                    "active_vetoed": True,
+                    "n_separated": 0,
+                    "sep_energies": [],
+                    "sep_dz_mm": [],
+                    "is_ss": False,
+                    "E_cluster_keV": 0.0,
+                    "E_smeared_keV": 0.0,
+                }
+            )
+            continue
+
+        # --- Step 2: keep only FV deposits ---
+        fv = grp[grp["volume"] == "fv"]
+        if len(fv) == 0:
+            records.append(
+                {
+                    "event_id": event_id,
+                    "active_vetoed": False,
+                    "n_separated": 0,
+                    "sep_energies": [],
+                    "sep_dz_mm": [],
+                    "is_ss": True,
+                    "E_cluster_keV": 0.0,
+                    "E_smeared_keV": 0.0,
+                }
+            )
+            continue
+
+        # --- Step 3: SS/MS classification on FV deposits ---
+        idx_max = fv["energy_keV"].idxmax()
+        e1 = fv.loc[idx_max, "energy_keV"]
+        z1_cm = fv.loc[idx_max, "z_cm"]
         sigma_e1 = sigma_rel * e1
         e_threshold = ks * sigma_e1
         dz_threshold_cm = dz_mm / 10.0
 
-        others = grp.drop(idx_max)
-
+        others = fv.drop(idx_max)
         sep_energies: list[float] = []
         sep_dz: list[float] = []
         attached_energy = 0.0
@@ -128,13 +197,18 @@ def classify_events(
 
         n_separated = len(sep_energies)
         is_ss = n_separated == 0
+
+        # --- Step 4: E_cluster ---
         e_cluster = e1 + attached_energy
+
+        # --- Step 5: smearing ---
         sigma_cluster = sigma_rel * e_cluster
         e_smeared = rng.normal(e_cluster, sigma_cluster)
 
         records.append(
             {
                 "event_id": event_id,
+                "active_vetoed": False,
                 "n_separated": n_separated,
                 "sep_energies": sep_energies,
                 "sep_dz_mm": sep_dz,
@@ -203,56 +277,112 @@ def plot_event_summary(
     plt.close(fig)
 
 
+def plot_energy_by_volume(df: pd.DataFrame, outdir: Path, display: bool) -> None:
+    """2x2 panel: Etot (all), Etot(fv), Etot(passive), Etot(active) per event."""
+    etot_all = df.groupby("event_id")["energy_keV"].sum()
+    etot_fv = df[df["volume"] == "fv"].groupby("event_id")["energy_keV"].sum()
+    etot_passive = df[df["volume"] == "passive"].groupby("event_id")["energy_keV"].sum()
+    etot_active = df[df["volume"] == "active"].groupby("event_id")["energy_keV"].sum()
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+
+    ax = axes[0, 0]
+    ax.hist(etot_all.values, bins=100, edgecolor="black", linewidth=0.3)
+    ax.axvline(E_GAMMA_BI214_KEV, color="green", ls="--", lw=0.8,
+               label=f"Bi214={E_GAMMA_BI214_KEV:.0f}")
+    ax.legend()
+    ax.set_xlabel("Energy (keV)")
+    ax.set_ylabel("Counts")
+    ax.set_title("Etot: all deposits")
+
+    ax = axes[0, 1]
+    ax.hist(etot_fv.values, bins=100, edgecolor="black", linewidth=0.3)
+    ax.axvline(E_GAMMA_BI214_KEV, color="green", ls="--", lw=0.8,
+               label=f"Bi214={E_GAMMA_BI214_KEV:.0f}")
+    ax.legend()
+    ax.set_xlabel("Energy (keV)")
+    ax.set_ylabel("Counts")
+    ax.set_title("Etot: FV deposits only")
+
+    ax = axes[1, 0]
+    if len(etot_passive) > 0:
+        ax.hist(etot_passive.values, bins=100, edgecolor="black", linewidth=0.3)
+    ax.set_xlabel("Energy (keV)")
+    ax.set_ylabel("Counts")
+    ax.set_title("Etot: passive deposits only")
+
+    ax = axes[1, 1]
+    if len(etot_active) > 0:
+        ax.hist(etot_active.values, bins=100, edgecolor="black", linewidth=0.3)
+    ax.set_xlabel("Energy (keV)")
+    ax.set_ylabel("Counts")
+    ax.set_title("Etot: active deposits only")
+
+    fig.tight_layout()
+    outfile = outdir / "energy_by_volume.png"
+    fig.savefig(outfile, dpi=150)
+    print(f"Saved {outfile}")
+    if display:
+        plt.show()
+    plt.close(fig)
+
+
 def plot_ssms_analysis(
     clf: pd.DataFrame, roi_low: float, roi_high: float, outdir: Path, display: bool
 ) -> None:
-    # Collect per-deposit arrays for separated clusters
-    all_sep_dz: list[float] = []
-    all_sep_e: list[float] = []
-    for _, row in clf.iterrows():
-        all_sep_dz.extend(row["sep_dz_mm"])
-        all_sep_e.extend(row["sep_energies"])
-    all_sep_dz_arr = np.array(all_sep_dz) if all_sep_dz else np.array([])
-    all_sep_e_arr = np.array(all_sep_e) if all_sep_e else np.array([])
+    # Work only with non-vetoed events for SS/MS plots
+    surv = clf[~clf["active_vetoed"]]
 
-    ss_mask = clf["is_ss"].values
-    ss_ecluster = clf.loc[ss_mask, "E_cluster_keV"].values
-    ss_esmeared = clf.loc[ss_mask, "E_smeared_keV"].values
+    all_sep_dz: list[float] = []
+    for _, row in surv.iterrows():
+        all_sep_dz.extend(row["sep_dz_mm"])
+    all_sep_dz_arr = np.array(all_sep_dz) if all_sep_dz else np.array([])
+
+    ss_mask = surv["is_ss"].values
+    ss_ecluster = surv.loc[ss_mask, "E_cluster_keV"].values
+    ss_esmeared = surv.loc[ss_mask, "E_smeared_keV"].values
+
+    n_total = len(clf)
+    n_vetoed = int(clf["active_vetoed"].sum())
+    n_surv = len(surv)
 
     fig, axes = plt.subplots(2, 3, figsize=(14, 8))
 
-    # (0,0) MS multiplicity
+    # (0,0) Veto bar chart: FV-only vs active-vetoed (fractions)
     ax = axes[0, 0]
-    ax.hist(clf["n_separated"].values, bins=range(0, clf["n_separated"].max() + 2),
+    f_fv = n_surv / n_total if n_total > 0 else 0
+    f_vetoed = n_vetoed / n_total if n_total > 0 else 0
+    ax.bar(["FV-only", "Active-vetoed"], [f_fv, f_vetoed],
+           color=["steelblue", "tomato"], edgecolor="black", linewidth=0.5)
+    ax.set_ylabel("Fraction")
+    ax.set_title(f"FV-only={n_surv}  Vetoed={n_vetoed}")
+    ax.set_ylim(0, 1)
+
+    # (0,1) MS multiplicity (FV-only events)
+    ax = axes[0, 1]
+    max_sep = surv["n_separated"].max() if len(surv) > 0 else 1
+    ax.hist(surv["n_separated"].values, bins=range(0, max_sep + 2),
             edgecolor="black", linewidth=0.3, align="left")
     ax.set_xlabel("N separated clusters")
     ax.set_ylabel("Counts")
-    ax.set_title("MS multiplicity")
+    ax.set_title("MS multiplicity (FV-only)")
 
-    # (0,1) DZ of separated deposits
-    ax = axes[0, 1]
-    if len(all_sep_dz_arr) > 0:
-        ax.hist(all_sep_dz_arr, bins=100, edgecolor="black", linewidth=0.3)
-    ax.set_xlabel("DZ (mm)")
-    ax.set_ylabel("Counts")
-    ax.set_title("DZ of separated deposits")
-
-    # (0,2) Energy of separated deposits
+    # (0,2) SS vs MS bar chart (FV-only events)
     ax = axes[0, 2]
-    if len(all_sep_e_arr) > 0:
-        ax.hist(all_sep_e_arr, bins=100, edgecolor="black", linewidth=0.3)
-    ax.set_xlabel("E (keV)")
-    ax.set_ylabel("Counts")
-    ax.set_title("Energy of separated deposits")
-
-    # (1,0) SS vs MS bar chart
-    ax = axes[1, 0]
     n_ss = int(ss_mask.sum())
     n_ms = int((~ss_mask).sum())
     ax.bar(["SS", "MS"], [n_ss, n_ms], color=["steelblue", "coral"],
            edgecolor="black", linewidth=0.5)
     ax.set_ylabel("Counts")
     ax.set_title(f"SS vs MS  (SS={n_ss}, MS={n_ms})")
+
+    # (1,0) DZ of separated deposits
+    ax = axes[1, 0]
+    if len(all_sep_dz_arr) > 0:
+        ax.hist(all_sep_dz_arr, bins=100, edgecolor="black", linewidth=0.3)
+    ax.set_xlabel("DZ (mm)")
+    ax.set_ylabel("Counts")
+    ax.set_title("DZ of separated deposits")
 
     # (1,1) E_cluster for SS events
     ax = axes[1, 1]
@@ -296,14 +426,18 @@ def write_summary(
     sigma_rel: float,
     dz_mm: float,
     ks: float,
+    eveto_keV: float,
     outdir: Path,
     display: bool,
 ) -> None:
     n_total = len(clf)
-    ss_mask = clf["is_ss"].values
+    n_vetoed = int(clf["active_vetoed"].sum())
+    surv = clf[~clf["active_vetoed"]]
+    n_fv_only = len(surv)
+    ss_mask = surv["is_ss"].values
     n_ss = int(ss_mask.sum())
-    n_ms = n_total - n_ss
-    ss_esmeared = clf.loc[ss_mask, "E_smeared_keV"].values
+    n_ms = n_fv_only - n_ss
+    ss_esmeared = surv.loc[ss_mask, "E_smeared_keV"].values
     roi_mask = (ss_esmeared >= roi_low) & (ss_esmeared <= roi_high)
     n_ss_roi = int(roi_mask.sum())
     n_ss_out = n_ss - n_ss_roi
@@ -327,8 +461,11 @@ def write_summary(
         f"  Qbb           = {Q_BB_KEV:.2f} keV",
         f"  dz_min        = {dz_mm} mm",
         f"  ks            = {ks}",
+        f"  E_veto        = {eveto_keV} keV",
         "-" * 60,
         f"  Total events          : {n_total:>8d}   ({frac(n_total)})",
+        f"  Active-vetoed         : {n_vetoed:>8d}   ({frac(n_vetoed)})",
+        f"  FV-only events        : {n_fv_only:>8d}   ({frac(n_fv_only)})",
         f"  Rejected (MS)         : {n_ms:>8d}   ({frac(n_ms)})",
         f"  SS events             : {n_ss:>8d}   ({frac(n_ss)})",
         f"  SS outside ROI        : {n_ss_out:>8d}   ({frac(n_ss_out)})",
@@ -344,7 +481,7 @@ def write_summary(
     print(f"Saved {outfile}")
 
     # Summary table as PNG
-    fig, ax = plt.subplots(figsize=(8, 4))
+    fig, ax = plt.subplots(figsize=(8, 5))
     ax.axis("off")
     table_data = [
         ["sigma/E", f"{sigma_rel}", ""],
@@ -353,8 +490,11 @@ def write_summary(
         ["ROI", f"[{roi_low:.1f}, {roi_high:.1f}] keV", f"width = {roi_width:.1f} keV"],
         ["dz_min", f"{dz_mm} mm", ""],
         ["ks", f"{ks}", ""],
+        ["E_veto", f"{eveto_keV} keV", ""],
         ["", "", ""],
         ["Total events", f"{n_total}", f"{frac(n_total)}"],
+        ["Active-vetoed", f"{n_vetoed}", f"{frac(n_vetoed)}"],
+        ["FV-only events", f"{n_fv_only}", f"{frac(n_fv_only)}"],
         ["Rejected (MS)", f"{n_ms}", f"{frac(n_ms)}"],
         ["SS events", f"{n_ss}", f"{frac(n_ss)}"],
         ["SS outside ROI", f"{n_ss_out}", f"{frac(n_ss_out)}"],
@@ -374,14 +514,149 @@ def write_summary(
         if row == 0:
             cell.set_facecolor("#4472C4")
             cell.set_text_props(color="white", weight="bold")
-        elif row == 7:
+        elif row == 8:
             cell.set_facecolor("#E0E0E0")
-        elif row >= 8 and row % 2 == 0:
+        elif row >= 9 and row % 2 == 1:
             cell.set_facecolor("#D9E2F3")
 
     ax.set_title("SS/MS Background Analysis Summary", fontsize=12, pad=12)
     fig.tight_layout()
     outfile = outdir / "summary_table.png"
+    fig.savefig(outfile, dpi=150, bbox_inches="tight")
+    print(f"Saved {outfile}")
+    if display:
+        plt.show()
+    plt.close(fig)
+
+
+SECONDS_PER_YEAR = 3.15576e7
+
+
+def write_background_rate(
+    clf: pd.DataFrame,
+    roi_low: float,
+    roi_high: float,
+    metadata: dict,
+    outdir: Path,
+    display: bool,
+) -> None:
+    """Compute and write absolute background rate per year."""
+    n_total = len(clf)
+    n_vetoed = int(clf["active_vetoed"].sum())
+    n_fv_only = n_total - n_vetoed
+    surv = clf[~clf["active_vetoed"]]
+    ss_mask = surv["is_ss"].values
+    n_ss = int(ss_mask.sum())
+    ss_esmeared = surv.loc[ss_mask, "E_smeared_keV"].values
+    n_ss_roi = int(((ss_esmeared >= roi_low) & (ss_esmeared <= roi_high)).sum())
+
+    # Fractions from analysis (relative to FV events entering this script)
+    f_fv_only = n_fv_only / n_total if n_total > 0 else 0.0
+    f_ss_of_fvonly = n_ss / n_fv_only if n_fv_only > 0 else 0.0
+    f_roi_of_ss = n_ss_roi / n_ss if n_ss > 0 else 0.0
+
+    # From metadata
+    source = metadata.get("source", "unknown")
+    isotope = metadata.get("isotope", "unknown")
+    rate_gammas_per_s = metadata.get("rate_total_gammas_per_s", 0.0)
+    f_fv_mc = metadata.get("f_fv", 0.0)
+    gamma_BR = metadata.get("gamma_BR", 0.0)
+    components = metadata.get("source_components", [])
+
+    rate_gammas_per_year = rate_gammas_per_s * SECONDS_PER_YEAR
+    n_fv_per_year = rate_gammas_per_year * f_fv_mc
+    n_ss_roi_per_year = n_fv_per_year * f_fv_only * f_ss_of_fvonly * f_roi_of_ss
+
+    # --- Text file ---
+    lines = [
+        "=" * 70,
+        "Background Rate Estimate",
+        "=" * 70,
+        f"  Source          : {source}",
+        f"  Isotope         : {isotope}",
+        f"  gamma BR        : {gamma_BR}",
+        "-" * 70,
+    ]
+    for comp in components:
+        lines.append(f"  Component: {comp['name']}")
+        lines.append(f"    mass            = {comp['mass_kg']:.3f} kg")
+        lines.append(f"    activity        = {comp['activity_mBq_per_kg']:.4f} mBq/kg")
+        lines.append(f"    geom. survival  = {comp['geometric_survival']:.6f}")
+        lines.append(f"    rate            = {comp['rate_gammas_per_s']:.6e} gammas/s")
+    lines += [
+        "-" * 70,
+        f"  Total rate       : {rate_gammas_per_s:.6e} gammas/s",
+        f"  Total rate       : {rate_gammas_per_year:.6e} gammas/year",
+        f"  f(FV) [MC]       : {f_fv_mc:.6e}",
+        f"  N(FV)/year       : {n_fv_per_year:.2f}",
+        f"  f(no active veto): {f_fv_only:.6f}",
+        f"  f(SS | FV-only)  : {f_ss_of_fvonly:.6f}",
+        f"  f(ROI | SS)      : {f_roi_of_ss:.6f}",
+        "-" * 70,
+        f"  N(SS in ROI)/year: {n_ss_roi_per_year:.4f}",
+        "=" * 70,
+    ]
+
+    text = "\n".join(lines)
+    print(text)
+
+    outfile = outdir / "background_rate.txt"
+    outfile.write_text(text + "\n")
+    print(f"Saved {outfile}")
+
+    # --- Table PNG ---
+    table_data = [
+        ["Source", source, ""],
+        ["Isotope", isotope, ""],
+        ["gamma BR", f"{gamma_BR}", ""],
+    ]
+    for comp in components:
+        table_data.append([
+            comp["name"],
+            f"{comp['mass_kg']:.3f} kg",
+            f"{comp['activity_mBq_per_kg']:.4f} mBq/kg",
+        ])
+        table_data.append([
+            "",
+            f"geom. surv. = {comp['geometric_survival']:.6f}",
+            f"rate = {comp['rate_gammas_per_s']:.4e} g/s",
+        ])
+    table_data += [
+        ["", "", ""],
+        ["Rate (gammas/s)", f"{rate_gammas_per_s:.4e}", ""],
+        ["Rate (gammas/year)", f"{rate_gammas_per_year:.4e}", ""],
+        ["f(FV) [MC]", f"{f_fv_mc:.4e}", f"N(FV)/yr = {n_fv_per_year:.2f}"],
+        ["f(no active veto)", f"{f_fv_only:.6f}", ""],
+        ["f(SS | FV-only)", f"{f_ss_of_fvonly:.6f}", ""],
+        ["f(ROI | SS)", f"{f_roi_of_ss:.6f}", ""],
+        ["N(SS in ROI)/year", f"{n_ss_roi_per_year:.4f}", ""],
+    ]
+
+    n_rows = len(table_data)
+    fig_h = max(4, 0.4 * n_rows + 1)
+    fig, ax = plt.subplots(figsize=(10, fig_h))
+    ax.axis("off")
+    col_labels = ["Quantity", "Value", "Detail"]
+    tbl = ax.table(
+        cellText=table_data,
+        colLabels=col_labels,
+        loc="center",
+        cellLoc="center",
+    )
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(9)
+    tbl.scale(1.0, 1.4)
+    for (row, _), cell in tbl.get_celld().items():
+        if row == 0:
+            cell.set_facecolor("#4472C4")
+            cell.set_text_props(color="white", weight="bold")
+        elif row == n_rows:
+            cell.set_facecolor("#C6EFCE")
+            cell.set_text_props(weight="bold")
+
+    ax.set_title("Background Rate Estimate", fontsize=12, pad=12)
+    fig.tight_layout()
+    outfile = outdir / "background_rate.png"
     fig.savefig(outfile, dpi=150, bbox_inches="tight")
     print(f"Saved {outfile}")
     if display:
@@ -395,7 +670,13 @@ def write_summary(
 
 def main() -> None:
     args = parse_args()
+    indir = args.input
+    if args.output is None:
+        args.output = indir / "analysis"
     args.output.mkdir(parents=True, exist_ok=True)
+
+    deposits_path = indir / "fv_deposits.csv"
+    metadata_path = indir / "metadata.json"
 
     sigma_rel = args.sigma
     sigma_abs = sigma_rel * Q_BB_KEV
@@ -406,15 +687,15 @@ def main() -> None:
         roi_low = Q_BB_KEV - fwhm / 2.0
         roi_high = Q_BB_KEV + fwhm / 2.0
 
-    print(f"Reading {args.input} ...")
-    df = pd.read_csv(args.input)
+    print(f"Reading {deposits_path} ...")
+    df = pd.read_csv(deposits_path)
     df["energy_keV"] = df["energy_MeV"] * 1000.0
     n_events = df["event_id"].nunique()
     print(f"  {len(df)} deposits, {n_events} events")
     print(f"  sigma/E = {sigma_rel:.4f}  ->  sigma = {sigma_abs:.1f} keV, "
           f"FWHM = {fwhm:.1f} keV")
     print(f"  ROI = [{roi_low:.1f}, {roi_high:.1f}] keV")
-    print(f"  dz = {args.dz} mm, ks = {args.ks}")
+    print(f"  dz = {args.dz} mm, ks = {args.ks}, eveto = {args.eveto} keV")
 
     # Stage 1: raw summary
     print("Computing per-event summary ...")
@@ -435,34 +716,29 @@ def main() -> None:
 
     plot_event_summary(summary, esat_keV, args.output, args.display)
 
-    # Zoomed Etot around gamma line (separate single panel)
-    fig, ax = plt.subplots(figsize=(7, 4))
-    ax.hist(etot, bins=100, range=(2200, 2700), edgecolor="black", linewidth=0.3)
-    ax.axvline(E_GAMMA_BI214_KEV, color="green", ls="--", lw=0.8,
-               label=f"Bi214={E_GAMMA_BI214_KEV:.0f}")
-    ax.axvline(Q_BB_KEV, color="red", ls="--", lw=0.8,
-               label=f"Qbb={Q_BB_KEV:.0f}")
-    ax.legend()
-    ax.set_xlabel("Etot (keV)")
-    ax.set_ylabel("Counts")
-    ax.set_title("Etot (all FV events) - zoom [2200, 2700] keV")
-    fig.tight_layout()
-    outfile = args.output / "etot_zoom.png"
-    fig.savefig(outfile, dpi=150)
-    print(f"Saved {outfile}")
-    if args.display:
-        plt.show()
-    plt.close(fig)
+    # Energy by volume (2x2 panel)
+    print("Plotting energy by volume ...")
+    plot_energy_by_volume(df, args.output, args.display)
 
-    # Stage 2: SS/MS classification
-    print("Running SS/MS classification ...")
+    # Stage 2: active veto + SS/MS classification
+    print("Running active veto + SS/MS classification ...")
     rng = np.random.default_rng(42)
-    clf = classify_events(df, sigma_rel, args.dz, args.ks, rng)
+    clf = classify_events(df, sigma_rel, args.dz, args.ks, args.eveto, rng)
     plot_ssms_analysis(clf, roi_low, roi_high, args.output, args.display)
 
     # Summary statistics
     write_summary(clf, roi_low, roi_high, sigma_rel, args.dz, args.ks,
-                  args.output, args.display)
+                  args.eveto, args.output, args.display)
+
+    # Background rate estimate
+    if metadata_path.exists():
+        print(f"\nReading {metadata_path} ...")
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+        write_background_rate(clf, roi_low, roi_high, metadata,
+                              args.output, args.display)
+    else:
+        print(f"\n  {metadata_path} not found, skipping rate estimate.")
 
     print("Done.")
 
