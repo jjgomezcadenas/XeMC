@@ -174,6 +174,92 @@ end
     @test n_multi_match == 0
 end
 
+# =====================================================================
+# Top-PMT gammas must propagate in a straight line through the vacuum
+# region above the gate (AirDome + AirCyl) and reach the LXe without
+# any interaction in those vacuum regions.
+# =====================================================================
+@testset "Top-PMT gammas: straight-line propagation through vacuum" begin
+    fk = compile_fastkernel_geometry(DET3)
+    E = 2.448  # Bi214 line, MeV
+    z_top = 152.78  # PMT_TOP_PMTs midpoint, inside AirDome
+    rng = MersenneTwister(0x70BB07A0)
+    N = 10_000
+    n_vacuum_deposits = 0
+    n_vacuum_terminations = 0
+    for _ in 1:N
+        # Random inward (downward) direction with cos θ wrt -z in [0.1, 1.0]
+        u = -rand(rng) * 0.9 - 0.1
+        φ = 2π * rand(rng)
+        sθ = sqrt(1 - u^2)
+        dir = Float64[sθ*cos(φ), sθ*sin(φ), u]
+        gamma = SampledGamma(E, Float64[0.0, 0.0, z_top], dir)
+        r = transport_gamma_fastkernel(gamma, fk, CFG, rng)
+        for d in r.deposits
+            (d.region == "AirDome" || d.region == "AirCyl") && (n_vacuum_deposits += 1)
+        end
+        (r.terminal_region in ("AirDome", "AirCyl")) && (n_vacuum_terminations += 1)
+    end
+    @test n_vacuum_deposits == 0
+    @test n_vacuum_terminations == 0
+end
+
+# =====================================================================
+# Top-PMT virgin attenuation: a gamma shot straight down from the PMT
+# center traverses 49.6 cm of LXe (TopActive) before reaching the FV.
+# The expected fraction of gammas that reach the FV with NO upstream
+# interaction is exp(-L/lambda) with lambda = mfp(LXe, E).
+# =====================================================================
+@testset "Top-PMT virgin survival matches exp(-L/lambda)" begin
+    fk = compile_fastkernel_geometry(DET3)
+    E = 2.448
+    λ = mfp(MATS["LXe"], E)
+    L_lxe = 145.6 - 96.0  # TopActive thickness = 49.6 cm
+    p_pred = exp(-L_lxe / λ)
+
+    N = 50_000
+    rng = MersenneTwister(0x70B07577)
+    n_virgin = 0
+    for _ in 1:N
+        gamma = SampledGamma(E, Float64[0.0, 0.0, 152.78], Float64[0.0, 0.0, -1.0])
+        r = transport_gamma_fastkernel(gamma, fk, CFG, rng)
+        (r.status === :handoff_fv && isempty(r.deposits)) && (n_virgin += 1)
+    end
+    f_obs = n_virgin / N
+    σ_stat = sqrt(p_pred * (1 - p_pred) / N)
+    @test abs(f_obs - p_pred) < 4 * σ_stat
+end
+
+# =====================================================================
+# Bottom-PMT virgin attenuation: a gamma shot straight up from the PMT
+# center at z=-15.92 traverses LXe continuously (2.17 cm LXe_below_FC
+# + 13.75 cm LXe_below_cathode + 26 cm BottomActive = 41.92 cm) before
+# reaching the FV at z=26. Predicted virgin survival is exp(-L/lambda).
+# This is the test that fails when the fast-kernel fallback bug is
+# present: passive-LXe traversal forced spurious interactions and
+# depleted virgins by orders of magnitude.
+# =====================================================================
+@testset "Bottom-PMT virgin survival matches exp(-L/lambda)" begin
+    fk = compile_fastkernel_geometry(DET3)
+    E = 2.448
+    λ = mfp(MATS["LXe"], E)
+    z_pmt = -15.92  # PMT_BOT_PMTs midpoint
+    L_lxe = (-13.75 - z_pmt) + 13.75 + 26.0  # 41.92 cm of continuous LXe
+    p_pred = exp(-L_lxe / λ)
+
+    N = 50_000
+    rng = MersenneTwister(0xB0770557)
+    n_virgin = 0
+    for _ in 1:N
+        gamma = SampledGamma(E, Float64[0.0, 0.0, z_pmt], Float64[0.0, 0.0, 1.0])
+        r = transport_gamma_fastkernel(gamma, fk, CFG, rng)
+        (r.status === :handoff_fv && isempty(r.deposits)) && (n_virgin += 1)
+    end
+    f_obs = n_virgin / N
+    σ_stat = sqrt(p_pred * (1 - p_pred) / N)
+    @test abs(f_obs - p_pred) < 4 * σ_stat
+end
+
 @testset "Source geometry schema" begin
     @test SOURCE_GEOM["name"] == "LZ_source_geometry"
     @test SOURCE_GEOM["version"] == 1
