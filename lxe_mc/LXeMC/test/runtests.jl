@@ -55,12 +55,12 @@ end
     @test DET3.name == "LZ"
 
     names3 = sort([n.lv.name for n in DET3.nodes])
-    @test names3 == ["AirCyl", "AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "MARS", "Skin", "TopActive"]
+    @test names3 == ["AirCyl", "AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_below_FC", "LXe_below_cathode", "LXe_dome", "LZ_detector", "MARS", "Skin", "TopActive"]
 
     root3 = root_node(DET3)
     lz3 = node_by_name(DET3, "LZ_detector")
     air3 = node_by_name(DET3, "AirDome")
-    passive3 = node_by_name(DET3, "LXe_passive")
+    passive3 = node_by_name(DET3, "LXe_below_cathode")
     top3 = node_by_name(DET3, "TopActive")
     barrel3 = node_by_name(DET3, "BarrelActive")
     bottom3 = node_by_name(DET3, "BottomActive")
@@ -105,22 +105,25 @@ end
     @test find_tracking_node(DET3, (73.55, 0.0, 100.0)).lv.name == "FC_PTFE"
     @test find_tracking_node(DET3, (74.1, 0.0, 100.0)).lv.name == "FC_rings"
     @test find_tracking_node(DET3, (78.0, 0.0, 100.0)).lv.name == "Skin"
-    @test find_tracking_node(DET3, (0.0, 0.0, -20.0)).lv.name == "LXe_passive"
+    @test find_tracking_node(DET3, (0.0, 0.0, -20.0)).lv.name == "LXe_below_FC"
+    @test find_tracking_node(DET3, (0.0, 0.0, -7.0)).lv.name == "LXe_below_cathode"
+    @test find_tracking_node(DET3, (0.0, 0.0, -60.0)).lv.name == "LXe_dome"
     @test find_tracking_node(DET3, (0.0, 0.0, 160.0)).lv.name == "AirDome"
 
     fk3 = compile_fastkernel_geometry(DET3)
-    @test sort([r.name for r in fk3.regions]) == ["AirCyl", "AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_passive", "LZ_detector", "Skin", "TopActive"]
+    @test sort([r.name for r in fk3.regions]) == ["AirCyl", "AirDome", "BarrelActive", "BottomActive", "FC_PTFE", "FC_rings", "FV", "LXe_below_FC", "LXe_below_cathode", "LXe_dome", "LZ_detector", "Skin", "TopActive"]
     @test fk3.envelope_index != 0
-    @test fk3.fallback_index != 0
     @test fk3.regions[fk3.envelope_index].role == "tracking_envelope"
-    @test fk3.regions[fk3.fallback_index].tag == TAG_PASSIVE_LXE
+    @test count(r -> r.tag == TAG_PASSIVE_LXE, fk3.regions) == 3
     @test count(r -> r.tag == TAG_FV, fk3.regions) == 1
     @test count(r -> r.tag == TAG_TPC_ACTIVE, fk3.regions) >= 1
     @test classify_fastkernel(fk3, (0.0, 0.0, 120.0)).name == "TopActive"
     @test classify_fastkernel(fk3, (60.0, 0.0, 61.0)).name == "BarrelActive"
     @test classify_fastkernel(fk3, (0.0, 0.0, 10.0)).name == "BottomActive"
     @test classify_fastkernel(fk3, (0.0, 0.0, 61.0)).name == "FV"
-    @test classify_fastkernel(fk3, (0.0, 0.0, -20.0)).name == "LXe_passive"
+    @test classify_fastkernel(fk3, (0.0, 0.0, -20.0)).name == "LXe_below_FC"
+    @test classify_fastkernel(fk3, (0.0, 0.0, -7.0)).name == "LXe_below_cathode"
+    @test classify_fastkernel(fk3, (0.0, 0.0, -60.0)).name == "LXe_dome"
 
     fv_vol = compile_fv_volume(DET3)
     @test fv_vol isa PCyl
@@ -130,6 +133,45 @@ end
     @test !is_inside(fv_vol, Float64[40.0, 0.0, 61.0])
     @test !is_inside(fv_vol, Float64[0.0, 0.0, 20.0])
     @test !is_inside(fv_vol, Float64[0.0, 0.0, 100.0])
+end
+
+# =====================================================================
+# Partition contract for the fast-kernel geometry.
+#
+# Every point inside the envelope (LZ_detector) must classify into
+# exactly one non-envelope region: no gaps (zero claimants) and no
+# overlaps (two or more claimants). With no fallback region, gaps would
+# manifest as silent escapes and overlaps as ambiguous classification.
+# =====================================================================
+@testset "FastKernel geometry partition" begin
+    fk = compile_fastkernel_geometry(DET3)
+    env_node = node_by_name(DET3, "LZ_detector")
+    envelope_region = fk.regions[fk.envelope_index]
+    rng = MersenneTwister(0xC0FFEE)
+    N = 100_000
+    n_inside = 0
+    n_zero_match = 0
+    n_multi_match = 0
+    bbox_R = envelope_region.rmax_cm
+    bbox_zmin = envelope_region.zmin_cm
+    bbox_zmax = envelope_region.zmax_cm
+    for _ in 1:N
+        x = (2 * rand(rng) - 1) * bbox_R
+        y = (2 * rand(rng) - 1) * bbox_R
+        z = bbox_zmin + rand(rng) * (bbox_zmax - bbox_zmin)
+        is_inside(env_node, Float64[x, y, z]) || continue
+        n_inside += 1
+        matches = 0
+        for i in eachindex(fk.regions)
+            i == fk.envelope_index && continue
+            LXeMC._is_inside_fastkernel_region(fk.regions[i], (x, y, z)) && (matches += 1)
+        end
+        matches == 0 && (n_zero_match += 1)
+        matches > 1  && (n_multi_match += 1)
+    end
+    @test n_inside > N ÷ 4
+    @test n_zero_match == 0
+    @test n_multi_match == 0
 end
 
 @testset "Source geometry schema" begin
@@ -301,7 +343,7 @@ end
     air_to_lxe = SampledGamma(2.615, Float64[0.0, 0.0, 160.0], Float64[0.0, 0.0, -1.0])
     fk_air = propagate_gamma_fastkernel(air_to_lxe, fk, CFG, MersenneTwister(23))
     @test fk_air.status in (:escaped, :entered_fv, :interacted)
-    @test fk_air.region in ("AirDome", "TopActive", "BarrelActive", "BottomActive", "FV", "Skin", "FC_PTFE", "FC_rings", "LXe_passive", "MARS")
+    @test fk_air.region in ("AirDome", "TopActive", "BarrelActive", "BottomActive", "FV", "Skin", "FC_PTFE", "FC_rings", "LXe_dome", "LXe_below_FC", "LXe_below_cathode", "MARS")
 
     ptfe = SampledGamma(2.615, Float64[73.0, 0.0, 100.0], Float64[1.0, 0.0, 0.0])
     fk_ptfe = propagate_gamma_fastkernel(ptfe, fk, CFG, MersenneTwister(11))
@@ -311,7 +353,7 @@ end
     lxe_bulk = SampledGamma(2.615, Float64[0.0, 0.0, -20.0], Float64[0.0, 0.0, 1.0])
     fk_lxe = propagate_gamma_fastkernel(lxe_bulk, fk, CFG, MersenneTwister(19))
     @test fk_lxe.status == :interacted
-    @test fk_lxe.region in ("LXe_passive", "BottomActive", "FV")
+    @test fk_lxe.region in ("LXe_below_FC", "LXe_below_cathode", "BottomActive", "FV")
 end
 
 @testset "Interaction selector" begin

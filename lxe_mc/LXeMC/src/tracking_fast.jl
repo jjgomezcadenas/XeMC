@@ -58,7 +58,8 @@ end
 
 
 @inline function _is_passive_region(region_name::String)::Bool
-    region_name == "LXe_passive" || region_name == "FC_PTFE" || region_name == "FC_rings"
+    region_name == "LXe_dome" || region_name == "LXe_below_FC" || region_name == "LXe_below_cathode" ||
+        region_name == "FC_PTFE" || region_name == "FC_rings"
 end
 
 

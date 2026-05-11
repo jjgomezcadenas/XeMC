@@ -86,7 +86,6 @@ struct FastKernelGeometry
     regions::Vector{FastKernelRegion}
     name_to_index::Dict{String,Int}
     envelope_index::Int
-    fallback_index::Int
 end
 
 
@@ -1047,7 +1046,6 @@ function compile_fastkernel_geometry(det::TrackingDetector)::FastKernelGeometry
     regions = FastKernelRegion[]
     name_to_index = Dict{String,Int}()
     envelope_index = 0
-    fallback_index = 0
 
     for node in det.nodes
         node.lv.inFastKernel || continue
@@ -1059,16 +1057,11 @@ function compile_fastkernel_geometry(det::TrackingDetector)::FastKernelGeometry
             envelope_index != 0 && error("Multiple regions with role 'tracking_envelope': '$(regions[envelope_index].name)' and '$(region.name)'")
             envelope_index = idx
         end
-        if node.lv.tag == TAG_PASSIVE_LXE
-            fallback_index != 0 && error("Multiple regions with tag TAG_PASSIVE_LXE: '$(regions[fallback_index].name)' and '$(region.name)'")
-            fallback_index = idx
-        end
     end
 
     envelope_index != 0 || error("No region with role 'tracking_envelope' found")
-    fallback_index != 0 || error("No region with tag TAG_PASSIVE_LXE found")
 
-    FastKernelGeometry(regions, name_to_index, envelope_index, fallback_index)
+    FastKernelGeometry(regions, name_to_index, envelope_index)
 end
 
 
@@ -1170,14 +1163,11 @@ function classify_fastkernel(fk::FastKernelGeometry, pos::NTuple{3,<:Real})
 
     @inbounds for i in eachindex(fk.regions)
         i == fk.envelope_index && continue
-        i == fk.fallback_index && continue
         region = fk.regions[i]
         _is_inside_fastkernel_region(region, x, y, z) && return region
     end
 
-    fallback = fk.regions[fk.fallback_index]
-    _is_inside_fastkernel_region(fallback, x, y, z) && return fallback
-    envelope
+    return nothing
 end
 
 

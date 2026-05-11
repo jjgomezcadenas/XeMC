@@ -101,7 +101,7 @@ end
 
 Classify the volume at position `pos` using the fast-kernel geometry.
 Returns `:active` (Skin, TopActive, BarrelActive, BottomActive),
-`:passive` (LXe_passive, FC_PTFE, FC_rings, or outside detector),
+`:passive` (LXe_dome / LXe_below_FC / LXe_below_cathode, FC_PTFE, FC_rings, or outside detector),
 or `:fv` (should not happen for escapes, but included for completeness).
 """
 @inline function _classify_escape_volume(fk::FastKernelGeometry, pos::Vector{Float64})::Symbol
