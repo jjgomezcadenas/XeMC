@@ -2004,3 +2004,37 @@ end
     @test length(result_bot.bi214_rate.component_names) == 4
     @test result_bot.bi214_rate.total_rate > 0
 end
+
+
+# =====================================================================
+# PMT bottom LXe: propagation through passive LXe to cathode
+# =====================================================================
+@testset "pmt_bottom_lxe flux" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+
+    # Cathode z must equal top face of FC_botgrid
+    bg = sg["FC_botgrid"]
+    z_expected = bg.volume.logical.position[3] + bg.volume.logical.solid.half_height_cm
+    z_cathode = LXeMC._cathode_z(sg)
+    @test z_cathode ≈ z_expected atol=1e-10
+
+    # Generate flux tables (small N for speed)
+    result = pmt_bottom_lxe_flux(5000, sg, MATS, CFG, MersenneTwister(42))
+
+    # Survival fraction should be < pmt_bottom (LXe absorbs some)
+    result_bare = pmt_bottom_flux(5000, sg, CFG, MersenneTwister(42))
+    f_lxe = sum(result.bi214.pdf)
+    f_bare = sum(result_bare.bi214.pdf)
+    @test f_lxe < f_bare  # LXe slab attenuates
+    @test f_lxe > 0       # some gammas survive
+
+    # Rate table has 4 components (same PMT sub-components)
+    @test length(result.bi214_rate.component_names) == 4
+    @test result.bi214_rate.total_rate > 0
+    @test result.bi214_rate.total_rate < result_bare.bi214_rate.total_rate
+
+    # Tl208 also works
+    @test sum(result.tl208.pdf_main) > 0
+    @test result.tl208_rate.total_rate > 0
+end
