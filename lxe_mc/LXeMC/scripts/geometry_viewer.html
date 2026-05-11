@@ -248,7 +248,7 @@
       if (v.name === "FV" || v.tag === "fv") return { fill: "#5c73cc", stroke: "#29365f" };
       if (["TopActive", "BarrelActive", "BottomActive"].includes(v.name)) return { fill: "#c7d2f5", stroke: "#44579f" };
       if (v.name === "Skin" || v.tag === "skin") return { fill: "#c9ece7", stroke: "#2f7c76" };
-      if (v.name === "LXe_passive" || v.tag === "passive_lxe") return { fill: "#e2e8fb", stroke: "#7b89bd" };
+      if (v.tag === "passive_lxe") return { fill: "#e2e8fb", stroke: "#7b89bd" };
       if (["FC_PTFE", "FC_rings"].includes(v.name) || v.tag === "structural") return { fill: "#7b7266", stroke: "#2b2824" };
       return { fill: "#f4efe4", stroke: "#8a8175" };
     }
@@ -568,7 +568,9 @@
       const volumes = [
         { name: "AirDome", style: { fill: "#f4efe4", stroke: "#8a8175" } },
         { name: "AirCyl", style: { fill: "#f4efe4", stroke: "#8a8175" } },
-        { name: "LXe_passive", style: { fill: "#e2e8fb", stroke: "#7b89bd" } },
+        { name: "LXe_dome", style: { fill: "#e2e8fb", stroke: "#7b89bd" } },
+        { name: "LXe_below_FC", style: { fill: "#e2e8fb", stroke: "#7b89bd" } },
+        { name: "LXe_below_cathode", style: { fill: "#e2e8fb", stroke: "#7b89bd" } },
         { name: "TopActive", style: { fill: "#c7d2f5", stroke: "#44579f" } },
         { name: "BarrelActive", style: { fill: "#c7d2f5", stroke: "#44579f" } },
         { name: "BottomActive", style: { fill: "#c7d2f5", stroke: "#44579f" } },
@@ -599,10 +601,10 @@
     }
 
     function drawSourceGuide(svg, trackingVolumes, projSource) {
-      const lxe = trackingVolumes.find(v => v.name === "LXe_passive");
-      if (!lxe) return;
+      const passiveLxes = trackingVolumes.filter(v => v.tag === "passive_lxe");
+      if (passiveLxes.length === 0) return;
       const guide = { fill: "rgba(133, 170, 239, 0.12)", stroke: "#7b9fdd" };
-      drawVolume(svg, lxe, projSource, guide, "guide");
+      for (const lxe of passiveLxes) drawVolume(svg, lxe, projSource, guide, "guide");
     }
 
     function render(svgId, summaryId, volumes, flavor, trackingGuide = null) {
