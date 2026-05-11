@@ -155,10 +155,10 @@
             }
         },
         {
-            "_doc": "Field-cage titanium rings source. Real internal Ti source and KN source-side transport. Source z extends through the full FC envelope (drift + RFR, z=[-13.75, 145.6]) — wider than the tracking FC_rings (drift only) on purpose. wall_thickness 0.277 cm was already back-derived from bb0nu 93 kg over the full envelope, so geometric mass = 93 kg here and approximation can be exact.",
+            "_doc": "Field-cage titanium rings source. Real internal Ti source and KN source-side transport. Source z extends through the full FC envelope (drift + RFR, z=[-13.75, 145.6]). Inner radius 73.947 cm matches FC_PTFE outer wall (the two effective FC layers are glued — no LXe sliver between them). wall_thickness 0.277 cm unchanged, so geometric mass = 93 kg preserved.",
             "name": "FC_rings",
             "shape": "cylinder_shell",
-            "R_inner_cm": 74.3,
+            "R_inner_cm": 73.947,
             "wall_thickness_cm": 0.277,
             "half_height_cm": 79.675,
             "position_cm": [0.0, 0.0, 65.925],

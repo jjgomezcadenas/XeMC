@@ -146,10 +146,10 @@
             "approximation": "exact"
         },
         {
-            "_doc": "Field-cage Ti rings shell: R=[74.3, 74.577], z=[-13.75, 145.6]. Anatomical dimensions matching the source-side volume; wall thickness 0.277 cm gives the bb0nu 93 kg over the full FC envelope.",
+            "_doc": "Field-cage Ti rings shell: R=[73.947, 74.224], z=[-13.75, 145.6]. Inner radius is the outer wall of FC_PTFE so the two effective field-cage layers touch (no LXe sliver between them). Wall thickness 0.277 cm unchanged — bb0nu 93 kg preserved.",
             "name": "FC_rings",
             "shape": "cylinder_shell",
-            "R_inner_cm": 74.3,
+            "R_inner_cm": 73.947,
             "wall_thickness_cm": 0.277,
             "half_height_cm": 79.675,
             "position_cm": [0.0, 0.0, 65.925],
@@ -160,11 +160,11 @@
             "approximation": "exact"
         },
         {
-            "_doc": "LXe skin veto region outside the field cage: R=[74.577, 82.1], z=[-13.75, 145.6]. z extent matches the FC structure so the radial layout PTFE -> rings -> Skin is valid through the full FC envelope; below z=-13.75 the dome region is bare passive LXe.",
+            "_doc": "LXe skin veto region outside the field cage: R=[74.224, 82.1], z=[-13.75, 145.6]. Inner radius is the outer wall of FC_rings (the radial chain BarrelActive -> FC_PTFE -> FC_rings -> Skin is contiguous, no LXe gaps). Wall thickness grows by 0.353 cm to keep the outer surface at the envelope radius 82.1. Below z=-13.75 the dome region is bare passive LXe.",
             "name": "Skin",
             "shape": "cylinder_shell",
-            "R_inner_cm": 74.577,
-            "wall_thickness_cm": 7.523,
+            "R_inner_cm": 74.224,
+            "wall_thickness_cm": 7.876,
             "half_height_cm": 79.675,
             "position_cm": [0.0, 0.0, 65.925],
             "material": "LXe",

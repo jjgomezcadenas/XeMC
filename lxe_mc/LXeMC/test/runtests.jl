@@ -103,7 +103,7 @@ end
     @test find_tracking_node(DET3, (0.0, 0.0, 10.0)).lv.name == "BottomActive"
     @test find_tracking_node(DET3, (0.0, 0.0, 61.0)).lv.name == "FV"
     @test find_tracking_node(DET3, (73.55, 0.0, 100.0)).lv.name == "FC_PTFE"
-    @test find_tracking_node(DET3, (74.45, 0.0, 100.0)).lv.name == "FC_rings"
+    @test find_tracking_node(DET3, (74.1, 0.0, 100.0)).lv.name == "FC_rings"
     @test find_tracking_node(DET3, (78.0, 0.0, 100.0)).lv.name == "Skin"
     @test find_tracking_node(DET3, (0.0, 0.0, -20.0)).lv.name == "LXe_passive"
     @test find_tracking_node(DET3, (0.0, 0.0, 160.0)).lv.name == "AirDome"
