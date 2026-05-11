@@ -2,12 +2,12 @@
     "_doc": "LXeMC transport parameters. Material properties in materials.json, geometry in detector_*.json.",
 
     "photon_cuts": {
-        "Egamma_cut_MeV":  0.010,
+        "Egamma_cut_MeV":  0.001,
         "E_roi_floor_MeV": 2.300
     },
 
     "lepton_cuts": {
-        "Te_cut_MeV":      0.400
+        "Te_cut_MeV":      3.000
     },
 
     "bremsstrahlung": {
