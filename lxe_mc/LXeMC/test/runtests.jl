@@ -2007,6 +2007,50 @@ end
 
 
 # =====================================================================
+# PMT bottom LXe slab geometry sanity
+# =====================================================================
+@testset "pmt_bottom_lxe slab geometry" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+
+    merged, _ = LXeMC._merge_pmt_volume(sg,
+        ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
+        "PMT_BOT_merged", :down)
+    z_pmt = merged.logical.position[3]
+    R = merged.logical.solid.radius_cm
+    z_cathode = LXeMC._cathode_z(sg)
+
+    # Build slab the same way pmt_bottom_lxe_flux does
+    z_slab_bottom = z_pmt + 0.01
+    hh = (z_cathode - z_slab_bottom) / 2.0
+    z_center = (z_slab_bottom + z_cathode) / 2.0
+    lxe_mat = MATS["LXe"]
+    slab = PCyl("test_slab", LCyl(Cyl(R, hh), Float64[0.0, 0.0, z_center]), lxe_mat)
+
+    # Gamma exits PMT source at z_pmt + 1e-4 (propagate_in_source push)
+    z_exit = z_pmt + 1e-4
+
+    # Exit point must be OUTSIDE the slab
+    @test !is_inside(slab, Float64[0.0, 0.0, z_exit])
+
+    # Slab interior must be inside
+    @test is_inside(slab, Float64[0.0, 0.0, z_center])
+
+    # distance_to_entry from exit point going up must find the bottom face
+    pos = Float64[0.0, 0.0, z_exit]
+    dir = Float64[0.0, 0.0, 1.0]
+    t = distance_to_entry(pos, dir, slab.logical)
+    @test isfinite(t)
+    @test t > 0
+    @test t < 0.1  # should be ~0.01 cm (slab_bottom - z_exit)
+
+    # After entry, position must be inside the slab
+    entry_pos = pos .+ dir .* (t + 1e-4)
+    @test is_inside(slab, entry_pos)
+end
+
+
+# =====================================================================
 # PMT bottom LXe: propagation through passive LXe to cathode
 # =====================================================================
 @testset "pmt_bottom_lxe flux" begin
