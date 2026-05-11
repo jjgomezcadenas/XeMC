@@ -122,8 +122,14 @@ source side and used as-is by the tracking partition.
 | volume | R range (cm) | z range (cm) | t (cm) | mass anchor |
 |---|---|---|---|---|
 | `FC_PTFE` | [72.8, 73.947] | [−13.75, 145.6] | 1.147 | **184 kg** (bb0nu, geometric) |
-| `FC_rings` | [74.3, 74.577] | [−13.75, 145.6] | 0.277 | **93 kg** (bb0nu, geometric) |
-| `Skin` | [74.577, 82.1] | [−13.75, 145.6] | 7.523 | LXe (no activity — pure veto layer) |
+| `FC_rings` | [73.947, 74.224] | [−13.75, 145.6] | 0.277 | **93 kg** (bb0nu, geometric) |
+| `Skin` | [74.224, 82.1] | [−13.75, 145.6] | 7.876 | LXe (no activity — pure veto layer) |
+
+The FC_PTFE outer wall touches FC_rings inner wall (no LXe sliver
+between the two effective field-cage layers). Skin absorbs the
+displacement: its inner radius shifted inward by 0.353 cm so its
+outer wall stays at the envelope radius 82.1; its wall thickness
+grew by the same 0.353 cm.
 
 The strict source/tracking dimensional consistency is checked by
 `@testset "Tracking/source consistency"` in `test/runtests.jl`.
@@ -193,16 +199,18 @@ checked by `@testset "Source geometric mass vs bb0nu"` in
 ```
 MARS                                  Vacuum    world (cylinder, R=120, H=440)
 └── LZ_detector                       Vacuum    domed_container, R=82.1, ICV inner cavity
-    ├── AirDome                       HPGXe     cap, gas dome (z_eq=148.5, ar=2.0)
-    ├── AirCyl                        HPGXe     cylinder, gas gap (z=[145.6, 148.5])
-    └── LXe_passive                   LXe       capped_cylinder, ICV-inner liquid volume
-        ├── TopActive                 LXe       cylinder, sensitive (above FV)
-        ├── BarrelActive              LXe       cylinder_shell, sensitive (around FV)
-        ├── BottomActive              LXe       cylinder, sensitive (below FV)
-        ├── FV                        LXe       cylinder, sensitive + prefilter target
-        ├── FC_PTFE                   PTFE      cylinder_shell, structural
-        ├── FC_rings                  Ti        cylinder_shell, structural
-        └── Skin                      LXe       cylinder_shell, sensitive (veto)
+    ├── AirDome                       Vacuum    cap, gas dome (z_eq=148.5, ar=2.0)
+    ├── AirCyl                        Vacuum    cylinder, gas gap (z=[145.6, 148.5])
+    ├── LXe_dome                      LXe       cap, bottom dome (z∈[-68.7, -41.33])
+    ├── LXe_below_FC                  LXe       cylinder, R≤82.1, z∈[-41.33, -13.75]
+    ├── LXe_below_cathode             LXe       cylinder, R≤72.8, z∈[-13.75, 0]
+    ├── TopActive                     LXe       cylinder, sensitive (above FV)
+    ├── BarrelActive                  LXe       cylinder_shell, sensitive (around FV)
+    ├── BottomActive                  LXe       cylinder, sensitive (below FV)
+    ├── FV                            LXe       cylinder, sensitive + prefilter target
+    ├── FC_PTFE                       PTFE      cylinder_shell, structural
+    ├── FC_rings                      Ti        cylinder_shell, structural
+    └── Skin                          LXe       cylinder_shell, sensitive (veto)
 ```
 
 ### ICV inner surface consistency
@@ -224,17 +232,25 @@ and the dome equator is filled by AirCyl (R = 82.1, z = [145.6, 148.5]).
 Containment invariants:
 
 - `LZ_detector` ⊂ `MARS`.
-- `AirDome`, `AirCyl`, and `LXe_passive` partition `LZ_detector`'s
-  interior (gas dome above gate + gas gap + liquid below).
-- All eight named daughters of `LXe_passive` are strictly contained in
-  it; siblings are non-overlapping.
+- The twelve named daughters of `LZ_detector` form a strict partition
+  of its interior: every point inside `LZ_detector` lies in exactly
+  one daughter, no gaps, no overlaps. This is verified at runtime by
+  the `FastKernel geometry partition` testset (sampling 10⁵ random
+  points and asserting one match each).
+- The three `passive_lxe` primitives (`LXe_dome`, `LXe_below_FC`,
+  `LXe_below_cathode`) tile the LXe volume that the active and
+  structural regions do not claim. They replaced the former
+  `LXe_passive` capped-cylinder fallback, which had no well-defined
+  boundary against its inner siblings and caused spurious interactions
+  for gammas in transit through it.
 - `TopActive`, `BarrelActive`, `BottomActive`, and `FV` together cover
   the active drift cylindrical region with no overlap (FV is the inner
   box at R≤39, z∈[26, 96]; the three "Active" volumes tile what's left
   of the active LXe outside the FV).
 - `FC_PTFE`, `FC_rings`, and `Skin` form the radial partition for
-  z ∈ [0, 145.6]: PTFE inner at R = 72.8, then rings, then skin out
-  to R = 82.1.
+  z ∈ [−13.75, 145.6] at R ∈ [72.8, 82.1]: PTFE inner at R=72.8 →
+  rings inner at R=73.947 (touching) → Skin inner at R=74.224
+  (touching) → envelope at R=82.1. No LXe gaps in the chain.
 
 The Ti cryostat (OCV/ICV) is **not** in the tracking tree. It exists
 only in `source_geometry_lz_v1.json`.
@@ -273,7 +289,7 @@ The source-side schema additionally carries `source_class`,
 | `Disk` | `R_cm`, `wall_thickness_cm`, `aspect_ratio`, `orientation` | flat or oblate-ellipsoidal head (cryostat heads) |
 | `Cap` | `R_cm`, `aspect_ratio` | filled half-oblate cap (used inside `DomedContainer` / `CappedCylinder`) |
 | `DomedContainer` | `radius_cm`, `barrel_half_height_cm`, top + bottom `Cap` | barrel + two coaxial caps (`LZ_detector`) |
-| `CappedCylinder` | `radius_cm`, `barrel_half_height_cm`, optional top/bottom caps | barrel + 0–2 caps (`LXe_passive`, with bottom 3:1 cap only) |
+| `CappedCylinder` | `radius_cm`, `barrel_half_height_cm`, optional top/bottom caps | barrel + 0–2 caps (no longer used by V3 — `LXe_passive` was replaced by three explicit primitives) |
 | `Box` | `dx_cm`, `dy_cm`, `dz_cm` | rectangular block (not currently used in V3 but supported) |
 
 `Cap` and `Disk` differ by purpose: `Disk` is a wall-shell with a
@@ -303,8 +319,10 @@ Material alone does not define analysis behavior — the `tag` does.
 - `structural` PTFE / Ti → never sensitive, purely a geometric obstacle.
 
 This is why several LXe-filled volumes (`TopActive`, `BarrelActive`,
-`BottomActive`, `FV`, `Skin`) coexist as siblings inside `LXe_passive`:
-they encode different *analysis policies* on the same material.
+`BottomActive`, `FV`, `Skin`, and the three passive primitives
+`LXe_dome` / `LXe_below_FC` / `LXe_below_cathode`) coexist as siblings
+under `LZ_detector`: they encode different *analysis policies* on the
+same material.
 
 ## Mother / daughter rule
 

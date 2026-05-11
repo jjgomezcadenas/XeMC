@@ -419,26 +419,32 @@ in Table \ref{tab:tracking-regions}.
 \toprule
 Volume & \texttt{tag} & $R$ [cm] & $z_{\min}$ [cm] & $z_{\max}$ [cm] \\
 \midrule
-\texttt{LZ\_detector}  & \texttt{vacuum}      & 82.1                  & $-13.75$ & 145.6 \\
-\texttt{AirDome}       & \texttt{vacuum}      & 82.1 (dome)           & 148.5    & ---   \\
-\texttt{AirCyl}        & \texttt{vacuum}      & 82.1                  & 145.6    & 148.5 \\
-\texttt{LXe\_passive}  & \texttt{passive\_lxe}& 82.1                  & ---      & ---   \\
-\texttt{TopActive}     & \texttt{tpc\_active} & 72.8                  & 96.0     & 145.6 \\
-\texttt{BarrelActive}  & \texttt{tpc\_active} & 39.0--72.8 (shell)    & 26.0     & 96.0  \\
-\texttt{BottomActive}  & \texttt{tpc\_active} & 72.8                  & 0.0      & 26.0  \\
-\texttt{FV}            & \texttt{fv}          & 39.0                  & 26.0     & 96.0  \\
-\texttt{FC\_PTFE}      & \texttt{structural}  & 72.8--73.95 (shell)   & $-13.75$ & 145.6 \\
-\texttt{FC\_rings}     & \texttt{structural}  & 74.30--74.577 (shell) & $-13.75$ & 145.6 \\
-\texttt{Skin}          & \texttt{skin}        & 74.577--82.1 (shell)  & $-13.75$ & 145.6 \\
+\texttt{LZ\_detector}      & \texttt{vacuum}      & 82.1                  & $-68.7$  & 189.55 \\
+\texttt{AirDome}           & \texttt{vacuum}      & 82.1 (dome)           & 148.5    & ---    \\
+\texttt{AirCyl}            & \texttt{vacuum}      & 82.1                  & 145.6    & 148.5  \\
+\texttt{LXe\_dome}         & \texttt{passive\_lxe}& 82.1 (dome)           & $-68.7$  & $-41.33$ \\
+\texttt{LXe\_below\_FC}    & \texttt{passive\_lxe}& 82.1                  & $-41.33$ & $-13.75$ \\
+\texttt{LXe\_below\_cathode}& \texttt{passive\_lxe}& 72.8                 & $-13.75$ & 0.0    \\
+\texttt{TopActive}         & \texttt{tpc\_active} & 72.8                  & 96.0     & 145.6  \\
+\texttt{BarrelActive}      & \texttt{tpc\_active} & 39.0--72.8 (shell)    & 26.0     & 96.0   \\
+\texttt{BottomActive}      & \texttt{tpc\_active} & 72.8                  & 0.0      & 26.0   \\
+\texttt{FV}                & \texttt{fv}          & 39.0                  & 26.0     & 96.0   \\
+\texttt{FC\_PTFE}          & \texttt{structural}  & 72.8--73.947 (shell)  & $-13.75$ & 145.6  \\
+\texttt{FC\_rings}         & \texttt{structural}  & 73.947--74.224 (shell)& $-13.75$ & 145.6  \\
+\texttt{Skin}              & \texttt{skin}        & 74.224--82.1 (shell)  & $-13.75$ & 145.6  \\
 \bottomrule
 \end{tabular}
 \caption{LZ tracking detector partition. \texttt{LZ\_detector} is the
-tracking envelope (role \texttt{tracking\_envelope}); \texttt{LXe\_passive}
-is the fallback region (any point inside the envelope but not in any inner
-region falls here). Coaxial cylindrical layout: all volumes are centered on
-the detector axis. AirDome is an ellipsoidal dome above the gate plane;
-AirCyl fills the small gas gap between the gate ($z = 145.6$\,cm) and the
-dome equator ($z = 148.5$\,cm).}
+tracking envelope (role \texttt{tracking\_envelope}). Every point inside
+the envelope belongs to exactly one of the twelve inner regions --- the
+geometry is a strict partition, not a fallback model. The three
+\texttt{passive\_lxe} primitives (\texttt{LXe\_dome},
+\texttt{LXe\_below\_FC}, \texttt{LXe\_below\_cathode}) tile the LXe
+volume that the active/structural regions do not claim. AirDome is an
+ellipsoidal dome above the gate plane; AirCyl fills the small vacuum
+gap between the gate ($z = 145.6$\,cm) and the dome equator
+($z = 148.5$\,cm); both gas regions are filled with Vacuum so the
+fast kernel propagates straight through them.}
 \label{tab:tracking-regions}
 \end{table}
 
@@ -455,16 +461,20 @@ construction is fully data-driven:
 scalar geometry (\texttt{rmin}, \texttt{rmax}, \texttt{zmin}, \texttt{zmax},
 cap parameters), the integer \texttt{RegionTag}, and the material reference.
 \item Identify the unique region with role \texttt{tracking\_envelope} as
-the envelope (early-exit test in \texttt{classify\_fastkernel}), and the
-unique region with tag \texttt{TAG\_PASSIVE\_LXE} as the fallback (any point
-inside the envelope but not in any inner region falls here). The compiler
-errors out if either of these is missing or duplicated.
+the envelope (early-exit test in \texttt{classify\_fastkernel}); the
+compiler errors out if it is missing or duplicated. There is no fallback
+region: the geometry is required to be a strict partition of the envelope
+interior (verified by the \texttt{FastKernel geometry partition} testset
+at every load), so every point inside the envelope is classified into
+exactly one inner region by construction.
 \end{enumerate}
 
 The hot-path classifier \texttt{classify\_fastkernel(fk, pos)} tests the
 envelope first (\texttt{nothing} on miss), then loops over all other regions
-in JSON declaration order, and returns the fallback if no inner region
-matched. The interaction-policy dispatcher
+in JSON declaration order, and returns the first match. If no inner region
+matches, it returns \texttt{nothing} --- a missing match indicates a partition
+gap, which the transport loop treats as an escape. The interaction-policy
+dispatcher
 \texttt{select\_interaction\_fastkernel} compares integer
 \texttt{RegionTag} values; no volume name appears in the classification or
 compilation logic.
