@@ -108,7 +108,7 @@ function main()
         rng = MersenneTwister(cli.seed + tid)
         thread_results[tid] = dispatch_source_flux(
             cli.source, cli.isotope, N_per_thread, sg, cfg, rng;
-            verbose=(tid == 1))
+            mats=mats, verbose=(tid == 1))
     end
 
     merged = merge_dispatch_results(cli.isotope, thread_results)

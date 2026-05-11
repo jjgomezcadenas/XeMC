@@ -5,7 +5,7 @@ flux generator function. Extensible for future source types.
 
 
 """
-    dispatch_source_flux(source, isotope, N, sg, cfg, rng) -> Dict
+    dispatch_source_flux(source, isotope, N, sg, cfg, rng; mats, verbose) -> Dict
 
 Generate flux tables for one (source, isotope) pair.
 Returns a Dict whose keys are component symbols
@@ -13,14 +13,17 @@ Returns a Dict whose keys are component symbols
 
 Supported sources:
 - `"cryostat_barrel"`, `"cryostat_top"`, `"cryostat_bottom"`
-- `"pmt_top"`, `"pmt_bottom"`
+- `"pmt_top"`, `"pmt_bottom"`, `"pmt_bottom_lxe"`
 
 Supported isotopes:
 - `"Bi214"`, `"Tl208"`
+
+`mats` and `det` are required only for `"pmt_bottom_lxe"`.
 """
 function dispatch_source_flux(source::String, isotope::String,
                                N::Int, sg::Dict{String,SourceVolumeInfo},
                                cfg::SimConfig, rng::AbstractRNG;
+                               mats::Union{Dict{String,Material},Nothing}=nothing,
                                verbose::Bool=false)
     if source == "cryostat_barrel"
         result = cryostat_barrel_flux(N, sg, cfg, rng; verbose=verbose)
@@ -32,6 +35,9 @@ function dispatch_source_flux(source::String, isotope::String,
         result = pmt_top_flux(N, sg, cfg, rng; verbose=verbose)
     elseif source == "pmt_bottom"
         result = pmt_bottom_flux(N, sg, cfg, rng; verbose=verbose)
+    elseif source == "pmt_bottom_lxe"
+        mats === nothing && error("pmt_bottom_lxe requires mats keyword argument")
+        result = pmt_bottom_lxe_flux(N, sg, mats, cfg, rng; verbose=verbose)
     else
         error("Unknown source '$source'. Supported: $(join(supported_sources(), ", "))")
     end
@@ -136,7 +142,7 @@ end
 List of currently supported source identifiers.
 """
 function supported_sources()::Vector{String}
-    ["cryostat_barrel", "cryostat_top", "cryostat_bottom", "pmt_top", "pmt_bottom"]
+    ["cryostat_barrel", "cryostat_top", "cryostat_bottom", "pmt_top", "pmt_bottom", "pmt_bottom_lxe"]
 end
 
 
@@ -236,6 +242,15 @@ function make_virtual_envelope(source::String,
         sv = SourceVolumeInfo("PMT_BOT_merged", merged, merged.material,
             Dict{String,Float64}(), 0.0, :transparent, "virtual_source", "merged")
         make_virtual_envelope(sv)
+
+    elseif source == "pmt_bottom_lxe"
+        # VE at the cathode: flat disk at z_cathode, gammas going upward
+        z_cathode = _cathode_z(sg)
+        merged, _ = _merge_pmt_volume(sg,
+            ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
+            "PMT_BOT_merged", :down)
+        R = merged.logical.solid.radius_cm
+        VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_cathode, 1.0)
 
     else
         error("Unknown source '$source'. Supported: $(join(supported_sources(), ", "))")

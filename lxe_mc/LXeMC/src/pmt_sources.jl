@@ -129,3 +129,86 @@ function pmt_bottom_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
 
     (bi214=bi, tl208=tl, bi214_rate=rate_bi, tl208_rate=rate_tl)
 end
+
+
+"""
+    _cathode_z(sg) -> Float64
+
+Return the cathode z position from the source geometry.
+Derived as the top face of FC_botgrid (position_z + half_height).
+"""
+function _cathode_z(sg::Dict{String,SourceVolumeInfo})::Float64
+    bg = sg["FC_botgrid"]
+    vol = bg.volume
+    if vol isa PCylShell
+        vol.logical.position[3] + vol.logical.solid.half_height_cm
+    elseif vol isa PCyl
+        vol.logical.position[3] + vol.logical.solid.half_height_cm
+    else
+        error("FC_botgrid has unexpected volume type: $(typeof(vol))")
+    end
+end
+
+
+"""
+    pmt_bottom_lxe_flux(N, sg, mats, cfg, rng; kwargs...) -> NamedTuple
+
+Compute bottom PMT flux tables at the cathode after propagation
+through the passive LXe below the cathode.
+
+Gammas are born at the PMT surface (transparent, hemisphere-filtered
+upward), then propagated through a slab of passive LXe from
+z_pmt_top to z_cathode. The flux is recorded at the cathode.
+
+This allows comparing bottom PMT backgrounds with top PMTs on equal
+footing: from the cathode onward, both see only active LXe before
+the FV.
+"""
+function pmt_bottom_lxe_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
+                              mats::Dict{String,Material},
+                              cfg::SimConfig, rng::AbstractRNG;
+                              verbose::Bool=false, kwargs...)
+    pmt_names = ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"]
+    merged, components = _merge_pmt_volume(sg, pmt_names, "PMT_BOT_merged", :down)
+
+    # Cathode z from source geometry (top face of FC_botgrid)
+    z_cathode = _cathode_z(sg)
+    z_pmt = merged.logical.position[3]  # top face of merged disk
+    R_pmt = merged.logical.solid.radius_cm
+    hh = (z_cathode - z_pmt) / 2.0
+    z_center = (z_pmt + z_cathode) / 2.0
+
+    verbose && @printf("  [pmt_bot_lxe] LXe slab: z=[%.2f, %.2f], R=%.1f\n",
+                       z_pmt, z_cathode, R_pmt)
+
+    lxe_mat = mats["LXe"]
+    lxe_slab = PCyl("LXe_passive_slab",
+                     LCyl(Cyl(R_pmt, hh), Float64[0.0, 0.0, z_center]),
+                     lxe_mat)
+
+    # Exit surface at cathode: orientation :down means
+    # cos_theta_to_lxe = +dir_z (upward = toward active LXe)
+    exit_disk = PDisk("cathode_surface",
+                      LDisk(Disk(R_pmt, 0.01, Inf), Float64[0.0, 0.0, z_cathode], :down),
+                      lxe_mat)
+
+    layers = PhysicalVolume[lxe_slab]
+
+    t0 = time()
+    bi = generate_flux_compound_bi214(N, merged, layers, exit_disk, cfg, rng; kwargs...)
+    tl = generate_flux_compound_tl208(N, merged, layers, exit_disk, cfg, rng; kwargs...)
+    verbose && @printf("  [pmt_bot_lxe] flux generation done (%.1fs)\n", time() - t0)
+
+    A_bi = "Bi214_mBq_per_kg"
+    A_tl = "Tl208_mBq_per_kg"
+
+    rate_bi_lxe = _build_rate_table(:bottom, BR_BI214_2448,
+        [(sv.name, _get_activity_Bq(sv, A_bi), sv.mass_kg, bi) for sv in components],
+        bi.E_min, bi.E_max, bi.n_E, bi.n_u)
+
+    rate_tl_lxe = _build_rate_table(:bottom, BR_TL208_2615,
+        [(sv.name, _get_activity_Bq(sv, A_tl), sv.mass_kg, tl) for sv in components],
+        tl.E_min_main, tl.E_max_main, tl.n_E_main, tl.n_u)
+
+    (bi214=bi, tl208=tl, bi214_rate=rate_bi_lxe, tl208_rate=rate_tl_lxe)
+end
