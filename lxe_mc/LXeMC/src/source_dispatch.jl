@@ -38,6 +38,8 @@ function dispatch_source_flux(source::String, isotope::String,
     elseif source == "pmt_bottom_lxe"
         mats === nothing && error("pmt_bottom_lxe requires mats keyword argument")
         result = pmt_bottom_lxe_flux(N, sg, mats, cfg, rng; verbose=verbose)
+    elseif source == "pmt_barrel"
+        result = pmt_barrel_flux(N, sg, cfg, rng; verbose=verbose)
     else
         error("Unknown source '$source'. Supported: $(join(supported_sources(), ", "))")
     end
@@ -142,7 +144,7 @@ end
 List of currently supported source identifiers.
 """
 function supported_sources()::Vector{String}
-    ["cryostat_barrel", "cryostat_top", "cryostat_bottom", "pmt_top", "pmt_bottom", "pmt_bottom_lxe"]
+    ["cryostat_barrel", "cryostat_top", "cryostat_bottom", "pmt_top", "pmt_bottom", "pmt_bottom_lxe", "pmt_barrel"]
 end
 
 
@@ -255,6 +257,16 @@ function make_virtual_envelope(source::String,
             "PMT_BOT_merged", :down)
         R = merged.logical.solid.radius_cm
         VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_cathode + ε, 1.0)
+
+    elseif source == "pmt_barrel"
+        merged, _ = _merge_pmt_barrel_volume(sg,
+            ["PMT_BARREL_cables", "PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"],
+            "PMT_BARREL_merged")
+        lv = merged.logical
+        R = lv.solid.R_inner_cm - ε
+        z_min = lv.position[3] - lv.solid.half_height_cm
+        z_max = lv.position[3] + lv.solid.half_height_cm
+        VirtualEnvelope(:barrel, R, z_min, z_max, 0.0, 0.0)
 
     else
         error("Unknown source '$source'. Supported: $(join(supported_sources(), ", "))")

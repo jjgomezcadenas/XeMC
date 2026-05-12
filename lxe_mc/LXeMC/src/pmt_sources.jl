@@ -216,3 +216,86 @@ function pmt_bottom_lxe_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
 
     (bi214=bi, tl208=tl, bi214_rate=rate_bi_lxe, tl208_rate=rate_tl_lxe)
 end
+
+
+# =====================================================================
+# Barrel PMT sources (cables, skin PMTs, lower-ring PMTs)
+# =====================================================================
+
+"""
+    _merge_pmt_barrel_volume(sg, names, merged_name)
+        -> (PCylShell, Vector{SourceVolumeInfo})
+
+Build a merged cylindrical shell spanning the full R and z extent of
+the named barrel PMT sub-components. All are transparent (vacuum).
+"""
+function _merge_pmt_barrel_volume(sg::Dict{String,SourceVolumeInfo},
+                                   names::Vector{String},
+                                   merged_name::String)::Tuple{PCylShell,Vector{SourceVolumeInfo}}
+    components = [sg[n] for n in names]
+
+    R_inner = Inf
+    R_outer = 0.0
+    z_min = Inf
+    z_max = -Inf
+    for sv in components
+        vol = sv.volume
+        if vol isa PCylShell
+            lv = vol.logical
+            ri = lv.solid.R_inner_cm
+            ro = ri + lv.solid.wall_thickness_cm
+            hh = lv.solid.half_height_cm
+            zc = lv.position[3]
+            R_inner = min(R_inner, ri)
+            R_outer = max(R_outer, ro)
+            z_min = min(z_min, zc - hh)
+            z_max = max(z_max, zc + hh)
+        else
+            error("Barrel PMT component '$(sv.name)' is not a PCylShell")
+        end
+    end
+
+    hh = (z_max - z_min) / 2.0
+    z_center = (z_min + z_max) / 2.0
+    wall = R_outer - R_inner
+    vac = components[1].material
+    merged = PCylShell(merged_name,
+                       LCylShell(CylShell(R_inner, wall, hh),
+                                 Float64[0.0, 0.0, z_center]),
+                       vac)
+    (merged, components)
+end
+
+
+"""
+    pmt_barrel_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
+
+Compute barrel PMT flux tables. Three sub-components (cables, R8520
+skin PMTs, R8778 lower-ring PMTs) are lumped into a single transparent
+cylindrical shell. Gammas going inward pass the VE; outward gammas
+are lost (filtered by cos_theta_to_lxe for CylShell = inward radial).
+"""
+function pmt_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
+                          cfg::SimConfig, rng::AbstractRNG;
+                          verbose::Bool=false, kwargs...)
+    pmt_names = ["PMT_BARREL_cables", "PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"]
+    merged, components = _merge_pmt_barrel_volume(sg, pmt_names, "PMT_BARREL_merged")
+
+    t0 = time()
+    bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
+    tl = generate_flux_tl208(N, merged, cfg, rng; kwargs...)
+    verbose && @printf("  [pmt_barrel] flux generation done (%.1fs)\n", time() - t0)
+
+    A_bi = "Bi214_mBq_per_kg"
+    A_tl = "Tl208_mBq_per_kg"
+
+    rate_bi = _build_rate_table(:barrel, BR_BI214_2448,
+        [(sv.name, _get_activity_Bq(sv, A_bi), sv.mass_kg, bi) for sv in components],
+        bi.E_min, bi.E_max, bi.n_E, bi.n_u)
+
+    rate_tl = _build_rate_table(:barrel, BR_TL208_2615,
+        [(sv.name, _get_activity_Bq(sv, A_tl), sv.mass_kg, tl) for sv in components],
+        tl.E_min_main, tl.E_max_main, tl.n_E_main, tl.n_u)
+
+    (bi214=bi, tl208=tl, bi214_rate=rate_bi, tl208_rate=rate_tl)
+end
