@@ -244,13 +244,17 @@ function make_virtual_envelope(source::String,
         make_virtual_envelope(sv)
 
     elseif source == "pmt_bottom_lxe"
-        # VE at the cathode: flat disk at z_cathode, gammas going upward
+        # VE just above the cathode: flat disk at z_cathode + ε, gammas
+        # going upward. The cathode plane (z=0) is the boundary between
+        # LXe_below_cathode and BottomActive; with strict-inequality
+        # containment, neither region claims z=0 exactly. Insetting by ε
+        # places the launch point unambiguously inside BottomActive.
         z_cathode = _cathode_z(sg)
         merged, _ = _merge_pmt_volume(sg,
             ["PMT_BOT_PMTs", "PMT_BOT_bases", "PMT_BOT_structure", "PMT_BOT_R8778_dome"],
             "PMT_BOT_merged", :down)
         R = merged.logical.solid.radius_cm
-        VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_cathode, 1.0)
+        VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_cathode + ε, 1.0)
 
     else
         error("Unknown source '$source'. Supported: $(join(supported_sources(), ", "))")
