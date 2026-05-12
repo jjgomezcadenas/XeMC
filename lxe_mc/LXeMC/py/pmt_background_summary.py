@@ -1,15 +1,29 @@
-"""PMT background breakdown by source location (top/bottom) and component
-(PMTs, bases, structure, R8778_dome).
+"""PMT background summary following LZ paper grouping.
 
-Reads summary.json from the analysis directories of pmt_top and pmt_bottom,
-decomposes the total background rate per component, and produces a cross-table
-with row and column totals.
+Rows = component types (TPC PMTs, TPC PMT bases, TPC PMT structures,
+TPC PMT cables, Skin PMTs + bases). Columns = mass, activities,
+background per isotope, total.
+
+Reads summary.json from pmt_top, pmt_bottom, and pmt_barrel analysis
+directories. Tolerant of missing isotopes (e.g., Tl208 not yet computed).
 
 Usage:
     python py/pmt_background_summary.py \\
         --top results/bfv/pmt/top/Bi214/analysis \\
         --bottom results/bfv/pmt/bottom/Bi214/analysis \\
+        --barrel results/bfv/pmt/barrel/Bi214/analysis \\
         -o results/bfv/pmt/Bi214_summary \\
+        --display
+
+    # With Tl208 (when available):
+    python py/pmt_background_summary.py \\
+        --top results/bfv/pmt/top/Bi214/analysis \\
+        --bottom results/bfv/pmt/bottom/Bi214/analysis \\
+        --barrel results/bfv/pmt/barrel/Bi214/analysis \\
+        --top-tl results/bfv/pmt/top/Tl208/analysis \\
+        --bottom-tl results/bfv/pmt/bottom/Tl208/analysis \\
+        --barrel-tl results/bfv/pmt/barrel/Tl208/analysis \\
+        -o results/bfv/pmt/summary \\
         --display
 """
 
@@ -23,127 +37,161 @@ import numpy as np
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="PMT background breakdown by location and component."
+        description="PMT background summary (LZ paper grouping)."
     )
-    parser.add_argument(
-        "--top", required=True, type=Path,
-        help="Analysis directory for pmt_top (containing summary.json)"
-    )
-    parser.add_argument(
-        "--bottom", required=True, type=Path,
-        help="Analysis directory for pmt_bottom (containing summary.json)"
-    )
-    parser.add_argument(
-        "-o", "--output", required=True, type=Path,
-        help="Output directory for summary files"
-    )
-    parser.add_argument(
-        "--display", action="store_true", help="Show plots interactively"
-    )
+    parser.add_argument("--top", required=True, type=Path, help="pmt_top Bi214 analysis dir")
+    parser.add_argument("--bottom", required=True, type=Path, help="pmt_bottom Bi214 analysis dir")
+    parser.add_argument("--barrel", required=True, type=Path, help="pmt_barrel Bi214 analysis dir")
+    parser.add_argument("--top-tl", type=Path, default=None, help="pmt_top Tl208 analysis dir")
+    parser.add_argument("--bottom-tl", type=Path, default=None, help="pmt_bottom Tl208 analysis dir")
+    parser.add_argument("--barrel-tl", type=Path, default=None, help="pmt_barrel Tl208 analysis dir")
+    parser.add_argument("-o", "--output", required=True, type=Path, help="Output directory")
+    parser.add_argument("--display", action="store_true", help="Show plots interactively")
     return parser.parse_args()
 
 
-def load_summary(path: Path) -> dict:
-    with open(path / "summary.json") as f:
+def load_summary(path: Path) -> dict | None:
+    p = path / "summary.json"
+    if not p.exists():
+        return None
+    with open(p) as f:
         return json.load(f)
 
 
-def component_breakdown(smry: dict) -> dict[str, float]:
-    """Return {component_name: N_ss_roi_per_year} for each component."""
+def component_rates(smry: dict) -> dict[str, float]:
+    """Return {component_name: N_ss_roi_per_year}."""
     br = smry["background_rate"]
-    components = br.get("source_components", [])
+    comps = br.get("source_components", [])
     rate_total = br["rate_gammas_per_s"]
-    n_ss_roi_total = br["n_ss_roi_per_year"]
-
+    n_total = br["n_ss_roi_per_year"]
     result = {}
-    for comp in components:
-        frac = comp["rate_gammas_per_s"] / rate_total if rate_total > 0 else 0.0
-        result[comp["name"]] = frac * n_ss_roi_total
+    for c in comps:
+        frac = c["rate_gammas_per_s"] / rate_total if rate_total > 0 else 0.0
+        result[c["name"]] = frac * n_total
     return result
 
 
-# Canonical component order and short names
-TOP_COMPONENTS = [
-    ("PMT_TOP_PMTs", "PMTs"),
-    ("PMT_TOP_bases", "Bases"),
-    ("PMT_TOP_structure", "Structure"),
+def component_info(smry: dict) -> dict[str, dict]:
+    """Return {component_name: {mass_kg, activity_bi, activity_tl}}."""
+    br = smry["background_rate"]
+    result = {}
+    for c in br.get("source_components", []):
+        result[c["name"]] = {
+            "mass_kg": c["mass_kg"],
+            "activity_mBq_per_kg": c["activity_mBq_per_kg"],
+        }
+    return result
+
+
+# =====================================================================
+# LZ-style grouping
+# =====================================================================
+# Each group: (label, list of full component names to sum)
+GROUPS = [
+    ("TPC PMTs",           ["PMT_TOP_PMTs", "PMT_BOT_PMTs"]),
+    ("TPC PMT bases",      ["PMT_TOP_bases", "PMT_BOT_bases"]),
+    ("TPC PMT structures", ["PMT_TOP_structure", "PMT_BOT_structure"]),
+    ("TPC PMT cables",     ["PMT_BARREL_cables"]),
+    ("Skin PMTs + bases",  ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower", "PMT_BOT_R8778_dome"]),
 ]
 
-BOT_COMPONENTS = [
-    ("PMT_BOT_PMTs", "PMTs"),
-    ("PMT_BOT_bases", "Bases"),
-    ("PMT_BOT_structure", "Structure"),
-    ("PMT_BOT_R8778_dome", "R8778 dome"),
-]
 
-# Unified column labels (superset)
-ALL_SHORT = ["PMTs", "Bases", "Structure", "R8778 dome"]
+def gather_all(bi_summaries: dict[str, dict | None],
+               tl_summaries: dict[str, dict | None]):
+    """Build per-group totals for mass, activity, and background."""
+    # Collect all component rates and info
+    bi_rates: dict[str, float] = {}
+    tl_rates: dict[str, float] = {}
+    info: dict[str, dict] = {}
+
+    for smry in bi_summaries.values():
+        if smry is not None:
+            bi_rates.update(component_rates(smry))
+            info.update(component_info(smry))
+
+    for smry in tl_summaries.values():
+        if smry is not None:
+            tl_rates.update(component_rates(smry))
+            # Update activity info with Tl208 values
+            for c in smry["background_rate"].get("source_components", []):
+                if c["name"] in info:
+                    info[c["name"]]["activity_tl_mBq_per_kg"] = c["activity_mBq_per_kg"]
+
+    rows = []
+    for label, members in GROUPS:
+        mass = sum(info.get(m, {}).get("mass_kg", 0.0) for m in members)
+        # Representative activities (all members in a group share the same)
+        act_bi = 0.0
+        act_tl = 0.0
+        for m in members:
+            if m in info:
+                act_bi = info[m].get("activity_mBq_per_kg", 0.0)
+                act_tl = info[m].get("activity_tl_mBq_per_kg", 0.0)
+                break
+        bg_bi = sum(bi_rates.get(m, 0.0) for m in members)
+        bg_tl = sum(tl_rates.get(m, 0.0) for m in members)
+        bg_total = bg_bi + bg_tl
+        rows.append({
+            "label": label,
+            "mass_kg": mass,
+            "act_bi": act_bi,
+            "act_tl": act_tl,
+            "bg_bi": bg_bi,
+            "bg_tl": bg_tl,
+            "bg_total": bg_total,
+        })
+    return rows
 
 
-def build_table(top_bd: dict[str, float], bot_bd: dict[str, float]):
-    """Build the cross-table as a 2D array + row/col totals."""
-    top_row = []
-    for full, short in TOP_COMPONENTS:
-        top_row.append(top_bd.get(full, 0.0))
-    # Top has no R8778_dome
-    top_row.append(0.0)
-
-    bot_row = []
-    for full, short in BOT_COMPONENTS:
-        bot_row.append(bot_bd.get(full, 0.0))
-
-    top_arr = np.array(top_row)
-    bot_arr = np.array(bot_row)
-    col_totals = top_arr + bot_arr
-    top_total = top_arr.sum()
-    bot_total = bot_arr.sum()
-    grand_total = top_total + bot_total
-
-    return top_arr, bot_arr, col_totals, top_total, bot_total, grand_total
-
-
-def write_text(path: Path, top_smry: dict, bot_smry: dict,
-               top_arr, bot_arr, col_totals,
-               top_total, bot_total, grand_total) -> None:
-    top_br = top_smry["background_rate"]
-    bot_br = bot_smry["background_rate"]
-
+def write_text(path: Path, rows: list[dict], has_tl: bool) -> None:
     lines = [
-        "=" * 80,
-        "PMT Background Summary: N(SS in ROI) per year by component",
-        "=" * 80,
-        f"  Top source:    {top_br['source']}  isotope: {top_br['isotope']}",
-        f"  Bottom source: {bot_br['source']}  isotope: {bot_br['isotope']}",
-        "-" * 80,
+        "=" * 110,
+        "PMT Background Summary: N(SS in ROI) per year",
+        "=" * 110,
         "",
-        f"  {'':15s} {'PMTs':>12s} {'Bases':>12s} {'Structure':>12s} {'R8778 dome':>12s} {'Total':>12s}",
-        f"  {'Top':15s} {top_arr[0]:12.4f} {top_arr[1]:12.4f} {top_arr[2]:12.4f} {top_arr[3]:12.4f} {top_total:12.4f}",
-        f"  {'Bottom':15s} {bot_arr[0]:12.4f} {bot_arr[1]:12.4f} {bot_arr[2]:12.4f} {bot_arr[3]:12.4f} {bot_total:12.4f}",
-        f"  {'Total':15s} {col_totals[0]:12.4f} {col_totals[1]:12.4f} {col_totals[2]:12.4f} {col_totals[3]:12.4f} {grand_total:12.4f}",
-        "",
-        "-" * 80,
-        "  Per-component details (Top):",
     ]
-    for comp in top_br.get("source_components", []):
-        lines.append(f"    {comp['name']:25s}  mass={comp['mass_kg']:.3f} kg  "
-                     f"act={comp['activity_mBq_per_kg']:.4f} mBq/kg  "
-                     f"geom={comp['geometric_survival']:.6f}  "
-                     f"rate={comp['rate_gammas_per_s']:.4e} g/s")
 
-    lines.append("  Per-component details (Bottom):")
-    for comp in bot_br.get("source_components", []):
-        lines.append(f"    {comp['name']:25s}  mass={comp['mass_kg']:.3f} kg  "
-                     f"act={comp['activity_mBq_per_kg']:.4f} mBq/kg  "
-                     f"geom={comp['geometric_survival']:.6f}  "
-                     f"rate={comp['rate_gammas_per_s']:.4e} g/s")
+    if has_tl:
+        hdr = f"  {'Component':22s} {'Mass (kg)':>10s} {'Bi214':>10s} {'Tl208':>10s} {'BG Bi214':>10s} {'BG Tl208':>10s} {'Total':>10s}"
+        lines.append(hdr)
+        lines.append(f"  {'':22s} {'':>10s} {'(mBq/kg)':>10s} {'(mBq/kg)':>10s} {'(evt/yr)':>10s} {'(evt/yr)':>10s} {'(evt/yr)':>10s}")
+    else:
+        hdr = f"  {'Component':22s} {'Mass (kg)':>10s} {'Bi214':>10s} {'BG Bi214':>10s}"
+        lines.append(hdr)
+        lines.append(f"  {'':22s} {'':>10s} {'(mBq/kg)':>10s} {'(evt/yr)':>10s}")
 
-    lines += [
-        "",
-        f"  Top:    N(SS in ROI)/year = {top_br['n_ss_roi_per_year']:.4f}",
-        f"  Bottom: N(SS in ROI)/year = {bot_br['n_ss_roi_per_year']:.4f}",
-        f"  Total:  N(SS in ROI)/year = {grand_total:.4f}",
-        "=" * 80,
-    ]
+    lines.append("-" * 110)
+
+    total_bi = 0.0
+    total_tl = 0.0
+    total_all = 0.0
+    for r in rows:
+        total_bi += r["bg_bi"]
+        total_tl += r["bg_tl"]
+        total_all += r["bg_total"]
+        if has_tl:
+            lines.append(
+                f"  {r['label']:22s} {r['mass_kg']:10.2f} {r['act_bi']:10.2f} "
+                f"{r['act_tl']:10.2f} {r['bg_bi']:10.4f} {r['bg_tl']:10.4f} "
+                f"{r['bg_total']:10.4f}"
+            )
+        else:
+            lines.append(
+                f"  {r['label']:22s} {r['mass_kg']:10.2f} {r['act_bi']:10.2f} "
+                f"{r['bg_bi']:10.4f}"
+            )
+
+    lines.append("-" * 110)
+    if has_tl:
+        lines.append(
+            f"  {'TOTAL':22s} {'':>10s} {'':>10s} {'':>10s} "
+            f"{total_bi:10.4f} {total_tl:10.4f} {total_all:10.4f}"
+        )
+    else:
+        lines.append(
+            f"  {'TOTAL':22s} {'':>10s} {'':>10s} {total_bi:10.4f}"
+        )
+    lines.append("=" * 110)
 
     text = "\n".join(lines)
     print(text)
@@ -151,25 +199,56 @@ def write_text(path: Path, top_smry: dict, bot_smry: dict,
     print(f"Saved {path}")
 
 
-def plot_table(top_arr, bot_arr, col_totals,
-               top_total, bot_total, grand_total,
+def plot_table(rows: list[dict], has_tl: bool,
                outdir: Path, display: bool) -> None:
     def fmt(v: float) -> str:
         return f"{v:.4f}" if v > 0 else "-"
 
-    table_data = [
-        ["Top"] + [fmt(v) for v in top_arr] + [fmt(top_total)],
-        ["Bottom"] + [fmt(v) for v in bot_arr] + [fmt(bot_total)],
-        ["Total"] + [fmt(v) for v in col_totals] + [fmt(grand_total)],
-    ]
-    col_labels = ["", "PMTs", "Bases", "Structure", "R8778 dome", "Total"]
+    def fmtm(v: float) -> str:
+        return f"{v:.2f}" if v > 0 else "-"
 
-    fig, ax = plt.subplots(figsize=(10, 2.5))
+    def fmta(v: float) -> str:
+        return f"{v:.2f}" if v > 0 else "-"
+
+    if has_tl:
+        col_labels = ["Component", "Mass (kg)", "Bi214\n(mBq/kg)", "Tl208\n(mBq/kg)",
+                       "BG Bi214\n(evt/yr)", "BG Tl208\n(evt/yr)", "Total\n(evt/yr)"]
+    else:
+        col_labels = ["Component", "Mass (kg)", "Bi214\n(mBq/kg)", "BG Bi214\n(evt/yr)"]
+
+    table_data = []
+    total_bi = 0.0
+    total_tl = 0.0
+    total_all = 0.0
+    for r in rows:
+        total_bi += r["bg_bi"]
+        total_tl += r["bg_tl"]
+        total_all += r["bg_total"]
+        if has_tl:
+            table_data.append([
+                r["label"], fmtm(r["mass_kg"]), fmta(r["act_bi"]), fmta(r["act_tl"]),
+                fmt(r["bg_bi"]), fmt(r["bg_tl"]), fmt(r["bg_total"]),
+            ])
+        else:
+            table_data.append([
+                r["label"], fmtm(r["mass_kg"]), fmta(r["act_bi"]), fmt(r["bg_bi"]),
+            ])
+
+    # Total row
+    if has_tl:
+        table_data.append(["TOTAL", "", "", "", fmt(total_bi), fmt(total_tl), fmt(total_all)])
+    else:
+        table_data.append(["TOTAL", "", "", fmt(total_bi)])
+
+    n_cols = len(col_labels)
+    n_rows = len(table_data)
+    fig_w = 14 if has_tl else 10
+    fig, ax = plt.subplots(figsize=(fig_w, 0.5 * n_rows + 1.5))
     ax.axis("off")
     tbl = ax.table(cellText=table_data, colLabels=col_labels,
                    loc="center", cellLoc="center")
     tbl.auto_set_font_size(False)
-    tbl.set_fontsize(11)
+    tbl.set_fontsize(10)
     tbl.scale(1.0, 1.8)
 
     for (row, col), cell in tbl.get_celld().items():
@@ -178,16 +257,16 @@ def plot_table(top_arr, bot_arr, col_totals,
             cell.set_text_props(color="white", weight="bold")
         elif col == 0:
             cell.set_text_props(weight="bold")
-        elif col == 5:
+        elif col == n_cols - 1 and row > 0:
             cell.set_facecolor("#D9E2F3")
-        if row == 3:
+        if row == n_rows:
             cell.set_facecolor("#E0E0E0")
             cell.set_text_props(weight="bold")
-        if row == 3 and col == 5:
+        if row == n_rows and col == n_cols - 1:
             cell.set_facecolor("#C6EFCE")
             cell.set_text_props(weight="bold")
 
-    ax.set_title("PMT Background: N(SS in ROI)/year by component", fontsize=12, pad=12)
+    ax.set_title("PMT Background: N(SS in ROI)/year", fontsize=12, pad=12)
     fig.tight_layout()
     outfile = outdir / "pmt_background_table.png"
     fig.savefig(outfile, dpi=150, bbox_inches="tight")
@@ -201,25 +280,24 @@ def main() -> None:
     args = parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
 
-    print(f"Reading top:    {args.top}")
-    print(f"Reading bottom: {args.bottom}")
-    top_smry = load_summary(args.top)
-    bot_smry = load_summary(args.bottom)
+    bi_summaries = {
+        "top": load_summary(args.top),
+        "bottom": load_summary(args.bottom),
+        "barrel": load_summary(args.barrel),
+    }
 
-    top_bd = component_breakdown(top_smry)
-    bot_bd = component_breakdown(bot_smry)
+    tl_summaries = {
+        "top": load_summary(args.top_tl) if args.top_tl else None,
+        "bottom": load_summary(args.bottom_tl) if args.bottom_tl else None,
+        "barrel": load_summary(args.barrel_tl) if args.barrel_tl else None,
+    }
 
-    top_arr, bot_arr, col_totals, top_total, bot_total, grand_total = \
-        build_table(top_bd, bot_bd)
+    has_tl = any(v is not None for v in tl_summaries.values())
 
-    write_text(args.output / "pmt_background_summary.txt",
-               top_smry, bot_smry,
-               top_arr, bot_arr, col_totals,
-               top_total, bot_total, grand_total)
+    rows = gather_all(bi_summaries, tl_summaries)
 
-    plot_table(top_arr, bot_arr, col_totals,
-               top_total, bot_total, grand_total,
-               args.output, args.display)
+    write_text(args.output / "pmt_background_summary.txt", rows, has_tl)
+    plot_table(rows, has_tl, args.output, args.display)
 
     print("Done.")
 
