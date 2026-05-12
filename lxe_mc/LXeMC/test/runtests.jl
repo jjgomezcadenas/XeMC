@@ -2135,6 +2135,39 @@ end
 
 
 # =====================================================================
+# PMT barrel: cables, skin PMTs, lower-ring PMTs
+# =====================================================================
+@testset "pmt_barrel flux" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+
+    # Merged barrel geometry
+    merged, comps = LXeMC._merge_pmt_barrel_volume(sg,
+        ["PMT_BARREL_cables", "PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"],
+        "PMT_BARREL_merged")
+    @test length(comps) == 3
+    @test merged isa PCylShell
+    @test merged.material.density ≈ 0.0  # vacuum
+
+    # Flux: ~50% hemisphere survival (transparent, inward radial)
+    result = pmt_barrel_flux(10000, sg, CFG, MersenneTwister(42))
+    f = sum(result.bi214.pdf)
+    @test 0.3 < f < 0.7
+
+    # Rate table has 3 components with correct names
+    @test length(result.bi214_rate.component_names) == 3
+    @test result.bi214_rate.total_rate > 0
+    @test "PMT_BARREL_cables" in result.bi214_rate.component_names
+    @test "PMT_BARREL_R8520" in result.bi214_rate.component_names
+    @test "PMT_BARREL_R8778_lower" in result.bi214_rate.component_names
+
+    # Tl208 works
+    @test sum(result.tl208.pdf_main) > 0
+    @test result.tl208_rate.total_rate > 0
+end
+
+
+# =====================================================================
 # PMT bottom LXe slab geometry sanity
 # =====================================================================
 @testset "pmt_bottom_lxe slab geometry" begin
