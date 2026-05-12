@@ -71,14 +71,15 @@ def component_rates(smry: dict) -> dict[str, float]:
     return result
 
 
-def component_info(smry: dict) -> dict[str, dict]:
-    """Return {component_name: {mass_kg, activity_bi, activity_tl}}."""
+def component_info(smry: dict, isotope: str = "bi") -> dict[str, dict]:
+    """Return {component_name: {mass_kg, activity, rate_gammas_per_s}}."""
     br = smry["background_rate"]
     result = {}
     for c in br.get("source_components", []):
         result[c["name"]] = {
             "mass_kg": c["mass_kg"],
-            "activity_mBq_per_kg": c["activity_mBq_per_kg"],
+            f"activity_{isotope}_mBq_per_kg": c["activity_mBq_per_kg"],
+            f"rate_{isotope}_gammas_per_s": c["rate_gammas_per_s"],
         }
     return result
 
@@ -99,7 +100,6 @@ GROUPS = [
 def gather_all(bi_summaries: dict[str, dict | None],
                tl_summaries: dict[str, dict | None]):
     """Build per-group totals for mass, activity, and background."""
-    # Collect all component rates and info
     bi_rates: dict[str, float] = {}
     tl_rates: dict[str, float] = {}
     info: dict[str, dict] = {}
@@ -107,27 +107,36 @@ def gather_all(bi_summaries: dict[str, dict | None],
     for smry in bi_summaries.values():
         if smry is not None:
             bi_rates.update(component_rates(smry))
-            info.update(component_info(smry))
+            for name, ci in component_info(smry, "bi").items():
+                info.setdefault(name, {}).update(ci)
 
     for smry in tl_summaries.values():
         if smry is not None:
             tl_rates.update(component_rates(smry))
-            # Update activity info with Tl208 values
-            for c in smry["background_rate"].get("source_components", []):
-                if c["name"] in info:
-                    info[c["name"]]["activity_tl_mBq_per_kg"] = c["activity_mBq_per_kg"]
+            for name, ci in component_info(smry, "tl").items():
+                info.setdefault(name, {}).update(ci)
+
+    seconds_per_year = 3.15576e7
 
     rows = []
     for label, members in GROUPS:
         mass = sum(info.get(m, {}).get("mass_kg", 0.0) for m in members)
-        # Representative activities (all members in a group share the same)
+        # Representative specific activities (members in a group share the same)
         act_bi = 0.0
         act_tl = 0.0
         for m in members:
             if m in info:
-                act_bi = info[m].get("activity_mBq_per_kg", 0.0)
+                act_bi = info[m].get("activity_bi_mBq_per_kg", 0.0)
                 act_tl = info[m].get("activity_tl_mBq_per_kg", 0.0)
                 break
+        # Total activity = mass * specific_activity (mBq)
+        total_act_bi = mass * act_bi
+        total_act_tl = mass * act_tl
+        # Gamma rate (gammas/year) from metadata, summed over group members
+        rate_bi = sum(info.get(m, {}).get("rate_bi_gammas_per_s", 0.0) for m in members)
+        rate_tl = sum(info.get(m, {}).get("rate_tl_gammas_per_s", 0.0) for m in members)
+        rate_bi_yr = rate_bi * seconds_per_year
+        rate_tl_yr = rate_tl * seconds_per_year
         bg_bi = sum(bi_rates.get(m, 0.0) for m in members)
         bg_tl = sum(tl_rates.get(m, 0.0) for m in members)
         bg_total = bg_bi + bg_tl
@@ -136,6 +145,10 @@ def gather_all(bi_summaries: dict[str, dict | None],
             "mass_kg": mass,
             "act_bi": act_bi,
             "act_tl": act_tl,
+            "total_act_bi_mBq": total_act_bi,
+            "total_act_tl_mBq": total_act_tl,
+            "rate_bi_yr": rate_bi_yr,
+            "rate_tl_yr": rate_tl_yr,
             "bg_bi": bg_bi,
             "bg_tl": bg_tl,
             "bg_total": bg_total,
@@ -144,23 +157,26 @@ def gather_all(bi_summaries: dict[str, dict | None],
 
 
 def write_text(path: Path, rows: list[dict], has_tl: bool) -> None:
+    w = 140 if has_tl else 130
     lines = [
-        "=" * 110,
+        "=" * w,
         "PMT Background Summary: N(SS in ROI) per year",
-        "=" * 110,
+        "=" * w,
         "",
     ]
 
     if has_tl:
-        hdr = f"  {'Component':22s} {'Mass (kg)':>10s} {'Bi214':>10s} {'Tl208':>10s} {'BG Bi214':>10s} {'BG Tl208':>10s} {'Total':>10s}"
-        lines.append(hdr)
-        lines.append(f"  {'':22s} {'':>10s} {'(mBq/kg)':>10s} {'(mBq/kg)':>10s} {'(evt/yr)':>10s} {'(evt/yr)':>10s} {'(evt/yr)':>10s}")
+        hdr = (f"  {'Component':22s} {'Mass':>8s} {'Bi214':>10s} {'Tl208':>10s} "
+               f"{'Tot Act':>10s} {'Rate Bi':>12s} {'BG Bi214':>10s} {'BG Tl208':>10s} {'Total':>10s}")
+        sub = (f"  {'':22s} {'(kg)':>8s} {'(mBq/kg)':>10s} {'(mBq/kg)':>10s} "
+               f"{'(mBq)':>10s} {'(g/yr)':>12s} {'(evt/yr)':>10s} {'(evt/yr)':>10s} {'(evt/yr)':>10s}")
     else:
-        hdr = f"  {'Component':22s} {'Mass (kg)':>10s} {'Bi214':>10s} {'BG Bi214':>10s}"
-        lines.append(hdr)
-        lines.append(f"  {'':22s} {'':>10s} {'(mBq/kg)':>10s} {'(evt/yr)':>10s}")
+        hdr = (f"  {'Component':22s} {'Mass':>8s} {'Bi214':>10s} {'Tot Act':>10s} "
+               f"{'Rate Bi':>12s} {'BG Bi214':>10s}")
+        sub = (f"  {'':22s} {'(kg)':>8s} {'(mBq/kg)':>10s} {'(mBq)':>10s} "
+               f"{'(g/yr)':>12s} {'(evt/yr)':>10s}")
 
-    lines.append("-" * 110)
+    lines += [hdr, sub, "-" * w]
 
     total_bi = 0.0
     total_tl = 0.0
@@ -171,27 +187,30 @@ def write_text(path: Path, rows: list[dict], has_tl: bool) -> None:
         total_all += r["bg_total"]
         if has_tl:
             lines.append(
-                f"  {r['label']:22s} {r['mass_kg']:10.2f} {r['act_bi']:10.2f} "
-                f"{r['act_tl']:10.2f} {r['bg_bi']:10.4f} {r['bg_tl']:10.4f} "
+                f"  {r['label']:22s} {r['mass_kg']:8.2f} {r['act_bi']:10.2f} "
+                f"{r['act_tl']:10.2f} {r['total_act_bi_mBq']:10.2f} "
+                f"{r['rate_bi_yr']:12.2f} {r['bg_bi']:10.4f} {r['bg_tl']:10.4f} "
                 f"{r['bg_total']:10.4f}"
             )
         else:
             lines.append(
-                f"  {r['label']:22s} {r['mass_kg']:10.2f} {r['act_bi']:10.2f} "
+                f"  {r['label']:22s} {r['mass_kg']:8.2f} {r['act_bi']:10.2f} "
+                f"{r['total_act_bi_mBq']:10.2f} {r['rate_bi_yr']:12.2f} "
                 f"{r['bg_bi']:10.4f}"
             )
 
-    lines.append("-" * 110)
+    lines.append("-" * w)
     if has_tl:
         lines.append(
-            f"  {'TOTAL':22s} {'':>10s} {'':>10s} {'':>10s} "
+            f"  {'TOTAL':22s} {'':>8s} {'':>10s} {'':>10s} {'':>10s} {'':>12s} "
             f"{total_bi:10.4f} {total_tl:10.4f} {total_all:10.4f}"
         )
     else:
         lines.append(
-            f"  {'TOTAL':22s} {'':>10s} {'':>10s} {total_bi:10.4f}"
+            f"  {'TOTAL':22s} {'':>8s} {'':>10s} {'':>10s} {'':>12s} "
+            f"{total_bi:10.4f}"
         )
-    lines.append("=" * 110)
+    lines.append("=" * w)
 
     text = "\n".join(lines)
     print(text)
@@ -210,11 +229,16 @@ def plot_table(rows: list[dict], has_tl: bool,
     def fmta(v: float) -> str:
         return f"{v:.2f}" if v > 0 else "-"
 
+    def fmtr(v: float) -> str:
+        return f"{v:.1f}" if v > 0 else "-"
+
     if has_tl:
-        col_labels = ["Component", "Mass (kg)", "Bi214\n(mBq/kg)", "Tl208\n(mBq/kg)",
+        col_labels = ["Component", "Mass\n(kg)", "Bi214\n(mBq/kg)", "Tl208\n(mBq/kg)",
+                       "Tot Act\n(mBq)", "Rate Bi\n(g/yr)",
                        "BG Bi214\n(evt/yr)", "BG Tl208\n(evt/yr)", "Total\n(evt/yr)"]
     else:
-        col_labels = ["Component", "Mass (kg)", "Bi214\n(mBq/kg)", "BG Bi214\n(evt/yr)"]
+        col_labels = ["Component", "Mass\n(kg)", "Bi214\n(mBq/kg)", "Tot Act\n(mBq)",
+                       "Rate Bi\n(g/yr)", "BG Bi214\n(evt/yr)"]
 
     table_data = []
     total_bi = 0.0
@@ -227,18 +251,21 @@ def plot_table(rows: list[dict], has_tl: bool,
         if has_tl:
             table_data.append([
                 r["label"], fmtm(r["mass_kg"]), fmta(r["act_bi"]), fmta(r["act_tl"]),
+                fmtm(r["total_act_bi_mBq"]), fmtr(r["rate_bi_yr"]),
                 fmt(r["bg_bi"]), fmt(r["bg_tl"]), fmt(r["bg_total"]),
             ])
         else:
             table_data.append([
-                r["label"], fmtm(r["mass_kg"]), fmta(r["act_bi"]), fmt(r["bg_bi"]),
+                r["label"], fmtm(r["mass_kg"]), fmta(r["act_bi"]),
+                fmtm(r["total_act_bi_mBq"]), fmtr(r["rate_bi_yr"]),
+                fmt(r["bg_bi"]),
             ])
 
     # Total row
     if has_tl:
-        table_data.append(["TOTAL", "", "", "", fmt(total_bi), fmt(total_tl), fmt(total_all)])
+        table_data.append(["TOTAL", "", "", "", "", "", fmt(total_bi), fmt(total_tl), fmt(total_all)])
     else:
-        table_data.append(["TOTAL", "", "", fmt(total_bi)])
+        table_data.append(["TOTAL", "", "", "", "", fmt(total_bi)])
 
     n_cols = len(col_labels)
     n_rows = len(table_data)
