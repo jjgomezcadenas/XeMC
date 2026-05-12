@@ -166,9 +166,12 @@ The current code implements the staged architecture described above.
   \texttt{detector\_lz\_v3.json} (tracking) and
   \texttt{source\_geometry\_lz\_v1.json} (source).
 \item The fast kernel is \emph{data-driven}: it reads its region list from
-  JSON and identifies the tracking envelope and passive-LXe fallback by
-  \texttt{role} and \texttt{tag} markers, not by hard-coded volume names.
-  Adding or removing a tracked region is a JSON-only change.
+  JSON and identifies the tracking envelope by the \texttt{role} marker,
+  not by a hard-coded volume name. The geometry is a strict partition of
+  the envelope --- every point inside the envelope belongs to exactly
+  one inner region, no fallback. Adding or removing a tracked region
+  is a JSON-only change (with the partition contract verified at load
+  time by a unit test).
 \item Region capabilities (sensitive, isXe, ecut, etc.) are derived from the
   \texttt{RegionTag} enum via \texttt{\_capabilities\_for\_tag}, with optional
   per-volume JSON overrides.
@@ -222,8 +225,8 @@ The current LZ tracking geometry is partitioned into the following regions
 
 \begin{itemize}
 \item \texttt{LZ\_detector} — tracking envelope (\texttt{role: tracking\_envelope})
-\item \texttt{AirDome} — gas dome above the gate
-\item \texttt{LXe\_passive} — passive LXe fallback (\texttt{tag: passive\_lxe})
+\item \texttt{AirDome}, \texttt{AirCyl} — gas regions above the gate (\texttt{tag: vacuum}, filled with \texttt{Vacuum} for straight-line transit)
+\item \texttt{LXe\_dome}, \texttt{LXe\_below\_FC}, \texttt{LXe\_below\_cathode} — passive LXe primitives tiling the LXe volume that no active or structural region claims (\texttt{tag: passive\_lxe})
 \item \texttt{TopActive}, \texttt{BarrelActive}, \texttt{BottomActive} — active TPC regions (\texttt{tag: tpc\_active})
 \item \texttt{FV} — fiducial volume (\texttt{tag: fv})
 \item \texttt{Skin} — veto layer (\texttt{tag: skin})
@@ -236,9 +239,19 @@ a region requires editing only the JSON file; no code changes are needed.
 \subsection{Meaning of the canonical regions}
 
 \begin{description}[leftmargin=2.0cm,style=nextline]
-\item[\texttt{AirDome}] Gas region above the liquid xenon.
-\item[\texttt{LXe\_passive}] Passive liquid xenon outside the active veto
-regions and below the cathode.
+\item[\texttt{AirDome}, \texttt{AirCyl}] Vacuum regions above the gate
+plane (the ellipsoidal dome and the cylindrical gap between the gate at
+$z = 145.6$\,cm and the dome equator at $z = 148.5$\,cm). Filled with
+\texttt{Vacuum} material so the fast kernel propagates gammas straight
+through.
+\item[\texttt{LXe\_dome}, \texttt{LXe\_below\_FC}, \texttt{LXe\_below\_cathode}]
+Three passive-LXe primitives that tile the LXe volume not claimed by
+active or structural regions: the bottom ellipsoidal dome
+($z \in [-68.7, -41.33]$), the disk below the field-cage envelope
+($z \in [-41.33, -13.75]$), and the cylindrical column below the
+cathode ($z \in [-13.75, 0]$, $R \le 72.8$\,cm). The last is the
+bottom-PMT entry path: photons emitted by the bottom-PMT array must
+traverse it before entering BottomActive.
 \item[\texttt{TopActive}] Active xenon cylinder between the gate and the top of
 the FV.
 \item[\texttt{BarrelActive}] Active xenon shell around the FV over the FV
@@ -319,16 +332,21 @@ JSON fields can override any of these defaults per volume.
 compiles each into a \texttt{FastKernelRegion} with precomputed scalar geometry
 (rmin, rmax, zmin, zmax, cap parameters).
 
-\item Two distinguished regions are identified by markers, not by name:
+\item One distinguished region is identified by marker, not by name:
 \begin{itemize}
 \item \textbf{Envelope}: the unique region with \texttt{role = "tracking\_envelope"}.
-\item \textbf{Fallback}: the unique region with \texttt{tag = passive\_lxe}.
 \end{itemize}
-The compiler validates that exactly one of each exists.
+The compiler validates that exactly one such region exists. There is no
+fallback region: the geometry is required to be a strict partition of
+the envelope, verified by the \texttt{FastKernel geometry partition}
+testset (10\textsuperscript{5} sampled points, each must classify into
+exactly one inner region).
 
 \item The \texttt{classify\_fastkernel} function tests the envelope first
 (early exit if outside), then loops over all other regions in JSON declaration
-order, and falls back to the passive LXe if no inner region matches.
+order, and returns the first match. If no inner region matches (a partition
+gap), it returns \texttt{nothing} --- the transport loop treats this as an
+escape.
 
 \item The \texttt{select\_interaction\_fastkernel} function classifies
 interactions by comparing integer \texttt{RegionTag} values, not volume name
