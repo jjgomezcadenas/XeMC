@@ -189,13 +189,13 @@ def write_text(path: Path, rows: list[dict], has_tl: bool) -> None:
             lines.append(
                 f"  {r['label']:22s} {r['mass_kg']:8.2f} {r['act_bi']:10.2f} "
                 f"{r['act_tl']:10.2f} {r['total_act_bi_mBq']:10.2f} "
-                f"{r['rate_bi_yr']:12.2f} {r['bg_bi']:10.4f} {r['bg_tl']:10.4f} "
+                f"{r['rate_bi_yr']:12.2e} {r['bg_bi']:10.4f} {r['bg_tl']:10.4f} "
                 f"{r['bg_total']:10.4f}"
             )
         else:
             lines.append(
                 f"  {r['label']:22s} {r['mass_kg']:8.2f} {r['act_bi']:10.2f} "
-                f"{r['total_act_bi_mBq']:10.2f} {r['rate_bi_yr']:12.2f} "
+                f"{r['total_act_bi_mBq']:10.2f} {r['rate_bi_yr']:12.2e} "
                 f"{r['bg_bi']:10.4f}"
             )
 
@@ -230,7 +230,7 @@ def plot_table(rows: list[dict], has_tl: bool,
         return f"{v:.2f}" if v > 0 else "-"
 
     def fmtr(v: float) -> str:
-        return f"{v:.1f}" if v > 0 else "-"
+        return f"{v:.2e}" if v > 0 else "-"
 
     if has_tl:
         col_labels = ["Component", "Mass\n(kg)", "Bi214\n(mBq/kg)", "Tl208\n(mBq/kg)",
