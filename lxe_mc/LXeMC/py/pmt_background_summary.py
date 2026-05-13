@@ -4,31 +4,25 @@ Rows = component types (TPC PMTs, TPC PMT bases, TPC PMT structures,
 TPC PMT cables, Skin PMTs + bases). Columns = mass, activities,
 background per isotope, total.
 
-Reads summary.json from pmt_top, pmt_bottom, pmt_skin_upper_ring, and
-pmt_skin_lower_ring analysis directories. Tolerant of missing isotopes
-(e.g., Tl208 not yet computed).
+Reads summary.json from six analysis directories: pmt_top, pmt_bottom,
+pmt_top_cables, pmt_bottom_cables, pmt_skin_upper_ring, and
+pmt_skin_lower_ring. Tolerant of missing isotopes (e.g., Tl208 not yet
+computed).
 
 Usage:
     python py/pmt_background_summary.py \\
         --top results/bfv/pmt/top/Bi214/analysis \\
         --bottom results/bfv/pmt/bottom/Bi214/analysis \\
+        --top-cables results/bfv/pmt/top_cables/Bi214/analysis \\
+        --bottom-cables results/bfv/pmt/bottom_cables/Bi214/analysis \\
         --skin-upper results/bfv/pmt/skin_upper_ring/Bi214/analysis \\
         --skin-lower results/bfv/pmt/skin_lower_ring/Bi214/analysis \\
         -o results/bfv/pmt/Bi214_summary \\
         --display
 
-    # With Tl208 (when available):
-    python py/pmt_background_summary.py \\
-        --top results/bfv/pmt/top/Bi214/analysis \\
-        --bottom results/bfv/pmt/bottom/Bi214/analysis \\
-        --skin-upper results/bfv/pmt/skin_upper_ring/Bi214/analysis \\
-        --skin-lower results/bfv/pmt/skin_lower_ring/Bi214/analysis \\
-        --top-tl results/bfv/pmt/top/Tl208/analysis \\
-        --bottom-tl results/bfv/pmt/bottom/Tl208/analysis \\
-        --skin-upper-tl results/bfv/pmt/skin_upper_ring/Tl208/analysis \\
-        --skin-lower-tl results/bfv/pmt/skin_lower_ring/Tl208/analysis \\
-        -o results/bfv/pmt/summary \\
-        --display
+    # With Tl208 (when available): add the corresponding *-tl flags
+    # pointing at the Tl208 analysis directories for each of the six
+    # sources above.
 """
 
 import argparse
@@ -45,12 +39,20 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--top", required=True, type=Path, help="pmt_top Bi214 analysis dir")
     parser.add_argument("--bottom", required=True, type=Path, help="pmt_bottom Bi214 analysis dir")
+    parser.add_argument("--top-cables", required=True, type=Path,
+                        help="pmt_top_cables Bi214 analysis dir")
+    parser.add_argument("--bottom-cables", required=True, type=Path,
+                        help="pmt_bottom_cables Bi214 analysis dir")
     parser.add_argument("--skin-upper", required=True, type=Path,
                         help="pmt_skin_upper_ring Bi214 analysis dir")
     parser.add_argument("--skin-lower", required=True, type=Path,
                         help="pmt_skin_lower_ring Bi214 analysis dir")
     parser.add_argument("--top-tl", type=Path, default=None, help="pmt_top Tl208 analysis dir")
     parser.add_argument("--bottom-tl", type=Path, default=None, help="pmt_bottom Tl208 analysis dir")
+    parser.add_argument("--top-cables-tl", type=Path, default=None,
+                        help="pmt_top_cables Tl208 analysis dir")
+    parser.add_argument("--bottom-cables-tl", type=Path, default=None,
+                        help="pmt_bottom_cables Tl208 analysis dir")
     parser.add_argument("--skin-upper-tl", type=Path, default=None,
                         help="pmt_skin_upper_ring Tl208 analysis dir")
     parser.add_argument("--skin-lower-tl", type=Path, default=None,
@@ -320,6 +322,8 @@ def main() -> None:
     bi_summaries = {
         "top": load_summary(args.top),
         "bottom": load_summary(args.bottom),
+        "top_cables": load_summary(args.top_cables),
+        "bottom_cables": load_summary(args.bottom_cables),
         "skin_upper": load_summary(args.skin_upper),
         "skin_lower": load_summary(args.skin_lower),
     }
@@ -327,6 +331,8 @@ def main() -> None:
     tl_summaries = {
         "top": load_summary(args.top_tl) if args.top_tl else None,
         "bottom": load_summary(args.bottom_tl) if args.bottom_tl else None,
+        "top_cables": load_summary(args.top_cables_tl) if args.top_cables_tl else None,
+        "bottom_cables": load_summary(args.bottom_cables_tl) if args.bottom_cables_tl else None,
         "skin_upper": load_summary(args.skin_upper_tl) if args.skin_upper_tl else None,
         "skin_lower": load_summary(args.skin_lower_tl) if args.skin_lower_tl else None,
     }
