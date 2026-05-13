@@ -24,27 +24,6 @@ hardcode region names:
 a pure JSON change if the region should participate in veto or
 escape-volume classification. You must also update these three helpers.
 
-## Deposit has 5 fields, not 3
-
-`Deposit(position, energy, source, interaction, volume)`:
-
-- `source::Symbol` — particle species (`:electron`, `:positron`,
-  `:gamma`, `:photoelectric`)
-- `interaction::Symbol` — process (`:compton`, `:photoelectric`,
-  `:collisional`, `:escaped_gamma`, `:escaped_lepton`, `:gamma_local`)
-- `volume::Symbol` — deposit location (`:fv`, `:active`, `:passive`)
-
-Older docs or comments may reference the 3-field version. The code has
-5 fields.
-
-## Track has 9 fields, not 7
-
-`Track(kind, energy, position, direction, track_id, parent_id,
-generation, interaction, volume)`:
-
-- `interaction::Symbol` — process that created this track
-- `volume::Symbol` — volume where the track was created
-
 ## ParticleStack is a struct, not a type alias
 
 `ParticleStack` wraps `Vector{Track}` as a LIFO stack struct with
@@ -61,12 +40,6 @@ Signatures:
 - `propagate_gamma(E_MeV, vol, fk, cfg; position, direction, rng)`
 - `transport_photon!(track, vol, fk, deposits, stack, track_counter, cfg, rng)`
 - `transport_lepton!(track, vol, fk, deposits, stack, track_counter, cfg, rng)`
-
-## FVGeometry was eliminated
-
-`compile_fv_volume` returns a `PCyl` (a `PhysicalVolume`), not an
-`FVGeometry` struct. Any reference to `FVGeometry` in old docs or
-comments is stale.
 
 ## Adding a new tracked region — checklist
 

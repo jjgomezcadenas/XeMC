@@ -8,9 +8,9 @@ Adding a new region is supposed to be a JSON-only change.
 
 But the transport-level helpers defeat this by hardcoding region names.
 Adding a new `tpc_active` region (or a new `passive_lxe` region) requires
-editing three Julia functions in addition to the JSON — and forgetting to
-do so is a silent bug (the new region would be treated as neither active
-nor passive, falling through to wrong behavior).
+editing several Julia functions in addition to the JSON — and forgetting
+to do so is a silent bug (the new region would be treated as neither
+active nor passive, falling through to wrong behavior).
 
 ## Affected functions
 
@@ -49,6 +49,21 @@ Current:
 ```julia
 region.name == "FV"  # handoff check
 rname in ("TopActive", "BarrelActive", "BottomActive")  # veto check
+```
+
+### `tracking_fast.jl::_terminal_status(deposits, rname, pos, dir)`
+
+Current:
+```julia
+if rname == "Skin"
+    _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
+elseif rname in ("TopActive", "BarrelActive", "BottomActive")
+    _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
+elseif _is_passive_region(rname)
+    _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
+else
+    _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
+end
 ```
 
 ## Proposed fix
@@ -113,6 +128,69 @@ region.tag == TAG_TPC_ACTIVE && dep >= cfg.veto_TPC
 And pass `region.tag` instead of `region.name` to `_visible_threshold_MeV`
 and `_is_passive_region`.
 
+### `_terminal_status` — take `tag::RegionTag` (keep `rname` only for diagnostics)
+
+```julia
+@inline function _terminal_status(deposits::Vector{FastGammaDeposit},
+                                   tag::RegionTag,
+                                   rname::String,
+                                   pos::Vector{Float64},
+                                   dir::Vector{Float64})
+    status = if tag == TAG_SKIN
+        :vetoed_skin
+    elseif tag == TAG_TPC_ACTIVE
+        :vetoed_tpc
+    elseif _is_passive_region(tag)
+        :absorbed_passive
+    else
+        :below_cut
+    end
+    _fast_track_result(status, deposits, rname, 0.0, pos, dir)
+end
+```
+
+Callers in `transport_gamma_fastkernel` pass `region.tag` alongside
+`region.name` (the latter retained only as the `terminal_region`
+diagnostic string in the returned `FastGammaTrackResult`).
+
+## Relation to existing `veto_threshold`
+
+`geometry.jl:156` already defines:
+
+```julia
+function veto_threshold(tag::RegionTag, cfg::SimConfig)::Float64
+    tag == TAG_TPC_ACTIVE && return cfg.veto_TPC
+    tag == TAG_SKIN && return cfg.veto_skin
+    tag == TAG_FV && return 0.0
+    tag == TAG_PASSIVE_LXE && return Inf
+    ...
+```
+
+This is nearly identical to the proposed `_visible_threshold_MeV`. The
+only semantic difference is `TAG_FV`:
+
+| Tag | `veto_threshold` | proposed `_visible_threshold_MeV` |
+|:----|:-----------------|:---------------------------------|
+| `TAG_FV` | `0.0` | `cfg.veto_TPC` |
+
+Before adding `_visible_threshold_MeV` as a new function, decide:
+
+1. **Reuse**: replace `_visible_threshold_MeV` calls with `veto_threshold`
+   and accept that `TAG_FV` returns `0.0` (any deposit triggers the
+   threshold). This works if the fast kernel never actually calls the
+   threshold function inside the FV (it shouldn't — FV is a handoff
+   point, not a deposition region in the fast kernel).
+2. **Diverge intentionally**: keep both functions, and document why the
+   FV semantics differ. The current name-based code returns `cfg.veto_TPC`
+   for `"FV"`, suggesting that the FV is treated as TPC-active for the
+   purpose of any fallback threshold check — but this branch may be
+   unreachable in practice.
+
+Recommend option 1 (reuse `veto_threshold`) after verifying that no
+fast-kernel code path calls the threshold function with `region.tag ==
+TAG_FV`. If a code path does exist, that's likely a bug worth fixing
+rather than preserving.
+
 ## What changes
 
 | Before | After |
@@ -121,7 +199,7 @@ and `_is_passive_region`.
 | `_is_passive_region(region_name::String)` | `_is_passive_region(tag::RegionTag)` |
 | `_classify_escape_volume` checks `rname` strings | checks `region.tag` enum |
 | `transport_gamma_fastkernel` checks `region.name` | checks `region.tag` |
-| `_terminal_status_for_region` takes `rname::String` | takes `tag::RegionTag` |
+| `_terminal_status` takes `rname::String` and dispatches on it | takes `tag::RegionTag` and dispatches on it (`rname` kept only for diagnostics) |
 
 ## What does NOT change
 

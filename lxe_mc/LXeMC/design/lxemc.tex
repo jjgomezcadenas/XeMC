@@ -609,8 +609,8 @@ side, the gas region above the gate plane was split into two volumes ---
 $R = 82.1$\,cm) and \texttt{AirDome} (ellipsoidal dome above the equator at
 $z = 148.5$\,cm) --- so that the tracking detector envelope coincides
 exactly with the ICV inner surface where the Virtual Envelope sits. The
-Virtual Envelope is now built directly from the source geometry (Section
-\ref{sec:source-pipeline}) and no longer depends on the FastKernel.
+Virtual Envelope is built directly from the source geometry (Section
+\ref{sec:source-pipeline}).
 
 %--------------------------------------------------------------------
 \section{Full-stack transport}
@@ -1170,8 +1170,7 @@ fast kernel. This surface is the \emph{Virtual Envelope} (VE). It is built
 directly from the source geometry by
 \texttt{make\_virtual\_envelope(source, sg)}; thanks to the ICV consistency
 fix (Section \ref{sec:geometry-icvfix}), the cryostat VE sits exactly on the
-ICV inner surface at $R = 82.1$\,cm and there is no longer a need to
-extract VE parameters from the FastKernel.
+ICV inner surface at $R = 82.1$\,cm.
 
 The supported envelope kinds are:
 \begin{center}

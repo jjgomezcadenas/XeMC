@@ -165,23 +165,18 @@ but is safe for background estimation.
 1. **No SS/MS in event loop**: `process_event` returns raw FV deposits. SS/MS
    classification is done offline (python or Julia) from the deposit CSV.
 
-2. **FVGeometry eliminated**: `compile_fv_volume` returns `PCyl` (a `PhysicalVolume`).
-   All transport functions take `PhysicalVolume` + `FastKernelGeometry`. The `fk`
-   parameter is used by `_classify_escape_volume` to classify deposits that escape
-   the FV boundary as `:active`, `:passive`, or `:fv`.
-
-3. **VirtualEnvelope from source geometry**: `make_virtual_envelope(source, sg)` for
+2. **VirtualEnvelope from source geometry**: `make_virtual_envelope(source, sg)` for
    all sources. No `fk` dependency. Geometry fix ensures ICV inner surfaces match
    tracking detector boundary at R=82.1.
 
-4. **Diagnostic vs production**: `propagate_gamma_fastkernel` (single-step, in
+3. **Diagnostic vs production**: `propagate_gamma_fastkernel` (single-step, in
    `tracking_util.jl`) is for validation only. Production uses
    `transport_gamma_fastkernel` (multi-scatter, in `tracking_fast.jl`).
 
-5. **Fast rejection**: veto decisions are made inside `transport_gamma_fastkernel`
+4. **Fast rejection**: veto decisions are made inside `transport_gamma_fastkernel`
    during transport. `process_event` just checks `result.status`.
 
-6. **Lepton range approximation**: electrons/positrons are transported with
+5. **Lepton range approximation**: electrons/positrons are transported with
    condensed-history stepping (no multiple scattering). Valid because electron
    range in LXe is sub-mm at MeV energies and the FV analysis doesn't need
    sub-mm spatial precision.
