@@ -4,6 +4,20 @@
 
 Pushed and synced with `origin/sources`.
 
+## Recent milestone — PMT source geometry refactor (complete)
+
+The PMT source taxonomy was overhauled in May 2026 to match the LZ
+geometry published in the LZ 0vbb paper and arXiv:1910.09124v2. The
+old `pmt_barrel` endpoint (which lumped cables, R8520 Top-Skin PMTs
+and R8778 Bottom-Skin lower-ring PMTs into a single full-barrel
+shell) has been deleted entirely. In its place there are four new
+endpoints: `pmt_top_cables`, `pmt_bottom_cables`,
+`pmt_skin_upper_ring`, `pmt_skin_lower_ring`. See the "Supported
+sources" table below for the current state. Background validation
+against LZ paper Table I: cables 0.48 vs LZ 0.526 cts/yr;
+Skin PMTs+bases 0.27 vs LZ 0.274. The full migration plan is archived
+at `design/legacy/fix_pmt_cable_geometry.md`.
+
 
 ## What's implemented
 
@@ -89,9 +103,11 @@ Pushed and synced with `origin/sources`.
 8. **PMT merged volumes**: PMT_TOP (3 components) and PMT_BOT (4 components)
    lumped into single transparent PDisk volumes. Orientation-based hemisphere
    filtering (:up -> downward gammas, :down -> upward gammas). Z span
-   computed from source geometry, no hardwired numbers. PMT_BARREL (3
-   components: cables, R8520, R8778 lower-ring) merged into a single
-   transparent PCylShell with inward radial filtering.
+   computed from source geometry, no hardwired numbers. TPC PMT cables and
+   Skin PMT rings have their own dedicated endpoints (see "Supported
+   sources" below), each implemented as a single-component transparent
+   volume (PCyl for cables, PCylShell for rings) with the appropriate
+   filter.
 
 12. **PMT bottom with passive LXe**: `pmt_bottom_lxe` adds compound
     propagation through the passive LXe slab between the PMT array and the

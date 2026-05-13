@@ -177,7 +177,7 @@ activity is computed.
 | approximation | activity scaling | typical use |
 |---|---|---|
 | `exact` | (geometric volume × ρ_material) × spec_act_mBq_per_kg | source-side real-material shells whose drawn dimensions reproduce the bb0nu mass within ~1% (OCV/ICV barrels, OCV/ICV heads, FC_PTFE, FC_rings) |
-| `mass_equivalent_shell` | `equivalent_mass_kg` × spec_act; geometry sets only where photons emit | barrel-shaped carriers (MLI on ICV outer, PMT cables along the FC outer) |
+| `mass_equivalent_shell` | `equivalent_mass_kg` × spec_act; geometry sets only where photons emit | barrel- or shell-shaped carriers (MLI on ICV outer, Skin PMT rings, upper cable conduit shell) |
 | `mass_equivalent_slab` | same | thick annular slabs (top + cathode grid holders, R = [72.8, 80.3]) |
 | `mass_equivalent_disk` | same | flat-disc carriers (PMT TOP/BOT PMTs, bases, structures, dome PMTs) |
 
@@ -285,7 +285,7 @@ The source-side schema additionally carries `source_class`,
 | solid | parameters | use |
 |---|---|---|
 | `Cyl` | `radius_cm`, `half_height_cm` | filled cylinder (FV, TopActive, PMT carriers) |
-| `CylShell` | `R_inner_cm`, `wall_thickness_cm`, `half_height_cm` | shell (FC_PTFE, FC_rings, Skin, BarrelActive, PMT barrel carriers) |
+| `CylShell` | `R_inner_cm`, `wall_thickness_cm`, `half_height_cm` | shell (FC_PTFE, FC_rings, Skin, BarrelActive, Skin PMT ring carriers, upper cable shell) |
 | `Disk` | `R_cm`, `wall_thickness_cm`, `aspect_ratio`, `orientation` | flat or oblate-ellipsoidal head (cryostat heads) |
 | `Cap` | `R_cm`, `aspect_ratio` | filled half-oblate cap (used inside `DomedContainer` / `CappedCylinder`) |
 | `DomedContainer` | `radius_cm`, `barrel_half_height_cm`, top + bottom `Cap` | barrel + two coaxial caps (`LZ_detector`) |

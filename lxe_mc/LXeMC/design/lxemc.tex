@@ -1046,9 +1046,21 @@ PMT sub-components (PMTs, bases, structure, R8778 dome).
 \texttt{pmt\_bottom}, with compound propagation through the passive LXe
 slab between the PMT array and the cathode; flux recorded at the cathode
 boundary.
-\item \texttt{pmt\_barrel} --- merged transparent cylindrical shell over the
-three barrel PMT sub-components (cables, R8520 skin PMTs, R8778 lower-ring
-PMTs) at $R \approx 81.2$--$81.4$\,cm, with inward radial filtering.
+\item \texttt{pmt\_top\_cables} --- TPC PMT cables in the upper conduit,
+modelled as a thin cylindrical shell at $R \approx 78$\,cm just above the
+top PMT array (in AirDome gas), with inward radial filtering.
+\item \texttt{pmt\_bottom\_cables} --- TPC PMT cables in the lower
+conduit, modelled as a central-axis cylinder ($R \le 10$\,cm) spanning
+$z \in [-68, -17]$\,cm in the passive LXe below the bottom PMT array,
+with axial filtering (upward).
+\item \texttt{pmt\_skin\_upper\_ring} --- the 93 R8520 ``Top Skin'' 1-inch
+PMTs, modelled as a thin cylindrical shell at $R = 74.224$\,cm and
+$z = 144$\,cm (just below the LXe surface, on the field-cage outer
+side), with inward radial filtering.
+\item \texttt{pmt\_skin\_lower\_ring} --- the 20 R8778 ``Bottom Skin''
+side PMTs, modelled as a thin cylindrical shell at $R = 81.4$\,cm and
+$z = -12$\,cm (at the bottom of the side Skin near the cathode),
+with inward radial filtering.
 \end{itemize}
 
 Supported isotopes (\texttt{supported\_isotopes()}) are \texttt{Bi214} and
@@ -1154,9 +1166,15 @@ Four PMT flux functions are implemented:
 compound propagation through the passive LXe slab from the PMT array
 to the cathode. The flux is recorded at the cathode boundary, giving
 the spectrum after attenuation in the passive LXe column.
-\item[\texttt{pmt\_barrel\_flux}] Three barrel sub-components (cables,
-R8520 skin PMTs, R8778 lower-ring PMTs) merged into a transparent
-\texttt{PCylShell} with inward radial filtering.
+\item[\texttt{pmt\_top\_cables\_flux} / \texttt{pmt\_bottom\_cables\_flux}]
+TPC PMT cables in the upper / lower conduit. Upper uses a thin
+\texttt{PCylShell} at the periphery of the AirDome with inward radial
+filtering; lower uses a central-axis \texttt{PCyl} (merged into a
+\texttt{PDisk}) below the bottom PMT array with axial filtering. See LZ
+paper arXiv:1910.09124v2 \S2.4 for the conduit layout.
+\item[\texttt{pmt\_skin\_upper\_ring\_flux} / \texttt{pmt\_skin\_lower\_ring\_flux}]
+The 93 R8520 ``Top Skin'' PMTs and 20 R8778 ``Bottom Skin'' side PMTs,
+each as a thin \texttt{PCylShell} ring with inward radial filtering.
 \end{description}
 
 \subsection{Virtual envelope}
