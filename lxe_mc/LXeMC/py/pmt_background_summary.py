@@ -93,7 +93,7 @@ GROUPS = [
     ("TPC PMT bases",      ["PMT_TOP_bases", "PMT_BOT_bases"]),
     ("TPC PMT structures", ["PMT_TOP_structure", "PMT_BOT_structure"]),
     ("TPC PMT cables",     ["PMT_TOP_cables", "PMT_BOT_cables"]),
-    ("Skin PMTs + bases",  ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower", "PMT_BOT_R8778_dome"]),
+    ("Skin PMTs + bases",  ["PMT_BARREL_R8520", "PMT_SKIN_LOWER_RING", "PMT_BOT_R8778_dome"]),
 ]
 
 

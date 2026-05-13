@@ -416,13 +416,13 @@
             }
         },
         {
-            "_doc": "Lower-ring PMTs. Virtual transparent cylindrical shell source carrier.",
-            "name": "PMT_BARREL_R8778_lower",
+            "_doc": "Lower-ring Bottom-Skin R8778 PMTs. 20 PMTs mounted around the lower side of the Skin near the cathode level (LZ TDR table at line 3754, 'Bottom Skin: 20 side + 18 dome'). Modelled as a narrow cylindrical-shell ring at the cathode end of the side Skin (z ~ -8.75 cm, ~10 cm tall). The previous full-barrel z extent was a mass-equivalent approximation that smeared the radioactivity over the entire Skin height; this localised model is closer to the LZ TDR placement. Position parameters (half_height, center z) are an initial estimate pending review of LZ TDR section 3.7 ('Mounting of dome and lower side Skin PMTs').",
+            "name": "PMT_SKIN_LOWER_RING",
             "shape": "cylinder_shell",
             "R_inner_cm": 81.4,
-            "wall_thickness_cm": 0.00222,
-            "half_height_cm": 79.675,
-            "position_cm": [0.0, 0.0, 65.925],
+            "wall_thickness_cm": 0.150,
+            "half_height_cm": 5.0,
+            "position_cm": [0.0, 0.0, -8.75],
             "material": "Vacuum",
             "source_class": "virtual_source",
             "transport_source": "transparent",

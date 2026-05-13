@@ -169,7 +169,7 @@ def validate_source_geometry(source_path: str) -> int:
         ("TPC PMT cables (top+bot)",
          ["PMT_TOP_cables", "PMT_BOT_cables"], 88.7, "equivalent_mass_kg"),
         ("Skin PMTs+bases (all)",
-         ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower", "PMT_BOT_R8778_dome"], 8.59,
+         ["PMT_BARREL_R8520", "PMT_SKIN_LOWER_RING", "PMT_BOT_R8778_dome"], 8.59,
          "equivalent_mass_kg"),
         ("Field grids+holders (top+bot)",
          ["FC_topgrid", "FC_botgrid"], 89.1, "equivalent_mass_kg"),

@@ -43,7 +43,7 @@ PAPER_TABLE_I = [
     ("TPC PMT cables", 88.7, 4.31, 0.82, 1.44, 0.19, 1.63,
      ["PMT_TOP_cables", "PMT_BOT_cables"], "PMT_TOP_cables"),
     ("Skin PMTs and bases", 8.59, 46.0, 14.9, 0.75, 0.02, 0.78,
-     ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower", "PMT_BOT_R8778_dome"],
+     ["PMT_BARREL_R8520", "PMT_SKIN_LOWER_RING", "PMT_BOT_R8778_dome"],
      "PMT_BARREL_R8520"),
     ("PTFE walls", 184.0, 0.04, 0.01, 0.39, 0.00, 0.39,
      ["FC_PTFE"], "FC_PTFE"),

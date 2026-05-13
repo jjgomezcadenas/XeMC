@@ -341,23 +341,61 @@ end
 """
     pmt_barrel_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
 
-Compute barrel PMT flux tables. Two sub-components (R8520 skin PMTs,
-R8778 lower-ring PMTs) are lumped into a single transparent
-cylindrical shell. TPC PMT cables previously included here have been
-moved to `pmt_top_cables_flux` / `pmt_bottom_cables_flux` (LZ TDR
-section 3.4.4: cables route through separate upper/lower conduits,
-not through the side Skin region).
+Compute barrel PMT flux tables. Single sub-component (R8520 Top-Skin
+PMTs) wrapped as a transparent cylindrical shell. TPC PMT cables and
+the R8778 lower-ring PMTs were both removed from the barrel in
+separate refactors: cables now route through `pmt_top_cables_flux` /
+`pmt_bottom_cables_flux` (LZ TDR section 3.4.4) and the lower ring
+through `pmt_skin_lower_ring_flux` (LZ TDR table at line 3754, which
+labels these PMTs 'Bottom Skin', physically a ring at cathode level
+rather than a full-barrel distribution).
 """
 function pmt_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
                           cfg::SimConfig, rng::AbstractRNG;
                           verbose::Bool=false, kwargs...)
-    pmt_names = ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"]
+    pmt_names = ["PMT_BARREL_R8520"]
     merged, components = _merge_pmt_barrel_volume(sg, pmt_names, "PMT_BARREL_merged")
 
     t0 = time()
     bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
     tl = generate_flux_tl208(N, merged, cfg, rng; kwargs...)
     verbose && @printf("  [pmt_barrel] flux generation done (%.1fs)\n", time() - t0)
+
+    A_bi = "Bi214_mBq_per_kg"
+    A_tl = "Tl208_mBq_per_kg"
+
+    rate_bi = _build_rate_table(:barrel, BR_BI214_2448,
+        [(sv.name, _get_activity_Bq(sv, A_bi), sv.mass_kg, bi) for sv in components],
+        bi.E_min, bi.E_max, bi.n_E, bi.n_u)
+
+    rate_tl = _build_rate_table(:barrel, BR_TL208_2615,
+        [(sv.name, _get_activity_Bq(sv, A_tl), sv.mass_kg, tl) for sv in components],
+        tl.E_min_main, tl.E_max_main, tl.n_E_main, tl.n_u)
+
+    (bi214=bi, tl208=tl, bi214_rate=rate_bi, tl208_rate=rate_tl)
+end
+
+
+"""
+    pmt_skin_lower_ring_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
+
+Compute flux tables for the 20 R8778 'Bottom Skin' side PMTs
+(`PMT_SKIN_LOWER_RING`). Modelled as a narrow cylindrical-shell ring
+at R=81.4 cm, centred just above the cathode (z = -8.75 cm,
+half_height 5 cm). Gammas going inward (toward the FV through the
+side Skin) pass the VE; outward gammas are lost (filtered by
+`cos_theta_to_lxe` for `PCylShell` = inward radial).
+"""
+function pmt_skin_lower_ring_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
+                                   cfg::SimConfig, rng::AbstractRNG;
+                                   verbose::Bool=false, kwargs...)
+    pmt_names = ["PMT_SKIN_LOWER_RING"]
+    merged, components = _merge_pmt_barrel_volume(sg, pmt_names, "PMT_SKIN_LOWER_RING_merged")
+
+    t0 = time()
+    bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
+    tl = generate_flux_tl208(N, merged, cfg, rng; kwargs...)
+    verbose && @printf("  [pmt_skin_lower_ring] flux generation done (%.1fs)\n", time() - t0)
 
     A_bi = "Bi214_mBq_per_kg"
     A_tl = "Tl208_mBq_per_kg"

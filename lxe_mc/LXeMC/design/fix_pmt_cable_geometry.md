@@ -282,3 +282,86 @@ Before drafting the JSON diff:
 Source-geometry-only change. No Julia code touched. No tracking
 geometry changes. Should be a single JSON edit + re-run of the
 background pipeline.
+
+---
+
+## Step 2 update — `PMT_SKIN_LOWER_RING` (R8778 lower-ring localization)
+
+**Applied**. The R8778 lower-ring component was previously named
+`PMT_BARREL_R8778_lower` and was distributed as a thin cylindrical
+shell over the entire side-Skin z range. The LZ TDR (table at line
+3754 of `docs/LZ-TDR.txt`) labels these PMTs "Bottom Skin: 20 side +
+18 dome", implying the 20 side PMTs are mounted in a single ring at
+the bottom of the side Skin, not smeared along its height.
+
+Changes made:
+
+- `data/source_geometry_lz_v1.json`: renamed
+  `PMT_BARREL_R8778_lower` → `PMT_SKIN_LOWER_RING`; relocated to a
+  narrow cylindrical-shell ring (R=81.4, half_height=5 cm, center
+  z=-8.75 cm).
+- `src/pmt_sources.jl`: removed `PMT_BARREL_R8778_lower` from
+  `pmt_barrel_flux` (now single-component R8520). Added
+  `pmt_skin_lower_ring_flux`.
+- `src/source_dispatch.jl`: new `pmt_skin_lower_ring` endpoint;
+  removed the relocated component from the `pmt_barrel` VE
+  composition.
+- Python summary + validators updated.
+- Tests: `pmt_barrel flux` testset now 1-component; new
+  `pmt_skin_lower_ring flux` testset.
+
+## **PENDING TDR REVIEW** — open geometry questions to resolve together
+
+The following two questions should be resolved in a single review of
+LZ TDR section 3.7 ("Mounting of dome and lower side Skin PMTs",
+referenced at line 827 of `docs/LZ-TDR.txt`). They are deliberately
+parked together because §3.7 is expected to cover both the lower ring
+and the upper Skin PMTs:
+
+### Q1. `PMT_SKIN_LOWER_RING` exact z range
+
+Current values are an **initial estimate**:
+
+| Parameter | Current | Source |
+|:----------|--------:|:-------|
+| `half_height_cm` | 5.0 | placeholder — 10 cm ring |
+| `position_cm` (z) | -8.75 | placeholder — 5 cm above cathode (z=0), 5 cm below FC bottom (z=-13.75) |
+
+What to verify in §3.7: actual mounting plane z, ring thickness, and
+whether the 20 PMTs span the full circumference or a partial arc.
+
+### Q2. `PMT_BARREL_R8520` ("Top Skin") z distribution
+
+The MC currently models the 93 R8520 PMTs as cylindrically distributed
+over the entire side-Skin z range (R=81.4 cm, `half_height_cm=79.675`).
+The LZ TDR has *conflicting* statements:
+
+- §1.3.5.1 (line 2350): "side skin is equipped with 90 R8520 looking
+  downwards and another 90 looking upwards" — implies 180 PMTs in
+  two rings (one looking down, one looking up).
+- Spec table (line 3759): "Top Skin (R8520-406): 93" — implies a
+  single population. The label "Top" suggests they sit at the *top*
+  of the side Skin, not distributed along it.
+
+If the 93 R8520 are actually localized at the top of the side Skin
+(a ring near z ≈ 130–145 cm, where the Skin is thinnest — 4 cm per
+the TDR), gammas would have a shorter LXe path to the FV through the
+side, which would *increase* the predicted FV background — opposite
+to the direction needed to close the 5× discrepancy. This may indicate
+the discrepancy has a different cause (e.g., dome contribution
+modelling, or the LZ paper applies additional cuts not represented in
+our MC).
+
+**Decision deferred** until §3.7 is read.
+
+### Action items for the joint TDR review
+
+1. Read LZ TDR section 3.7 in full.
+2. Confirm or revise:
+   - `PMT_SKIN_LOWER_RING` `half_height_cm` and `position_cm[3]`.
+   - `PMT_BARREL_R8520` distribution (full barrel z vs. localized ring).
+3. If R8520 needs localization, repeat the step-2 pattern:
+   rename to e.g. `PMT_SKIN_UPPER_RING`, drop from `pmt_barrel_flux`,
+   add `pmt_skin_upper_ring_flux` endpoint, update Python and tests.
+4. Re-run the Bi-214 background pipeline and compare against LZ paper
+   "Skin PMTs + bases" = 0.274 cts/yr.

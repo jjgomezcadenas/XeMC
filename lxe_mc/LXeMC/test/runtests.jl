@@ -2198,8 +2198,9 @@ end
 
 
 # =====================================================================
-# PMT barrel: skin PMTs (R8520) + lower-ring PMTs (R8778). Cables now
-# live in pmt_top_cables / pmt_bottom_cables (LZ TDR §3.4.4).
+# PMT barrel: R8520 Top-Skin PMTs only. Cables now live in
+# pmt_top_cables / pmt_bottom_cables (LZ TDR §3.4.4); the R8778
+# lower-ring lives in pmt_skin_lower_ring.
 # =====================================================================
 @testset "pmt_barrel flux" begin
     src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
@@ -2207,9 +2208,9 @@ end
 
     # Merged barrel geometry
     merged, comps = LXeMC._merge_pmt_barrel_volume(sg,
-        ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"],
+        ["PMT_BARREL_R8520"],
         "PMT_BARREL_merged")
-    @test length(comps) == 2
+    @test length(comps) == 1
     @test merged isa PCylShell
     @test merged.material.density ≈ 0.0  # vacuum
 
@@ -2218,15 +2219,43 @@ end
     f = sum(result.bi214.pdf)
     @test 0.3 < f < 0.7
 
-    # Rate table has 2 components with correct names
-    @test length(result.bi214_rate.component_names) == 2
+    # Rate table has 1 component with correct name
+    @test length(result.bi214_rate.component_names) == 1
     @test result.bi214_rate.total_rate > 0
     @test "PMT_BARREL_R8520" in result.bi214_rate.component_names
-    @test "PMT_BARREL_R8778_lower" in result.bi214_rate.component_names
 
     # Tl208 works
     @test sum(result.tl208.pdf_main) > 0
     @test result.tl208_rate.total_rate > 0
+end
+
+
+# =====================================================================
+# Skin lower ring: 20 R8778 'Bottom Skin' side PMTs localised at
+# cathode level (LZ TDR table line 3754).
+# =====================================================================
+@testset "pmt_skin_lower_ring flux" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+
+    merged, comps = LXeMC._merge_pmt_barrel_volume(sg,
+        ["PMT_SKIN_LOWER_RING"],
+        "PMT_SKIN_LOWER_RING_merged")
+    @test length(comps) == 1
+    @test merged isa PCylShell
+    @test merged.material.density ≈ 0.0  # vacuum
+
+    # Ring localised near cathode: z extent should be tight, not full barrel
+    hh = merged.logical.solid.half_height_cm
+    @test hh < 20.0  # not full barrel (was 79.675 before)
+
+    result = pmt_skin_lower_ring_flux(5000, sg, CFG, MersenneTwister(42))
+    f = sum(result.bi214.pdf)
+    @test 0.3 < f < 0.7  # inward hemisphere
+
+    @test length(result.bi214_rate.component_names) == 1
+    @test "PMT_SKIN_LOWER_RING" in result.bi214_rate.component_names
+    @test result.bi214_rate.total_rate > 0
 end
 
 
