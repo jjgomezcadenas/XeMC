@@ -1,4 +1,4 @@
-# Sources Branch — Status (2026-05-09)
+# Sources Branch — Status (2026-05-13)
 
 ## Branch: `sources`
 
@@ -16,7 +16,7 @@ Pushed and synced with `origin/sources`.
 | `source_sampling.jl` | `sample_from_flux`, `sample_from_rate_table`, `sample_barrel_point`, `sample_disk_point(R, z, normal_z, rng)`, `sample_cap_point`, `reconstruct_direction`, `sample_gamma_from_flux` |
 | `source_dispatch.jl` | `VirtualEnvelope` (kinds: `:barrel`, `:cap_up`, `:cap_down`, `:disk_flat`), `make_virtual_envelope(source, sg)` (unified, all sources from source geometry), `make_surface_sampler`, `dispatch_source_flux`, `merge_dispatch_results`, `supported_sources/isotopes` |
 | `cryostat_sources.jl` | `cryostat_barrel_flux` (OCV compound + MLI compound + ICV self), `cryostat_top_flux`, `cryostat_bottom_flux`, `_build_rate_table`, `_get_activity_Bq` |
-| `pmt_sources.jl` | `pmt_top_flux`, `pmt_bottom_flux`, `_merge_pmt_volume` (builds merged transparent PDisk from sub-components) |
+| `pmt_sources.jl` | `pmt_top_flux`, `pmt_bottom_flux`, `pmt_bottom_lxe_flux` (compound: PMT + passive LXe to cathode), `pmt_barrel_flux` (cables, R8520, R8778 lower-ring as merged PCylShell), `_merge_pmt_volume` |
 | `flux_utils.jl` | `merge_flux_bi214/tl208`, CSV I/O, JSON metadata helpers |
 | `geometry_core.jl` | Analytic `distance_to_entry(LDisk)`, `distance_to_exit(LDisk)` for flat disks |
 | `tracking.jl` | `EventProcessingResult` includes `deposits::Vector{Deposit}` for `:accepted` events |
@@ -89,7 +89,13 @@ Pushed and synced with `origin/sources`.
 8. **PMT merged volumes**: PMT_TOP (3 components) and PMT_BOT (4 components)
    lumped into single transparent PDisk volumes. Orientation-based hemisphere
    filtering (:up -> downward gammas, :down -> upward gammas). Z span
-   computed from source geometry, no hardwired numbers.
+   computed from source geometry, no hardwired numbers. PMT_BARREL (3
+   components: cables, R8520, R8778 lower-ring) merged into a single
+   transparent PCylShell with inward radial filtering.
+
+12. **PMT bottom with passive LXe**: `pmt_bottom_lxe` adds compound
+    propagation through the passive LXe slab between the PMT array and the
+    cathode. Flux recorded at cathode boundary.
 
 9. **Three-stage pipeline**:
    - Stage 1: `generate_flux_tables.jl` -> CSV flux tables
@@ -110,6 +116,8 @@ Pushed and synced with `origin/sources`.
 | `cryostat_bottom` | Dense | OCV, ICV | Complete |
 | `pmt_top` | Transparent | PMTs, bases, structure | Complete |
 | `pmt_bottom` | Transparent | PMTs, bases, structure, R8778_dome | Complete |
+| `pmt_bottom_lxe` | Compound | PMT bottom + passive LXe slab to cathode | Complete |
+| `pmt_barrel` | Transparent | cables, R8520 skin PMTs, R8778 lower-ring PMTs | Complete |
 
 
 ## Geometry (source_geometry_lz_v1.json)

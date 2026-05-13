@@ -7,7 +7,7 @@ Compact reference for the LXeMC transport code. Context-recovery document.
 
 | File | Lines | Content |
 |:-----|:------|:--------|
-| `tracking.jl` | ~300 | Full-stack physics: `transport_photon!`, `transport_lepton!`, `propagate_gamma` |
+| `tracking.jl` | ~360 | Full-stack physics: `transport_photon!`, `transport_lepton!`, `propagate_gamma`, `_classify_escape_volume` |
 | `tracking_fast.jl` | ~200 | Fast-kernel transport: `transport_gamma_fastkernel` + helpers |
 | `event.jl` | ~80 | Event processing: `process_event`, `EventProcessingResult` |
 | `tracking_util.jl` | ~160 | Diagnostic tools: `propagate_gamma_fastkernel`, `process_event_fastkernel_calib` |
@@ -18,9 +18,9 @@ Compact reference for the LXeMC transport code. Context-recovery document.
 
 ### tracking.jl
 
-- `Track(kind, energy, position, direction, track_id, parent_id, generation)` — one particle on the stack
-- `ParticleStack` — alias for `Vector{Track}`
-- `Deposit(position, energy, source)` — one energy deposit in the FV
+- `Track(kind, energy, position, direction, track_id, parent_id, generation, interaction, volume)` — one particle on the stack
+- `ParticleStack` — struct wrapping `Vector{Track}` (LIFO stack)
+- `Deposit(position, energy, source, interaction, volume)` — one energy deposit; `volume` is `:fv`, `:active`, or `:passive`
 - `SampledGamma(E_MeV, position, direction)` — gamma ready for injection
 
 ### tracking_fast.jl
@@ -48,7 +48,7 @@ process_event(gammas, fk, vol, cfg, rng)
   for each gamma:
     result = transport_gamma_fastkernel(gamma, fk, cfg, rng)
     |
-    +-- :handoff_fv --> propagate_gamma(E, vol, cfg; pos, dir, rng)
+    +-- :handoff_fv --> propagate_gamma(E, vol, fk, cfg; pos, dir, rng)
     |                     |
     |                     +-- transport_photon!(track, vol, deposits, stack, ...)
     |                     +-- transport_lepton!(track, vol, deposits, stack, ...)
@@ -69,7 +69,7 @@ process_event(gammas, fk, vol, cfg, rng)
 
 ## Full-stack transport (tracking.jl)
 
-### transport_photon!(track, vol, deposits, stack, track_counter, cfg, rng)
+### transport_photon!(track, vol, fk, deposits, stack, track_counter, cfg, rng)
 
 Loop while `E >= Egamma_cut` (10 keV):
 1. Sample interaction distance from total cross section
@@ -79,7 +79,7 @@ Loop while `E >= Egamma_cut` (10 keV):
 5. **Pair**: push positron + electron to stack, gamma dies
 6. **Photoelectric**: deposit EK locally, push photoelectron if `T_e > Te_cut`
 
-### transport_lepton!(track, vol, deposits, stack, track_counter, cfg, rng)
+### transport_lepton!(track, vol, fk, deposits, stack, track_counter, cfg, rng)
 
 Condensed-history stepping while `T >= Te_cut` (400 keV):
 1. Fixed step `ds_step`, clamped so `dE < T`
@@ -89,7 +89,9 @@ Condensed-history stepping while `T >= Te_cut` (400 keV):
 5. End of range: residual T deposited locally
 6. Positron annihilation: two 511 keV back-to-back gammas pushed to stack
 
-### propagate_gamma(E, vol, cfg; position, direction, rng)
+### propagate_gamma(E, vol, fk, cfg; position, direction, rng)
+
+`fk` is used by `_classify_escape_volume` to classify deposits that escape the FV boundary as `:active`, `:passive`, or `:fv`.
 
 Full cascade loop:
 1. Push initial gamma to stack
@@ -103,19 +105,35 @@ Full cascade loop:
 ### transport_gamma_fastkernel(gamma, fk, cfg, rng)
 
 Loop while `E >= Egamma_cut` and `traveled < max_cm`:
-1. **Classify region**: `classify_fastkernel(fk, pos)`
+1. **Classify region**: `classify_fastkernel(fk, pos)` returns a `FastKernelRegion` or `nothing`
    - `nothing` --> `:escaped`
-   - `"FV"` --> `:handoff_fv` (hand off to full stack)
+   - `region.name == "FV"` --> `:handoff_fv` (hand off to full stack)
 2. **Vacuum/non-interacting**: advance to boundary, continue
 3. **Sample interaction**: compare `s_int` vs `s_bnd`
    - Beyond boundary: advance to boundary, continue
    - Inside region: interact
 4. **Compton**: deposit recoil, check veto thresholds
    - Skin above `veto_skin` --> `:vetoed_skin`
-   - TPC active above `veto_TPC` --> `:vetoed_tpc`
+   - TopActive/BarrelActive/BottomActive above `veto_TPC` --> `:vetoed_tpc`
    - Below ROI floor (`E < 2.3 MeV`): collapse remaining energy, return terminal status
    - Otherwise: update direction, continue
 5. **Pair/photoelectric**: terminal, deposit full energy, return status by region
+
+### Passive region check
+
+`_is_passive_region(name)` returns true for: `LXe_dome`, `LXe_below_FC`, `LXe_below_cathode`, `FC_PTFE`, `FC_rings`. These regions absorb energy without triggering a veto.
+
+### Fast-kernel status values
+
+| Status | Meaning |
+|:-------|:--------|
+| `:handoff_fv` | Reached FV; hand off to `propagate_gamma` |
+| `:escaped` | Left the detector envelope |
+| `:below_cut` | Energy fell below `Egamma_cut` |
+| `:absorbed_passive` | Absorbed in passive LXe or structural material |
+| `:below_roi_fv` | ROI-floor termination after Compton scatter |
+| `:vetoed_tpc` | Deposit in active TPC outside FV exceeded `veto_TPC` |
+| `:vetoed_skin` | Deposit in Skin exceeded `veto_skin` |
 
 ### Veto thresholds (from sim_config.json)
 
@@ -148,7 +166,9 @@ but is safe for background estimation.
    classification is done offline (python or Julia) from the deposit CSV.
 
 2. **FVGeometry eliminated**: `compile_fv_volume` returns `PCyl` (a `PhysicalVolume`).
-   All transport functions take `PhysicalVolume`, not `FVGeometry`.
+   All transport functions take `PhysicalVolume` + `FastKernelGeometry`. The `fk`
+   parameter is used by `_classify_escape_volume` to classify deposits that escape
+   the FV boundary as `:active`, `:passive`, or `:fv`.
 
 3. **VirtualEnvelope from source geometry**: `make_virtual_envelope(source, sg)` for
    all sources. No `fk` dependency. Geometry fix ensures ICV inner surfaces match

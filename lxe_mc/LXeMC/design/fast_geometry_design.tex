@@ -353,15 +353,22 @@ interactions by comparing integer \texttt{RegionTag} values, not volume name
 strings.
 \end{enumerate}
 
-Because no volume name appears in the classification or compilation logic,
-adding or removing a tracked region is a JSON-only change: add the volume entry
-with the appropriate \texttt{tag}, \texttt{role}, and shape parameters, and the
-FastKernel picks it up automatically.
+No volume name appears in the classification or compilation logic of
+\texttt{compile\_fastkernel\_geometry} or \texttt{classify\_fastkernel}.
+However, the transport-level helpers in \texttt{tracking\_fast.jl}
+(\texttt{\_visible\_threshold\_MeV}, \texttt{\_is\_passive\_region}) and the
+escape classifier in \texttt{tracking.jl}
+(\texttt{\_classify\_escape\_volume}) do reference region names for veto
+and policy decisions. Adding a new tracked region to the JSON therefore
+requires updating these helpers if the region should participate in veto
+or escape-volume classification; the geometry compiler and classifier
+themselves remain purely data-driven.
 
 \subsection{Full stack inside the FV}
 
-The FV transport uses a dedicated \texttt{FVGeometry} object compiled directly
-from the canonical detector geometry. The FV stack keeps:
+The FV transport uses a \texttt{PhysicalVolume} (\texttt{PCyl}) compiled from
+the FV node by \texttt{compile\_fv\_volume}, together with the
+\texttt{FastKernelGeometry} for escape-volume classification. The FV stack keeps:
 
 \begin{itemize}
 \item photons,
@@ -568,10 +575,17 @@ components share the same trivial flux table ($\sim$50\% survival from the
 hemisphere cut, no material attenuation), per-component background rates are
 recovered by bookkeeping: mass $\times$ specific activity.
 
-\paragraph{Remaining: PMT barrel.}
+\paragraph{Implemented: PMT bottom with passive LXe.}
+The \texttt{pmt\_bottom\_lxe} source adds compound propagation through the
+passive LXe slab between the bottom PMT array and the cathode. The flux is
+recorded at the cathode boundary (the interface between passive and active LXe),
+giving the spectrum after attenuation in the passive column.
+
+\paragraph{Implemented: PMT barrel.}
 Three transparent cylindrical-shell sources (cables, R8520 skin PMTs,
 R8778 lower-ring PMTs) at $R \approx 81.2$--$81.4$\,cm along the FC outer
-wall. Same pattern as PMT top/bottom but with a barrel VE.
+wall, merged into a single transparent \texttt{PCylShell} with inward radial
+filtering. Same pattern as PMT top/bottom but with a barrel VE.
 
 \paragraph{Remaining: field cage sources.}
 Six sources inside or on the field cage: FC\_PTFE and FC\_rings (dense, KN
@@ -607,7 +621,8 @@ dispatch (\texttt{dispatch\_source\_flux}) and thread-result merging.
 \item[\texttt{cryostat\_sources.jl}] cryostat-specific flux functions (barrel,
 top, bottom) with activity-weighted rate table construction.
 \item[\texttt{pmt\_sources.jl}] PMT flux functions (\texttt{pmt\_top\_flux},
-\texttt{pmt\_bottom\_flux}), merged transparent volume construction with
+\texttt{pmt\_bottom\_flux}, \texttt{pmt\_bottom\_lxe\_flux},
+\texttt{pmt\_barrel\_flux}), merged transparent volume construction with
 per-component rate bookkeeping.
 \item[\texttt{flux\_utils.jl}] flux table merging, CSV I/O, JSON metadata
 helpers.
@@ -619,9 +634,9 @@ The public entry points of primary interest are:
 \begin{itemize}
 \item \texttt{load\_tracking\_detector},
       \texttt{compile\_fastkernel\_geometry},
-      \texttt{compile\_fv\_geometry}
+      \texttt{compile\_fv\_volume}
 \item \texttt{process\_event},
-      \texttt{propagate\_gamma\_in\_fv}
+      \texttt{propagate\_gamma}
 \item \texttt{load\_source\_geometry},
       \texttt{make\_virtual\_envelope},
       \texttt{make\_surface\_sampler}
@@ -636,7 +651,9 @@ The public entry points of primary interest are:
       \texttt{cryostat\_top\_flux},
       \texttt{cryostat\_bottom\_flux}
 \item \texttt{pmt\_top\_flux},
-      \texttt{pmt\_bottom\_flux}
+      \texttt{pmt\_bottom\_flux},
+      \texttt{pmt\_bottom\_lxe\_flux},
+      \texttt{pmt\_barrel\_flux}
 \item \texttt{sample\_from\_flux},
       \texttt{sample\_gamma\_from\_flux}
 \end{itemize}

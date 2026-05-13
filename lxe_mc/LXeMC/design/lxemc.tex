@@ -170,9 +170,10 @@ in Python, Section \ref{sec:source-pipeline}).
 will likely sit between the deposit stack and the final classifier.
 \end{enumerate}
 
-The handoff format is a flat list of \texttt{Deposit(position, energy, source)}
-records per accepted event (Section \ref{sec:event}); whatever the downstream
-pipeline does with that list is its own concern.
+The handoff format is a flat list of
+\texttt{Deposit(position, energy, source, interaction, volume)} records per
+accepted event (Section \ref{sec:event}); whatever the downstream pipeline
+does with that list is its own concern.
 
 %--------------------------------------------------------------------
 \section{Physics}
@@ -484,6 +485,21 @@ is analytic for the supported region shapes (cylinder, cylindrical shell,
 ellipsoidal cap), which is what makes the kernel fast: no generic CSG ray
 intersection.
 
+\textbf{Note on name-based dispatch in the transport layer.} While the
+geometry compiler and classifier are fully data-driven (no volume names in
+\texttt{compile\_fastkernel\_geometry} or \texttt{classify\_fastkernel}),
+the transport-level helpers in \texttt{tracking\_fast.jl} do reference
+region names for veto and policy decisions:
+\texttt{\_visible\_threshold\_MeV} checks \texttt{"TopActive"},
+\texttt{"BarrelActive"}, \texttt{"BottomActive"} for the TPC veto and
+\texttt{"Skin"} for the skin veto; \texttt{\_is\_passive\_region} checks
+the three passive-LXe names and the two FC names. Similarly,
+\texttt{\_classify\_escape\_volume} in \texttt{tracking.jl} uses region
+names to classify FV-escape deposits as \texttt{:active} or
+\texttt{:passive}. Adding a new tracked region to the JSON therefore
+requires updating these helpers if the region should participate in veto
+or escape-volume classification.
+
 \subsection{Source vs. tracking geometry: the two-file model}
 \label{sec:geometry-twofile}
 
@@ -555,26 +571,37 @@ struct Track
     track_id::Int          # unique
     parent_id::Int
     generation::Int        # cascade depth (0 = primary)
+    interaction::Symbol    # process that created this track
+    volume::Symbol         # volume where the track was created
 end
 \end{verbatim}
-The \texttt{ParticleStack} is a LIFO \texttt{Vector\{Track\}}; secondaries
+The \texttt{ParticleStack} is a LIFO stack (a struct wrapping
+\texttt{Vector\{Track\}}); secondaries
 created during a step are pushed and resumed by \texttt{propagate\_gamma}
 when their parent's transport returns. A safety cap
 \texttt{cfg.generation\_cap} (default $100$) prevents runaway cascades:
 tracks with \texttt{generation > cap} are silently discarded when popped.
 
-Energy deposits are recorded as \texttt{Deposit(position, energy, source)}
-with a \texttt{source} symbol identifying their origin
-(\texttt{:electron}, \texttt{:positron}, \texttt{:photoelectric},
-\texttt{:gamma\_local}). The deposit list is shared across the full cascade
+Energy deposits are recorded as
+\texttt{Deposit(position, energy, source, interaction, volume)} with a
+\texttt{source} symbol identifying the particle species, an
+\texttt{interaction} symbol recording the process
+(\texttt{:compton}, \texttt{:photoelectric}, \texttt{:collisional},
+\texttt{:escaped\_gamma}, \texttt{:escaped\_lepton}, \texttt{:gamma\_local}),
+and a \texttt{volume} symbol classifying the deposit location
+(\texttt{:fv}, \texttt{:active}, \texttt{:passive}).
+The deposit list is shared across the full cascade
 of one primary $\gamma$ and is returned at the end as
 \texttt{Vector\{Deposit\}}.
 
 \subsection{\texttt{propagate\_gamma}: the cascade driver}
 \label{sec:fullstack-driver}
 
-\texttt{propagate\_gamma(E\_MeV, vol, cfg; position, direction, rng)} is the
-public entry point. It pushes the primary $\gamma$ onto a fresh stack, then
+\texttt{propagate\_gamma(E\_MeV, vol, fk, cfg; position, direction, rng)} is the
+public entry point. The \texttt{fk} parameter (a \texttt{FastKernelGeometry})
+is used to classify the volume of deposits that escape the FV boundary
+(via \texttt{\_classify\_escape\_volume}). It pushes the primary $\gamma$
+onto a fresh stack, then
 loops:
 \begin{enumerate}[label=\arabic*.]
 \item pop a track; skip if \texttt{generation > generation\_cap};
@@ -589,10 +616,20 @@ The result is the full deposit list inside \texttt{vol}. Note that the
 \texttt{vol} passed to \texttt{propagate\_gamma} is the FV
 \texttt{PhysicalVolume} (a \texttt{PCyl} compiled from the FV node by
 \texttt{compile\_fv\_volume}); transport stops at the FV boundary because
-\texttt{is\_inside(vol, pos)} returns false.
+\texttt{is\_inside(vol, pos)} returns false. When a particle exits the
+FV, the helper \texttt{\_classify\_escape\_volume(fk, pos)} classifies the
+escape position as \texttt{:active} (Skin, TopActive, BarrelActive,
+BottomActive), \texttt{:passive} (LXe\_dome, LXe\_below\_FC,
+LXe\_below\_cathode, FC\_PTFE, FC\_rings, or outside the detector), or
+\texttt{:fv}, and the deposit records the classified volume.
 
 \subsection{\texttt{transport\_photon!}: photon stepping}
 \label{sec:fullstack-photon}
+
+The signature is \texttt{transport\_photon!(track, vol, fk, deposits,
+stack, track\_counter, cfg, rng)}; the \texttt{fk} parameter is passed
+through to \texttt{\_classify\_escape\_volume} for deposits that escape
+the FV boundary.
 
 The photon transport loop runs while $E \geq$ \texttt{Egamma\_cut} ($10$\,keV):
 
@@ -624,6 +661,9 @@ energy is deposited locally as \texttt{:gamma\_local}.
 
 \subsection{\texttt{transport\_lepton!}: condensed-history stepping}
 \label{sec:fullstack-lepton}
+
+The signature is \texttt{transport\_lepton!(track, vol, fk, deposits,
+stack, track\_counter, cfg, rng)}, mirroring \texttt{transport\_photon!}.
 
 The lepton transport loop runs while $T \geq $ \texttt{Te\_cut} ($400$\,keV):
 
@@ -811,7 +851,7 @@ one event:
 short-circuit the entire event: set the corresponding boolean flag and
 return immediately with status \texttt{:vetoed} and an empty deposit list.
 \item If the result is \texttt{:handoff\_fv}, call
-\texttt{propagate\_gamma(E, vol, cfg; pos, dir, rng)} with the handed-off
+\texttt{propagate\_gamma(E, vol, fk, cfg; pos, dir, rng)} with the handed-off
 state and append the returned deposits to the cumulative FV deposit list.
 \item Any other status (\texttt{:escaped}, \texttt{:below\_cut},
 \texttt{:absorbed\_passive}, \texttt{:below\_roi\_fv}) is treated as a
@@ -861,19 +901,25 @@ contributes no FV deposits.
 \label{sec:event-output}
 
 For \texttt{:fv} events, \texttt{deposits} is a flat list of
-\texttt{Deposit(position::Vector\{Float64\}, energy::Float64,
-source::Symbol)} records, where \texttt{position} is in cm and
-\texttt{energy} in MeV. The \texttt{source} symbol identifies the deposit
-origin:
+\texttt{Deposit} records with five fields: \texttt{position} (cm),
+\texttt{energy} (MeV), \texttt{source} (particle species),
+\texttt{interaction} (process), and \texttt{volume} (deposit location
+classification). The \texttt{source} symbol identifies the particle:
 \begin{itemize}
 \item \texttt{:electron}, \texttt{:positron} --- collisional energy loss
 along a charged-track step;
 \item \texttt{:photoelectric} --- the K-shell binding $E_K$ deposited
 locally on photoelectric absorption (and any below-cut photoelectron
 residual);
-\item \texttt{:gamma\_local} --- residual $\gamma$ energy deposited locally
-when $E$ falls below \texttt{Egamma\_cut} inside the FV.
+\item \texttt{:gamma}, \texttt{:gamma\_local} --- $\gamma$-originated
+deposits (escaped photon or residual energy below \texttt{Egamma\_cut}).
 \end{itemize}
+The \texttt{interaction} symbol records the process (\texttt{:compton},
+\texttt{:photoelectric}, \texttt{:collisional}, \texttt{:escaped\_gamma},
+\texttt{:escaped\_lepton}, \texttt{:gamma\_local}). The \texttt{volume}
+symbol classifies where the deposit occurred (\texttt{:fv},
+\texttt{:active}, \texttt{:passive}), determined by
+\texttt{\_classify\_escape\_volume} for deposits outside the FV boundary.
 
 This list is the \emph{only} output of LXeMC for accepted events. It is
 written to disk by the offline workflow (Section \ref{sec:source-pipeline})
@@ -934,6 +980,13 @@ head.
 sub-components (PMTs, bases, structure).
 \item \texttt{pmt\_bottom} --- merged transparent disk over the four bottom
 PMT sub-components (PMTs, bases, structure, R8778 dome).
+\item \texttt{pmt\_bottom\_lxe} --- same bottom PMT components as
+\texttt{pmt\_bottom}, with compound propagation through the passive LXe
+slab between the PMT array and the cathode; flux recorded at the cathode
+boundary.
+\item \texttt{pmt\_barrel} --- merged transparent cylindrical shell over the
+three barrel PMT sub-components (cables, R8520 skin PMTs, R8778 lower-ring
+PMTs) at $R \approx 81.2$--$81.4$\,cm, with inward radial filtering.
 \end{itemize}
 
 Supported isotopes (\texttt{supported\_isotopes()}) are \texttt{Bi214} and
@@ -1021,16 +1074,28 @@ acceptance is small compared to the same-surface contributions.
 \subsection{PMT sources}
 \label{sec:source-pmt}
 
-The top and bottom PMT arrays are bundled groups of small components (PMTs,
-bases, structure, R8778 dome on the bottom). Because they are transparent
-sources and share a common geometric configuration, the per-component flux
-tables are essentially identical (a $\sim 50\%$ hemisphere acceptance, no
-material attenuation). The pipeline lumps each group into a single merged
-flat \texttt{PDisk} spanning the full $z$ extent of its sub-components
-(\texttt{\_merge\_pmt\_volume}), generates one shared flux table, and
-recovers per-component rates by mass$\,\times\,$activity bookkeeping in the
-final rate table. The orientation (\texttt{:up} for top, \texttt{:down} for
-bottom) controls the hemisphere filter via \texttt{cos\_theta\_to\_lxe}.
+The PMT arrays are bundled groups of small components (PMTs, bases,
+structure, R8778 dome on the bottom). Because they are transparent sources
+and share a common geometric configuration, the per-component flux tables
+are essentially identical (a $\sim 50\%$ hemisphere acceptance, no material
+attenuation). The pipeline lumps each group into a single merged volume,
+generates one shared flux table, and recovers per-component rates by
+mass$\,\times\,$activity bookkeeping in the final rate table.
+
+Four PMT flux functions are implemented:
+\begin{description}[leftmargin=2.5cm,style=nextline]
+\item[\texttt{pmt\_top\_flux}] Three sub-components merged into a flat
+\texttt{PDisk} with \texttt{:up} orientation (downward toward LXe).
+\item[\texttt{pmt\_bottom\_flux}] Four sub-components merged into a flat
+\texttt{PDisk} with \texttt{:down} orientation (upward toward LXe).
+\item[\texttt{pmt\_bottom\_lxe\_flux}] Same bottom PMT components, but with
+compound propagation through the passive LXe slab from the PMT array
+to the cathode. The flux is recorded at the cathode boundary, giving
+the spectrum after attenuation in the passive LXe column.
+\item[\texttt{pmt\_barrel\_flux}] Three barrel sub-components (cables,
+R8520 skin PMTs, R8778 lower-ring PMTs) merged into a transparent
+\texttt{PCylShell} with inward radial filtering.
+\end{description}
 
 \subsection{Virtual envelope}
 \label{sec:source-ve}
@@ -1044,7 +1109,7 @@ fix (Section \ref{sec:geometry-icvfix}), the cryostat VE sits exactly on the
 ICV inner surface at $R = 82.1$\,cm and there is no longer a need to
 extract VE parameters from the FastKernel.
 
-The four supported envelope kinds are:
+The supported envelope kinds are:
 \begin{center}
 \begin{tabular}{llrl}
 \toprule
@@ -1055,6 +1120,8 @@ Cryostat top    & \texttt{:cap\_up}   & $82.09$ & ICV\_top inner ellipsoidal cap
 Cryostat bottom & \texttt{:cap\_down} & $82.09$ & ICV\_bottom inner ellipsoidal cap \\
 PMT top         & \texttt{:disk\_flat}& $72.8$  & merged top PMT disk \\
 PMT bottom      & \texttt{:disk\_flat}& $72.8$  & merged bottom PMT disk \\
+PMT bottom (LXe)& \texttt{:disk\_flat}& $72.8$  & cathode exit disk \\
+PMT barrel      & \texttt{:barrel}    & $\sim 81.2$ & merged barrel PMT shell \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1112,7 +1179,7 @@ File & Responsibility \\
 \texttt{geometry\_core.jl}     & Primitive solids and wrappers, containment, ray entry/exit \\
 \texttt{geometry.jl}           & Canonical \texttt{TrackingDetector}, \texttt{FastKernelGeometry} compiler, FV volume \\
 \texttt{sampling.jl}           & MC samplers (Compton, pair, photoelectric angle, brems angle, distance) \\
-\texttt{tracking.jl}           & Full-stack transport: \texttt{Track}, \texttt{Deposit}, \texttt{transport\_photon!}, \texttt{transport\_lepton!}, \texttt{propagate\_gamma} \\
+\texttt{tracking.jl}           & Full-stack transport: \texttt{Track}, \texttt{Deposit}, \texttt{transport\_photon!}, \texttt{transport\_lepton!}, \texttt{propagate\_gamma}, \texttt{\_classify\_escape\_volume} \\
 \texttt{tracking\_fast.jl}     & Fast-kernel transport: \texttt{transport\_gamma\_fastkernel}, \texttt{FastGammaTrackResult} \\
 \texttt{event.jl}              & Event orchestration: \texttt{process\_event}, \texttt{EventProcessingResult} \\
 \texttt{tracking\_util.jl}     & Diagnostics: single-step \texttt{propagate\_gamma\_fastkernel}, \texttt{process\_event\_fastkernel\_calib} \\
@@ -1121,7 +1188,7 @@ File & Responsibility \\
 \texttt{source\_flux.jl}       & Flux tables, source geometry loader, single \& compound flux generators \\
 \texttt{source\_sampling.jl}   & 2D PDF sampler, surface point generators, \texttt{sample\_gamma\_from\_flux} \\
 \texttt{cryostat\_sources.jl}  & \texttt{cryostat\_barrel\_flux}, \texttt{cryostat\_top\_flux}, \texttt{cryostat\_bottom\_flux} \\
-\texttt{pmt\_sources.jl}       & \texttt{pmt\_top\_flux}, \texttt{pmt\_bottom\_flux}, merged transparent volumes \\
+\texttt{pmt\_sources.jl}       & \texttt{pmt\_top\_flux}, \texttt{pmt\_bottom\_flux}, \texttt{pmt\_bottom\_lxe\_flux}, \texttt{pmt\_barrel\_flux} \\
 \texttt{flux\_utils.jl}        & Flux table merging, CSV I/O, JSON metadata \\
 \texttt{source\_dispatch.jl}   & \texttt{dispatch\_source\_flux}, \texttt{VirtualEnvelope}, \texttt{make\_surface\_sampler} \\
 \texttt{analysis.jl}           & Offline helpers: \texttt{cluster\_deposits\_in\_z}, \texttt{is\_single\_site} \\
@@ -1152,7 +1219,8 @@ The public entry points of primary interest are:
 \texttt{make\_virtual\_envelope}, \texttt{make\_surface\_sampler}.
 \item Per-source flux convenience: \texttt{cryostat\_barrel\_flux},
 \texttt{cryostat\_top\_flux}, \texttt{cryostat\_bottom\_flux},
-\texttt{pmt\_top\_flux}, \texttt{pmt\_bottom\_flux}.
+\texttt{pmt\_top\_flux}, \texttt{pmt\_bottom\_flux},
+\texttt{pmt\_bottom\_lxe\_flux}, \texttt{pmt\_barrel\_flux}.
 \item Sampling and analysis: \texttt{sample\_gamma\_from\_flux},
 \texttt{cluster\_deposits\_in\_z}, \texttt{is\_single\_site}.
 \end{itemize}
