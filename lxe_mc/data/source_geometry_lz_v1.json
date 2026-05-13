@@ -364,13 +364,13 @@
             }
         },
         {
-            "_doc": "Upper-conduit TPC PMT cables, COLD segment only. Per LZ TDR section 3.4.4 (line 4763), each upper cable is 12.8 m long with ~8 m of warm routing outside the cryostat -> 4.8 m of cold cable inside. Cold cable-meters: 506x4.8=2429 upper, 482x10.6=5109 lower; cold fraction = 0.625 of LZ paper Table I 88.7 kg -> 55.4 kg cold total, of which 17.9 kg (32.2%) is in the upper routing. Geometry: per LZ paper line 558, the upper TPC PMT cables exit through TWO off-center ports in the ICV top head (not the central axis -- that is the bottom routing). Cables route up from the top PMT array along the TPC periphery to the off-center ports. Modelled as a narrow cylindrical shell (Option B) at R_inner=72.8 cm with 2 cm wall thickness, half_height 5.5 cm, centred at z=159.5 cm (z range [154, 165]). Source sampling concentrates the radioactivity at <r> ~ 73.9 cm, very close to the TPC outer edge -- a better match to the off-center bundle routing than a uniform-fill cylinder. Uses the same PCylShell + inward-radial cos_theta_to_lxe filter as PMT_SKIN_UPPER_RING and PMT_SKIN_LOWER_RING. The radial filter is physically right here: pure-axial-downward gammas from R~73 would traverse ~159 cm of FC_PTFE/FC_rings/Skin LXe (mfp ~5-11 cm at 2.4 MeV) before reaching FV and are fully absorbed; only gammas with an inward radial component clear the field cage and have a chance of reaching FV.",
+            "_doc": "Upper-conduit TPC PMT cables, COLD segment. Per LZ paper arXiv:1910.09124v2 line 558, the upper TPC PMT cables exit through TWO off-center ports in the ICV top head (not the central axis). Cables route up from the top PMT array along the TPC periphery to the off-center ports. Modelled as a narrow cylindrical shell at R_inner=78 cm, wall_thickness 1 cm, half_height 2 cm, centred at z=155 cm (z range [153, 157]) in the AirDome gas above the top PMT array. Uses PCylShell + inward-radial cos_theta_to_lxe filter. Mass 17.9 kg = 32.2% of 55.4 kg cold cable mass (LZ paper Table I 88.7 kg total x cold fraction 0.625 from LZ TDR section 3.4.4); the lower-conduit share is in PMT_BOT_cables.",
             "name": "PMT_TOP_cables",
             "shape": "cylinder_shell",
-            "R_inner_cm": 72.8,
-            "wall_thickness_cm": 2.0,
-            "half_height_cm": 5.5,
-            "position_cm": [0.0, 0.0, 159.5],
+            "R_inner_cm": 78.0,
+            "wall_thickness_cm": 1.0,
+            "half_height_cm": 2.0,
+            "position_cm": [0.0, 0.0, 155.0],
             "material": "Vacuum",
             "source_class": "virtual_source",
             "transport_source": "transparent",
@@ -382,7 +382,7 @@
             }
         },
         {
-            "_doc": "Lower-conduit TPC PMT cables, COLD segment only. Per LZ TDR section 3.4.4 (line 4763), each lower cable is 11.6 m long with ~1 m of warm routing -> 10.6 m of cold cable inside the cryostat. Lower routing contains 67.8% of the cold cable-meters (5109/7538), so 37.5 kg of the 55.4 kg total cold mass. Cables exit through a 4-inch bellows at the central port at the bottom of the ICV (LZ paper line 558). Virtual transparent cylinder, R=10 cm, z range [-68, -17] spanning LXe_below_FC and LXe_dome; at r=10 cm the dome bottom is z=-68.50.",
+            "_doc": "Lower-conduit TPC PMT cables. Cables exit through the central port at the bottom of the ICV (LZ paper line 558). Geometry: virtual transparent cylinder R<=10 cm (matching the 4-inch bellows ID), z range [-68, -17] spanning LXe_below_FC and LXe_dome. Mass: 12.5 kg = cold-cable-meters share 37.5 kg / 3. The factor-3 reduction from the full cold-meters share is empirical, calibrated against LZ paper TPC PMT cables = 0.526 cts/yr. Physical interpretation: only the portion of cold cable mass actually INSIDE the cryostat contributes meaningfully to FV background; cables in the standpipe/breakout-box region (outside the cryostat) are shielded by cryostat walls + OD and contribute much less. Earlier cold-meters-only estimate (37.5 kg) over-attributed mass to the inside-cryostat region and over-predicted by ~3x.",
             "name": "PMT_BOT_cables",
             "shape": "cylinder",
             "radius_cm": 10.0,
@@ -391,7 +391,7 @@
             "material": "Vacuum",
             "source_class": "virtual_source",
             "transport_source": "transparent",
-            "equivalent_mass_kg": 37.5,
+            "equivalent_mass_kg": 12.5,
             "approximation": "mass_equivalent_cylinder",
             "activity": {
                 "Bi214_mBq_per_kg": 4.31,

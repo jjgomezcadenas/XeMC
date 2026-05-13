@@ -2269,8 +2269,9 @@ end
     @test length(comps) == 1
     @test merged isa PCylShell
     @test merged.material.density ≈ 0.0  # vacuum
-    # Shell at the TPC outer edge (R ~ 72.8), above the LXe surface
-    @test merged.logical.solid.R_inner_cm ≈ 72.8
+    # Shell offset from the central axis (R between the TPC outer edge at 72.8
+    # and the cryostat inner wall at 82.1), above the LXe surface
+    @test 72.8 <= merged.logical.solid.R_inner_cm <= 82.1
     @test merged.logical.position[3] > 145.6  # above LXe surface
 
     result = pmt_top_cables_flux(5000, sg, CFG, MersenneTwister(42))
