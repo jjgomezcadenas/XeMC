@@ -16,10 +16,10 @@ conda activate itacatf   # for python scripts
 results/
   flux_tables/
     cryostat/{barrel,top,bottom}/{Bi214,Tl208}/
-    pmt/{top,bottom}/{Bi214,Tl208}/
+    pmt/{top,bottom,bottom_lxe,barrel}/{Bi214,Tl208}/
   backgrounds/
     cryostat/{barrel,top,bottom}/{Bi214,Tl208}/
-    pmt/{top,bottom}/{Bi214,Tl208}/
+    pmt/{top,bottom,bottom_lxe,barrel}/{Bi214,Tl208}/
 ```
 
 
@@ -79,8 +79,25 @@ julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
 julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
   --source pmt_bottom --isotope Tl208 --n 100000 --seed 42 \
   --outdir LXeMC/results/flux_tables/pmt/bottom/Tl208
-```
 
+# PMT bottom (with passive LXe propagation)
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_bottom_lxe --isotope Bi214 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/bottom_lxe/Bi214
+
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_bottom_lxe --isotope Tl208 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/bottom_lxe/Tl208
+
+# PMT barrel
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_barrel --isotope Bi214 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/barrel/Bi214
+
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_barrel --isotope Tl208 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/barrel/Tl208
+```
 
 ## Stage 2: Background processing (fast kernel + FV stack)
 
@@ -147,8 +164,29 @@ julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
   --source pmt_bottom --isotope Tl208 --n 500000 --seed 42 \
   --indir LXeMC/results/flux_tables/pmt/bottom/Tl208 \
   --outdir LXeMC/results/backgrounds/pmt/bottom/Tl208
-```
 
+# PMT bottom (with passive LXe propagation)
+julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
+  --source pmt_bottom_lxe --isotope Bi214 --n 500000 --seed 42 \
+  --indir LXeMC/results/flux_tables/pmt/bottom_lxe/Bi214 \
+  --outdir LXeMC/results/backgrounds/pmt/bottom_lxe/Bi214
+
+julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
+  --source pmt_bottom_lxe --isotope Tl208 --n 500000 --seed 42 \
+  --indir LXeMC/results/flux_tables/pmt/bottom_lxe/Tl208 \
+  --outdir LXeMC/results/backgrounds/pmt/bottom_lxe/Tl208
+
+# PMT barrel
+julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
+  --source pmt_barrel --isotope Bi214 --n 500000 --seed 42 \
+  --indir LXeMC/results/flux_tables/pmt/barrel/Bi214 \
+  --outdir LXeMC/results/backgrounds/pmt/barrel/Bi214
+
+julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
+  --source pmt_barrel --isotope Tl208 --n 500000 --seed 42 \
+  --indir LXeMC/results/flux_tables/pmt/barrel/Tl208 \
+  --outdir LXeMC/results/backgrounds/pmt/barrel/Tl208
+```
 
 ## Stage 3: Analysis (python)
 
@@ -168,6 +206,10 @@ python py/plot_fluxes.py LXeMC/results/flux_tables/pmt/top/Bi214
 python py/plot_fluxes.py LXeMC/results/flux_tables/pmt/top/Tl208
 python py/plot_fluxes.py LXeMC/results/flux_tables/pmt/bottom/Bi214
 python py/plot_fluxes.py LXeMC/results/flux_tables/pmt/bottom/Tl208
+python py/plot_fluxes.py LXeMC/results/flux_tables/pmt/bottom_lxe/Bi214
+python py/plot_fluxes.py LXeMC/results/flux_tables/pmt/bottom_lxe/Tl208
+python py/plot_fluxes.py LXeMC/results/flux_tables/pmt/barrel/Bi214
+python py/plot_fluxes.py LXeMC/results/flux_tables/pmt/barrel/Tl208
 ```
 
 ### Plot candidates
@@ -186,6 +228,10 @@ python py/plot_candidates.py LXeMC/results/backgrounds/pmt/top/Bi214
 python py/plot_candidates.py LXeMC/results/backgrounds/pmt/top/Tl208
 python py/plot_candidates.py LXeMC/results/backgrounds/pmt/bottom/Bi214
 python py/plot_candidates.py LXeMC/results/backgrounds/pmt/bottom/Tl208
+python py/plot_candidates.py LXeMC/results/backgrounds/pmt/bottom_lxe/Bi214
+python py/plot_candidates.py LXeMC/results/backgrounds/pmt/bottom_lxe/Tl208
+python py/plot_candidates.py LXeMC/results/backgrounds/pmt/barrel/Bi214
+python py/plot_candidates.py LXeMC/results/backgrounds/pmt/barrel/Tl208
 ```
 
 ### Compute background rates (smearing + ROI)
@@ -244,8 +290,27 @@ python py/compute_backgrounds.py \
   --source pmt_bottom --isotope Tl208 --sigma 25 --roi 50 \
   --bgdir LXeMC/results/backgrounds/pmt/bottom/Tl208 \
   --fluxdir LXeMC/results/flux_tables/pmt/bottom/Tl208
-```
 
+python py/compute_backgrounds.py \
+  --source pmt_bottom_lxe --isotope Bi214 --sigma 25 --roi 50 \
+  --bgdir LXeMC/results/backgrounds/pmt/bottom_lxe/Bi214 \
+  --fluxdir LXeMC/results/flux_tables/pmt/bottom_lxe/Bi214
+
+python py/compute_backgrounds.py \
+  --source pmt_bottom_lxe --isotope Tl208 --sigma 25 --roi 50 \
+  --bgdir LXeMC/results/backgrounds/pmt/bottom_lxe/Tl208 \
+  --fluxdir LXeMC/results/flux_tables/pmt/bottom_lxe/Tl208
+
+python py/compute_backgrounds.py \
+  --source pmt_barrel --isotope Bi214 --sigma 25 --roi 50 \
+  --bgdir LXeMC/results/backgrounds/pmt/barrel/Bi214 \
+  --fluxdir LXeMC/results/flux_tables/pmt/barrel/Bi214
+
+python py/compute_backgrounds.py \
+  --source pmt_barrel --isotope Tl208 --sigma 25 --roi 50 \
+  --bgdir LXeMC/results/backgrounds/pmt/barrel/Tl208 \
+  --fluxdir LXeMC/results/flux_tables/pmt/barrel/Tl208
+```
 
 ## Source summary
 
@@ -254,7 +319,9 @@ python py/compute_backgrounds.py \
 | cryostat_barrel | Bi214, Tl208 | OCV, MLI, ICV | Dense (KN + compound) |
 | cryostat_top | Bi214, Tl208 | OCV, ICV | Dense (KN + compound) |
 | cryostat_bottom | Bi214, Tl208 | OCV, ICV | Dense (KN + compound) |
-| pmt_top | Bi214, Tl208 | PMTs, bases, structure | Transparent (merged) |
-| pmt_bottom | Bi214, Tl208 | PMTs, bases, structure, R8778_dome | Transparent (merged) |
+| pmt_top | Bi214, Tl208 | PMTs, bases, structure | Transparent (merged PDisk) |
+| pmt_bottom | Bi214, Tl208 | PMTs, bases, structure, R8778_dome | Transparent (merged PDisk) |
+| pmt_bottom_lxe | Bi214, Tl208 | Same as pmt_bottom + passive LXe to cathode | Compound (transparent + LXe slab) |
+| pmt_barrel | Bi214, Tl208 | cables, R8520 skin PMTs, R8778 lower-ring | Transparent (merged PCylShell) |
 
-Total: 5 sources x 2 isotopes = 10 pipeline runs.
+Total: 7 sources x 2 isotopes = 14 pipeline runs.
