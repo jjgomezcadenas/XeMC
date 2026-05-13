@@ -365,3 +365,56 @@ our MC).
    add `pmt_skin_upper_ring_flux` endpoint, update Python and tests.
 4. Re-run the Bi-214 background pipeline and compare against LZ paper
    "Skin PMTs + bases" = 0.274 cts/yr.
+
+---
+
+## Step 3 update — `PMT_SKIN_UPPER_RING` (R8520 relocation, `pmt_barrel` deletion)
+
+**Applied**. The TDR review was carried out and crucially supplemented
+by the more recent LZ instrumentation paper
+(arXiv:1910.09124v2, §2.2 "The Xe Skin Detector"). Key quotes:
+
+> "The side region of the skin contains 4 cm of LXe at the top, widening
+> to 8 cm at cathode level for increased standoff distance. This is
+> viewed from above by 93 1-inch Hamamatsu R8520-406 PMTs. These are
+> retained within PTFE structures **attached to the external side of
+> the field cage**, located **below the liquid surface**."
+>
+> "At the bottom of the detector a **ring structure attached to the
+> vessel** contains a further 20 2-inch Hamamatsu R8778 PMTs viewing
+> upward into this lateral region."
+
+The 93 R8520 PMTs are therefore **not** cylindrically distributed
+along the side Skin. They are localised in a thin ring **on the
+external side of the field cage** (R near 72.8 cm, not 81.4 cm), just
+below the LXe surface (z ≈ 144 cm). The previous MC model placed all
+6.10 kg of R8520 mass uniformly along R=81.4 cm over the full barrel
+z range — wrong on both R and z.
+
+Changes made:
+
+- `data/source_geometry_lz_v1.json`: renamed `PMT_BARREL_R8520` →
+  `PMT_SKIN_UPPER_RING`; relocated to a narrow cylindrical-shell ring
+  at `R=74.224 cm` (just outside the FC outer wall at R=74.224),
+  `half_height=1.5 cm`, `position=[0, 0, 144]` (1.6 cm below the LXe
+  surface).
+- `PMT_SKIN_LOWER_RING` also tightened to `half_height=1.5 cm` and
+  `position=[0, 0, -12]` per the same paper ("ring structure attached
+  to the vessel at the bottom of the detector").
+- `src/pmt_sources.jl`: **deleted** `pmt_barrel_flux` (the barrel
+  source now has zero components). Added `pmt_skin_upper_ring_flux`.
+- `src/source_dispatch.jl`: **removed** `pmt_barrel` endpoint from
+  `dispatch_source_flux`, `make_virtual_envelope`, and
+  `supported_sources()`. Added `pmt_skin_upper_ring`.
+- `src/LXeMC.jl`: removed `pmt_barrel_flux` export; added
+  `pmt_skin_upper_ring_flux`.
+- Tests, Python summary/validators, viewer, CLAUDE.md,
+  status_sources.md, running_recipe.md: all references updated.
+
+After this step, all the geometry-related "PENDING TDR REVIEW"
+questions above are resolved. The MC's Skin-PMT geometry now matches
+the published LZ description. Any residual MC-vs-paper discrepancy in
+the "Skin PMTs + bases" rate after re-running the pipeline must come
+from a different source (e.g., veto efficiency modelling, LZ paper
+applying analysis cuts beyond the prompt veto, or modelling of the
+PMT_BOT_R8778_dome attenuation path).

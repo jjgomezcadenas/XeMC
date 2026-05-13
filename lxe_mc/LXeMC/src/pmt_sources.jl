@@ -339,27 +339,28 @@ end
 
 
 """
-    pmt_barrel_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
+    pmt_skin_upper_ring_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
 
-Compute barrel PMT flux tables. Single sub-component (R8520 Top-Skin
-PMTs) wrapped as a transparent cylindrical shell. TPC PMT cables and
-the R8778 lower-ring PMTs were both removed from the barrel in
-separate refactors: cables now route through `pmt_top_cables_flux` /
-`pmt_bottom_cables_flux` (LZ TDR section 3.4.4) and the lower ring
-through `pmt_skin_lower_ring_flux` (LZ TDR table at line 3754, which
-labels these PMTs 'Bottom Skin', physically a ring at cathode level
-rather than a full-barrel distribution).
+Compute flux tables for the 93 R8520 1-inch 'Top Skin' PMTs
+(`PMT_SKIN_UPPER_RING`). Per LZ paper arXiv:1910.09124v2 section
+2.2, these PMTs are housed in PTFE structures attached to the
+external side of the field cage, located just below the LXe surface,
+viewing downward into the side Skin. Modelled as a narrow
+cylindrical-shell ring at R=74.224 cm, z=144 cm. Gammas going inward
+(radially toward the TPC and the FV) pass the VE; outward gammas
+(into the side Skin away from the FV) are lost (filtered by
+`cos_theta_to_lxe` for `PCylShell` = inward radial).
 """
-function pmt_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
-                          cfg::SimConfig, rng::AbstractRNG;
-                          verbose::Bool=false, kwargs...)
-    pmt_names = ["PMT_BARREL_R8520"]
-    merged, components = _merge_pmt_barrel_volume(sg, pmt_names, "PMT_BARREL_merged")
+function pmt_skin_upper_ring_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
+                                   cfg::SimConfig, rng::AbstractRNG;
+                                   verbose::Bool=false, kwargs...)
+    pmt_names = ["PMT_SKIN_UPPER_RING"]
+    merged, components = _merge_pmt_barrel_volume(sg, pmt_names, "PMT_SKIN_UPPER_RING_merged")
 
     t0 = time()
     bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
     tl = generate_flux_tl208(N, merged, cfg, rng; kwargs...)
-    verbose && @printf("  [pmt_barrel] flux generation done (%.1fs)\n", time() - t0)
+    verbose && @printf("  [pmt_skin_upper_ring] flux generation done (%.1fs)\n", time() - t0)
 
     A_bi = "Bi214_mBq_per_kg"
     A_tl = "Tl208_mBq_per_kg"
@@ -380,11 +381,13 @@ end
     pmt_skin_lower_ring_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
 
 Compute flux tables for the 20 R8778 'Bottom Skin' side PMTs
-(`PMT_SKIN_LOWER_RING`). Modelled as a narrow cylindrical-shell ring
-at R=81.4 cm, centred just above the cathode (z = -8.75 cm,
-half_height 5 cm). Gammas going inward (toward the FV through the
-side Skin) pass the VE; outward gammas are lost (filtered by
-`cos_theta_to_lxe` for `PCylShell` = inward radial).
+(`PMT_SKIN_LOWER_RING`). Per LZ paper arXiv:1910.09124v2 section
+2.2, these PMTs are mounted on a ring structure attached to the ICV
+at R=81.4 cm, at the bottom of the side Skin region, viewing upward.
+Modelled as a narrow 3-cm cylindrical-shell ring centred at z=-12 cm.
+Gammas going inward (toward the FV through the side Skin) pass the
+VE; outward gammas are lost (filtered by `cos_theta_to_lxe` for
+`PCylShell` = inward radial).
 """
 function pmt_skin_lower_ring_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
                                    cfg::SimConfig, rng::AbstractRNG;

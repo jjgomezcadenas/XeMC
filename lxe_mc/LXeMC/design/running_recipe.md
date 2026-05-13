@@ -89,14 +89,39 @@ julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
   --source pmt_bottom_lxe --isotope Tl208 --n 100000 --seed 42 \
   --outdir LXeMC/results/flux_tables/pmt/bottom_lxe/Tl208
 
-# PMT barrel
+# PMT cables (upper and lower conduits)
 julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
-  --source pmt_barrel --isotope Bi214 --n 100000 --seed 42 \
-  --outdir LXeMC/results/flux_tables/pmt/barrel/Bi214
+  --source pmt_top_cables --isotope Bi214 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/top_cables/Bi214
 
 julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
-  --source pmt_barrel --isotope Tl208 --n 100000 --seed 42 \
-  --outdir LXeMC/results/flux_tables/pmt/barrel/Tl208
+  --source pmt_top_cables --isotope Tl208 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/top_cables/Tl208
+
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_bottom_cables --isotope Bi214 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/bottom_cables/Bi214
+
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_bottom_cables --isotope Tl208 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/bottom_cables/Tl208
+
+# Skin PMT rings (upper R8520 and lower R8778)
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_skin_upper_ring --isotope Bi214 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/skin_upper_ring/Bi214
+
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_skin_upper_ring --isotope Tl208 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/skin_upper_ring/Tl208
+
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_skin_lower_ring --isotope Bi214 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/skin_lower_ring/Bi214
+
+julia -t 8 --project=LXeMC LXeMC/scripts/generate_flux_tables.jl \
+  --source pmt_skin_lower_ring --isotope Tl208 --n 100000 --seed 42 \
+  --outdir LXeMC/results/flux_tables/pmt/skin_lower_ring/Tl208
 ```
 
 ## Stage 2: Background processing (fast kernel + FV stack)
@@ -176,16 +201,29 @@ julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
   --indir LXeMC/results/flux_tables/pmt/bottom_lxe/Tl208 \
   --outdir LXeMC/results/backgrounds/pmt/bottom_lxe/Tl208
 
-# PMT barrel
+# PMT cables (upper and lower)
 julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
-  --source pmt_barrel --isotope Bi214 --n 500000 --seed 42 \
-  --indir LXeMC/results/flux_tables/pmt/barrel/Bi214 \
-  --outdir LXeMC/results/backgrounds/pmt/barrel/Bi214
+  --source pmt_top_cables --isotope Bi214 --n 500000 --seed 42 \
+  --indir LXeMC/results/flux_tables/pmt/top_cables/Bi214 \
+  --outdir LXeMC/results/backgrounds/pmt/top_cables/Bi214
 
 julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
-  --source pmt_barrel --isotope Tl208 --n 500000 --seed 42 \
-  --indir LXeMC/results/flux_tables/pmt/barrel/Tl208 \
-  --outdir LXeMC/results/backgrounds/pmt/barrel/Tl208
+  --source pmt_bottom_cables --isotope Bi214 --n 500000 --seed 42 \
+  --indir LXeMC/results/flux_tables/pmt/bottom_cables/Bi214 \
+  --outdir LXeMC/results/backgrounds/pmt/bottom_cables/Bi214
+
+# Skin PMT rings
+julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
+  --source pmt_skin_upper_ring --isotope Bi214 --n 500000 --seed 42 \
+  --indir LXeMC/results/flux_tables/pmt/skin_upper_ring/Bi214 \
+  --outdir LXeMC/results/backgrounds/pmt/skin_upper_ring/Bi214
+
+julia -t 8 --project=LXeMC LXeMC/scripts/run_source_backgrounds.jl \
+  --source pmt_skin_lower_ring --isotope Bi214 --n 500000 --seed 42 \
+  --indir LXeMC/results/flux_tables/pmt/skin_lower_ring/Bi214 \
+  --outdir LXeMC/results/backgrounds/pmt/skin_lower_ring/Bi214
+
+# (Repeat the above for Tl208 with appropriate --isotope and paths.)
 ```
 
 ## Stage 3: Analysis (python)
@@ -302,14 +340,26 @@ python py/compute_backgrounds.py \
   --fluxdir LXeMC/results/flux_tables/pmt/bottom_lxe/Tl208
 
 python py/compute_backgrounds.py \
-  --source pmt_barrel --isotope Bi214 --sigma 25 --roi 50 \
-  --bgdir LXeMC/results/backgrounds/pmt/barrel/Bi214 \
-  --fluxdir LXeMC/results/flux_tables/pmt/barrel/Bi214
+  --source pmt_top_cables --isotope Bi214 --sigma 25 --roi 50 \
+  --bgdir LXeMC/results/backgrounds/pmt/top_cables/Bi214 \
+  --fluxdir LXeMC/results/flux_tables/pmt/top_cables/Bi214
 
 python py/compute_backgrounds.py \
-  --source pmt_barrel --isotope Tl208 --sigma 25 --roi 50 \
-  --bgdir LXeMC/results/backgrounds/pmt/barrel/Tl208 \
-  --fluxdir LXeMC/results/flux_tables/pmt/barrel/Tl208
+  --source pmt_bottom_cables --isotope Bi214 --sigma 25 --roi 50 \
+  --bgdir LXeMC/results/backgrounds/pmt/bottom_cables/Bi214 \
+  --fluxdir LXeMC/results/flux_tables/pmt/bottom_cables/Bi214
+
+python py/compute_backgrounds.py \
+  --source pmt_skin_upper_ring --isotope Bi214 --sigma 25 --roi 50 \
+  --bgdir LXeMC/results/backgrounds/pmt/skin_upper_ring/Bi214 \
+  --fluxdir LXeMC/results/flux_tables/pmt/skin_upper_ring/Bi214
+
+python py/compute_backgrounds.py \
+  --source pmt_skin_lower_ring --isotope Bi214 --sigma 25 --roi 50 \
+  --bgdir LXeMC/results/backgrounds/pmt/skin_lower_ring/Bi214 \
+  --fluxdir LXeMC/results/flux_tables/pmt/skin_lower_ring/Bi214
+
+# (Repeat the above for Tl208 with appropriate --isotope and paths.)
 ```
 
 ## Source summary
@@ -322,6 +372,9 @@ python py/compute_backgrounds.py \
 | pmt_top | Bi214, Tl208 | PMTs, bases, structure | Transparent (merged PDisk) |
 | pmt_bottom | Bi214, Tl208 | PMTs, bases, structure, R8778_dome | Transparent (merged PDisk) |
 | pmt_bottom_lxe | Bi214, Tl208 | Same as pmt_bottom + passive LXe to cathode | Compound (transparent + LXe slab) |
-| pmt_barrel | Bi214, Tl208 | cables, R8520 skin PMTs, R8778 lower-ring | Transparent (merged PCylShell) |
+| pmt_top_cables | Bi214, Tl208 | TPC PMT cables in upper conduit (R=10 cm, z=[154, 189]) | Transparent (cylinder in AirDome) |
+| pmt_bottom_cables | Bi214, Tl208 | TPC PMT cables in lower conduit (R=10 cm, z=[-68, -17]) | Transparent (cylinder in passive LXe) |
+| pmt_skin_upper_ring | Bi214, Tl208 | 93 R8520 Top-Skin PMTs (R=74.224 cm, z=144 cm, half_height=1.5 cm) | Transparent (PCylShell, inward radial) |
+| pmt_skin_lower_ring | Bi214, Tl208 | 20 R8778 Bottom-Skin side PMTs (R=81.4 cm, z=-12 cm, half_height=1.5 cm) | Transparent (PCylShell, inward radial) |
 
 Total: 7 sources x 2 isotopes = 14 pipeline runs.

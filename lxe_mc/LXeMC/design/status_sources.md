@@ -16,7 +16,7 @@ Pushed and synced with `origin/sources`.
 | `source_sampling.jl` | `sample_from_flux`, `sample_from_rate_table`, `sample_barrel_point`, `sample_disk_point(R, z, normal_z, rng)`, `sample_cap_point`, `reconstruct_direction`, `sample_gamma_from_flux` |
 | `source_dispatch.jl` | `VirtualEnvelope` (kinds: `:barrel`, `:cap_up`, `:cap_down`, `:disk_flat`), `make_virtual_envelope(source, sg)` (unified, all sources from source geometry), `make_surface_sampler`, `dispatch_source_flux`, `merge_dispatch_results`, `supported_sources/isotopes` |
 | `cryostat_sources.jl` | `cryostat_barrel_flux` (OCV compound + MLI compound + ICV self), `cryostat_top_flux`, `cryostat_bottom_flux`, `_build_rate_table`, `_get_activity_Bq` |
-| `pmt_sources.jl` | `pmt_top_flux`, `pmt_bottom_flux`, `pmt_bottom_lxe_flux` (compound: PMT + passive LXe to cathode), `pmt_barrel_flux` (cables, R8520, R8778 lower-ring as merged PCylShell), `_merge_pmt_volume` |
+| `pmt_sources.jl` | `pmt_top_flux`, `pmt_bottom_flux`, `pmt_bottom_lxe_flux` (compound: PMT + passive LXe to cathode), `pmt_top_cables_flux` / `pmt_bottom_cables_flux` (TPC PMT cables in upper/lower conduits), `pmt_skin_upper_ring_flux` (93 R8520 'Top Skin' PMTs just below LXe surface), `pmt_skin_lower_ring_flux` (20 R8778 'Bottom Skin' side PMTs near cathode), `_merge_pmt_volume`, `_merge_pmt_barrel_volume` |
 | `flux_utils.jl` | `merge_flux_bi214/tl208`, CSV I/O, JSON metadata helpers |
 | `geometry_core.jl` | Analytic `distance_to_entry(LDisk)`, `distance_to_exit(LDisk)` for flat disks |
 | `tracking.jl` | `EventProcessingResult` includes `deposits::Vector{Deposit}` for `:accepted` events |
@@ -117,7 +117,10 @@ Pushed and synced with `origin/sources`.
 | `pmt_top` | Transparent | PMTs, bases, structure | Complete |
 | `pmt_bottom` | Transparent | PMTs, bases, structure, R8778_dome | Complete |
 | `pmt_bottom_lxe` | Compound | PMT bottom + passive LXe slab to cathode | Complete |
-| `pmt_barrel` | Transparent | cables, R8520 skin PMTs, R8778 lower-ring PMTs | Complete |
+| `pmt_top_cables` | Transparent | TPC PMT cables in upper conduit (above top PMT array, in AirDome) | Complete |
+| `pmt_bottom_cables` | Transparent | TPC PMT cables in lower conduit (below bottom PMT array, in passive LXe) | Complete |
+| `pmt_skin_upper_ring` | Transparent | 93 R8520 'Top Skin' 1-inch PMTs just below LXe surface, attached to outer side of field cage | Complete |
+| `pmt_skin_lower_ring` | Transparent | 20 R8778 'Bottom Skin' side PMTs at the bottom of the side Skin, attached to ICV | Complete |
 
 
 ## Remaining work: field-cage sources

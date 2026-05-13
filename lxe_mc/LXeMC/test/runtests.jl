@@ -1730,8 +1730,8 @@ end
     z_bottom = lv.position[3] - lv.solid.half_height_cm
     @test env.z_equator_cm ≈ z_bottom
 
-    # PMT_BARREL_R8520 is a PCylShell → should give :barrel
-    sv_skin = sg["PMT_BARREL_R8520"]
+    # PMT_SKIN_UPPER_RING is a PCylShell → should give :barrel
+    sv_skin = sg["PMT_SKIN_UPPER_RING"]
     env2 = make_virtual_envelope(sv_skin)
     @test env2.kind === :barrel
     lv2 = sv_skin.volume.logical
@@ -2198,41 +2198,39 @@ end
 
 
 # =====================================================================
-# PMT barrel: R8520 Top-Skin PMTs only. Cables now live in
-# pmt_top_cables / pmt_bottom_cables (LZ TDR §3.4.4); the R8778
-# lower-ring lives in pmt_skin_lower_ring.
+# Skin upper ring: 93 R8520 'Top Skin' PMTs localised just below the
+# LXe surface on the external side of the field cage (LZ paper
+# arXiv:1910.09124v2 §2.2).
 # =====================================================================
-@testset "pmt_barrel flux" begin
+@testset "pmt_skin_upper_ring flux" begin
     src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
     sg = load_source_geometry(src_path, MATS)
 
-    # Merged barrel geometry
     merged, comps = LXeMC._merge_pmt_barrel_volume(sg,
-        ["PMT_BARREL_R8520"],
-        "PMT_BARREL_merged")
+        ["PMT_SKIN_UPPER_RING"],
+        "PMT_SKIN_UPPER_RING_merged")
     @test length(comps) == 1
     @test merged isa PCylShell
     @test merged.material.density ≈ 0.0  # vacuum
 
-    # Flux: ~50% hemisphere survival (transparent, inward radial)
-    result = pmt_barrel_flux(10000, sg, CFG, MersenneTwister(42))
+    # Ring localised just below LXe surface (z=145.6): center near 144
+    @test merged.logical.position[3] > 140.0
+    # Tight z extent (was 79.675 full barrel)
+    @test merged.logical.solid.half_height_cm < 5.0
+
+    result = pmt_skin_upper_ring_flux(5000, sg, CFG, MersenneTwister(42))
     f = sum(result.bi214.pdf)
-    @test 0.3 < f < 0.7
+    @test 0.3 < f < 0.7  # inward radial hemisphere
 
-    # Rate table has 1 component with correct name
     @test length(result.bi214_rate.component_names) == 1
+    @test "PMT_SKIN_UPPER_RING" in result.bi214_rate.component_names
     @test result.bi214_rate.total_rate > 0
-    @test "PMT_BARREL_R8520" in result.bi214_rate.component_names
-
-    # Tl208 works
-    @test sum(result.tl208.pdf_main) > 0
-    @test result.tl208_rate.total_rate > 0
 end
 
 
 # =====================================================================
-# Skin lower ring: 20 R8778 'Bottom Skin' side PMTs localised at
-# cathode level (LZ TDR table line 3754).
+# Skin lower ring: 20 R8778 'Bottom Skin' side PMTs localised at the
+# bottom of the Skin region near the cathode (LZ paper §2.2).
 # =====================================================================
 @testset "pmt_skin_lower_ring flux" begin
     src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))

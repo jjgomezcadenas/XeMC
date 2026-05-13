@@ -38,12 +38,12 @@ function dispatch_source_flux(source::String, isotope::String,
     elseif source == "pmt_bottom_lxe"
         mats === nothing && error("pmt_bottom_lxe requires mats keyword argument")
         result = pmt_bottom_lxe_flux(N, sg, mats, cfg, rng; verbose=verbose)
-    elseif source == "pmt_barrel"
-        result = pmt_barrel_flux(N, sg, cfg, rng; verbose=verbose)
     elseif source == "pmt_top_cables"
         result = pmt_top_cables_flux(N, sg, cfg, rng; verbose=verbose)
     elseif source == "pmt_bottom_cables"
         result = pmt_bottom_cables_flux(N, sg, cfg, rng; verbose=verbose)
+    elseif source == "pmt_skin_upper_ring"
+        result = pmt_skin_upper_ring_flux(N, sg, cfg, rng; verbose=verbose)
     elseif source == "pmt_skin_lower_ring"
         result = pmt_skin_lower_ring_flux(N, sg, cfg, rng; verbose=verbose)
     else
@@ -151,8 +151,9 @@ List of currently supported source identifiers.
 """
 function supported_sources()::Vector{String}
     ["cryostat_barrel", "cryostat_top", "cryostat_bottom",
-     "pmt_top", "pmt_bottom", "pmt_bottom_lxe", "pmt_barrel",
-     "pmt_top_cables", "pmt_bottom_cables", "pmt_skin_lower_ring"]
+     "pmt_top", "pmt_bottom", "pmt_bottom_lxe",
+     "pmt_top_cables", "pmt_bottom_cables",
+     "pmt_skin_upper_ring", "pmt_skin_lower_ring"]
 end
 
 
@@ -266,10 +267,10 @@ function make_virtual_envelope(source::String,
         R = merged.logical.solid.radius_cm
         VirtualEnvelope(:disk_flat, R, 0.0, 0.0, z_cathode + ε, 1.0)
 
-    elseif source == "pmt_barrel"
+    elseif source == "pmt_skin_upper_ring"
         merged, _ = _merge_pmt_barrel_volume(sg,
-            ["PMT_BARREL_R8520"],
-            "PMT_BARREL_merged")
+            ["PMT_SKIN_UPPER_RING"],
+            "PMT_SKIN_UPPER_RING_merged")
         lv = merged.logical
         R = lv.solid.R_inner_cm - ε
         z_min = lv.position[3] - lv.solid.half_height_cm

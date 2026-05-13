@@ -128,8 +128,9 @@ export generate_flux_bi214, generate_flux_tl208
 export propagate_through_layers
 export generate_flux_compound_bi214, generate_flux_compound_tl208
 export cryostat_barrel_flux, cryostat_top_flux, cryostat_bottom_flux
-export pmt_top_flux, pmt_bottom_flux, pmt_bottom_lxe_flux, pmt_barrel_flux
-export pmt_top_cables_flux, pmt_bottom_cables_flux, pmt_skin_lower_ring_flux
+export pmt_top_flux, pmt_bottom_flux, pmt_bottom_lxe_flux
+export pmt_top_cables_flux, pmt_bottom_cables_flux
+export pmt_skin_upper_ring_flux, pmt_skin_lower_ring_flux
 export sample_from_flux, sample_from_rate_table
 export sample_barrel_point, sample_disk_point, sample_cap_point, reconstruct_direction
 export sample_gamma_from_flux

@@ -1,0 +1,1902 @@
+                                                                                           The LUX-ZEPLIN (LZ) Experiment
+
+                                                       D.S. Akeriba,b , C.W. Akerlofc , D. Yu. Akimovd , A. Alquahtanie , S.K. Alsumf , T.J. Andersona,b , N. Angelidesg ,
+                                                       H.M. Araújoh , A. Arbucklef , J.E. Armstrongi , M. Arthursc , H. Auyeunga , X. Baij , A.J. Baileyh , J. Balajthyk ,
+                                                        S. Balashovl , J. Bange , M.J. Barrym , J. Bartheln , D. Bauerh , P. Bauern , A. Baxtero , J. Bellep , P. Beltrameq ,
+                                                          J. Bensingerr , T. Bensonf , E.P. Bernards,m , A. Bernsteint , A. Bhattii , A. Biekerts,m , T.P. Biesiadzinskia,b ,
+                                                    B. Birrittellaf , K.E. Boastu , A.I. Bolozdynyad , E.M. Boultonv,s , B. Boxero , R. Bramantea,b , S. Bransonf , P. Brásw ,
+                                                   M. Breidenbacha , J.H. Buckleyx , V.V. Bugaevx , R. Bunkerj , S. Burdino , J.K. Busenitzy , J.S. Campbellf , C. Carelsu ,
+                                                      D.L. Carlsmithf , B. Carlsonn , M.C. Carmona-Benitezz , M. Cascellag , C. Chane , J.J. Cherwinkaf , A.A. Chilleraa ,
+                                                            C. Chilleraa , N.I. Chottj , A. Colem , J. Colemanm , D. Collingh , R.A. Conleya , A. Cottleu , R. Coughlenj ,
+                                                       W.W. Craddocka , D. Currann , A. Currieh , J.E. Cutterk , J.P. da Cunhaw , C.E. Dahlab,p , S. Dardinm , S. Dasuf ,
+                                                  J. Davisn , T.J.R. Davisonq , L. de Viveirosz , N. Decheinef , A. Dobim , J.E.Y. Dobsong , E. Druszkiewiczac , A. Dushkinr ,
+arXiv:1910.09124v2 [physics.ins-det] 4 Nov 2019
+
+
+
+
+                                                        T.K. Edbergi , W.R. Edwardsm , B.N. Edwardsv , J. Edwardsf , M.M. Elnimry , W.T. Emmetv , S.R. Eriksenad ,
+                                                       C.H. Fahamm , A. Fana,b , S. Fayerh , S. Fioruccim , H. Flaecherad , I.M. Fogarty Florangi , P. Fordl , V.B. Francisl ,
+                                                        F. Froborgh , T. Fruthu , R.J. Gaitskelle , N.J. Gantosm , D. Garciae , A. Geffren , V.M. Gehmanm , R. Gelfandac ,
+                                                    J. Genovesij , R.M. Gerhardk , C. Ghagg , E. Gibsonu , M.G.D. Gilchriesem , S. Gokhaleae , B. Gomberf , T.G. Gondaa ,
+                                                     A. Greenallo , S. Greenwoodh , G. Gregersonf , M.G.D. van der Grintenl , C.B. Gwilliamo , C.R. Halli , D. Hamiltonf ,
+                                                    S. Hansae , K. Hanzelm , T. Harringtonf , A. Harrisonj , C. Hasselkusf , S.J. Haselschwardtaf , D. Hemerk , S.A. Hertelag ,
+                                                   J. Heisef , S. Hillbrandk , O. Hitchcockf , C. Hjemfeltj , M.D. Hoffm , B. Holbrookk , E. Holtoml , J.Y-K. Hory , M. Hornn ,
+                                                  D.Q. Huange , T.W. Hurteauv , C.M. Ignarraa,b , M.N. Irvingk , R.G. Jacobsens,m , O. Jahangirg , S.N. Jefferyl , W. Jia,b ,
+                                                      M. Johnsonn , J. Johnsonk , P. Johnsonf , W.G. Jonesh , A.C. Kabothai,l , A. Kamahaah , K. Kamdinm,s , V. Kaseyh ,
+                                                        K. Kazkazt , J. Keefnern , D. Khaitanac , M. Khaleeqh , A. Khazovl , A.V. Khromovd , I. Khuranag , Y.D. Kimaj ,
+                                                     W.T. Kimaj , C.D. Kochere , A.M. Konovalovd , L. Korleyr , E.V. Korolkovaak , M. Koyuncuac , J. Krasf , H. Krausu ,
+                                                           S.W. Kravitzm , H.J. Krebsa , L. Kreczkoad , B. Kriklerad , V.A. Kudryavtsevak , A.V. Kumpand , S. Kyreaf ,
+                                                           A.R. Lambertm , B. Landerudf , N.A. Larsenv , A. Laundrief , E.A. Leasonq , H.S. Leeaj , J. Leeaj , C. Leea,b ,
+                                                  B.G. Lenardok , D.S. Leonardaj , R. Leonardj , K.T. Leskom , C. Levyah , J. Liaj , Y. Liuf , J. Liaoe , F.-T. Liaou , J. Lins,m ,
+                                                     A. Lindotew , R. Linehana,b , W.H. Lippincottp , R. Liue , X. Liuq , C. Loniewskiac , M.I. Lopesw , B. López Paredesh ,
+                                                          W. Lorenzonc , D. Luceron , S. Luitza , J.M. Lylee , C. Lynche , P.A. Majewskil , J. Makkinjee , D.C. Mallinge ,
+                                                       A. Manalaysayk , L. Manentig , R.L. Manninof , N. Marangouh , D.J. Markleyp , P. MarrLaundrief , T.J. Martinp ,
+                                                       M.F. Marzioniq , C. Maupinn , C.T. McConnellm , D.N. McKinseys,m , J. McLaughlinab , D.-M. Meiaa , Y. Mengy ,
+                                                      E.H. Millera,b , Z.J. Minakerk , E. Mizrachii , J. Mockah,m , D. Molashj , A. Montep , M.E. Monzania,b , J.A. Moradk ,
+                                                      E. Morrisonj , B.J. Mountal , A.St.J. Murphyq , D. Naimk , A. Naylorak , C. Nedlikag , C. Nehrkornaf , H.N. Nelsonaf ,
+                                                  J. Nesbitf , F. Nevesw , J.A. Nikkell , J.A. Nikoleyczikf , A. Nilimaq , J. O’Delll , H. Ohac , F.G. O’Neilla , K. O’Sullivanm,s ,
+                                                            I. Olcinah , M.A. Olevitchx , K.C. Oliver-Mallorym,s , L. Oxboroughf , A. Pagacf , D. Pagenkopfaf , S. Palw ,
+                                                  K.J. Palladinof , V.M. Palmaccioi , J. Palmerai , M. Pangilinane , S.J. Pattonm , E.K. Peasem , B.P. Penningr , G. Pereiraw ,
+                                                     C. Pereiraw , I.B. Petersonm , A. Piepkey , S. Piersona , S. Powello , R.M. Preecel , K. Pushkinc , Y. Qieac , M. Racinea ,
+                                                     B.N. Ratcliffa , J. Reichenbacherj , L. Reichhartg , C.A. Rhynee , A. Richardsh , Q. Riffards,m , G.R.C. Rischbieterah ,
+                                                      J.P. Rodriguesw , H.J. Roseo , R. Roseroae , P. Rossiterak , R. Rucinskip , G. Rutherforde , D. Ryndersn , J.S. Sabam ,
+                                                          L. Sabarotsf , D. Santoneai , M. Sarychevp , A.B.M.R. Sazzady , R.W. Schneej , M. Schubnellc , P.R. Scovelll ,
+                                                   M. Seversonf , D. Seymoure , S. Shawaf , G.W. Shutta , T.A. Shutta,b , J.J. Silki , C. Silvaw , K. Skarpaasa , W. Skulskiac ,
+                                                      A.R. Smithm , R.J. Smiths,m , R.E. Smithf , J. Soj , M. Solmazaf , V.N. Solovovw , P. Sorensenm , V.V. Sosnovtsevd ,
+                                                         I. Stancuy , M.R. Starkj , S. Stephensonk , N. Sterne , A. Stevensu , T.M. Stiegleram , K. Stiftera,b , R. Studleyr ,
+                                                       T.J. Sumnerh , K. Sundarnathj , P. Sutcliffeo , N. Swansone , M. Szydagisah , M. Tanu , W.C. Taylore , R. Taylorh ,
+                                                         D.J. Taylorn , D. Templesab , B.P. Tennysonv , P.A. Termanam , K.J. Thomasm , J.A. Thomsonk , D.R. Tiedti ,
+                                                         M. Timalsinaj , W.H. Toa,b , A. Tomásh , T.E. Topep , M. Tripathik , D.R. Tronstadj , C.E. Tullm , W. Turnero ,
+                                                   L. Tvrznikovav,s , M. Utesp , U. Utkug , S. Uvarovk , J. Va’vraa , A. Vachereth , A. Vaitkuse , J.R. Verbuse , T. Vietanenf ,
+                                                    E. Voirinp , C.O. Vuosalof , S. Walcottf , W.L. Waldronm , K. Walkerf , J.J. Wangr , R. Wangp , L. Wangaa , Y. Wangac ,
+                                                  J.R. Watsons,m , J. Migneaulte , S. Weatherlyi , R.C. Webbam , W.-Z. Weiaa , M. Whileaa , R.G. Whitea,b , J.T. Whiteam ,
+                                                       D.T. Whiteaf , T.J. Whitisa,an , W.J. Wisniewskia , K. Wilsonm , M.S. Witherellm,s , F.L.H. Wolfsac , J.D. Wolfsac ,
+                                                              D. Woodwardz , S.D. Worml , X. Xiange , Q. Xiaof , J. Xut , M. Yehae , J. Yinac , I. Youngp , C. Zhangaa
+                                                                                   a
+                                                                                      SLAC National Accelerator Laboratory, Menlo Park, CA 94025-7015, USA
+                                                                b
+                                                                    Kavli Institute for Particle Astrophysics and Cosmology, Stanford University, Stanford, CA 94305-4085 USA
+                                                                             c
+                                                                               University of Michigan, Randall Laboratory of Physics, Ann Arbor, MI 48109-1040, USA
+                                                                               d
+                                                                                 National Research Nuclear University MEPhI (NRNU MEPhI), Moscow, 115409, RUS
+
+
+                                                  Preprint submitted to Elsevier                                                                                         November 5, 2019
+                             e
+                                           Brown University, Department of Physics, Providence, RI 02912-9037, USA
+                      f
+                              University of Wisconsin-Madison, Department of Physics, Madison, WI 53706-1390, USA
+                    g
+                      University College London (UCL), Department of Physics and Astronomy, London WC1E 6BT, UK
+                            h
+                              Imperial College London, Physics Department, Blackett Laboratory, London SW7 2AZ, UK
+                                  i
+                                    University of Maryland, Department of Physics, College Park, MD 20742-4111, USA
+                                      j
+                                        South Dakota School of Mines and Technology, Rapid City, SD 57701-3901, USA
+                                  k
+                                    University of California, Davis, Department of Physics, Davis, CA 95616-5270, USA
+                                             l
+                                               STFC Rutherford Appleton Laboratory (RAL), Didcot, OX11 0QX, UK
+                                     m
+                                        Lawrence Berkeley National Laboratory (LBNL), Berkeley, CA 94720-8099, USA
+    n
+      South Dakota Science and Technology Authority (SDSTA), Sanford Underground Research Facility, Lead, SD 57754-1700, USA
+                                            o
+                                               University of Liverpool, Department of Physics, Liverpool L69 7ZE, UK
+                                        p
+                                          Fermi National Accelerator Laboratory (FNAL), Batavia, IL 60510-5011, USA
+                          q
+                            University of Edinburgh, SUPA, School of Physics and Astronomy, Edinburgh EH9 3FD, UK
+                                            r
+                                              Brandeis University, Department of Physics, Waltham, MA 02453, USA
+                            s
+                              University of California, Berkeley, Department of Physics, Berkeley, CA 94720-7300, USA
+                                   t
+                                     Lawrence Livermore National Laboratory (LLNL), Livermore, CA 94550-9698, USA
+                                                u
+                                                  University of Oxford, Department of Physics, Oxford OX1 3RH, UK
+                                          v
+                                            Yale University, Department of Physics, New Haven, CT 06511-8499, USA
+   w
+     Laboratório de Instrumentação e Fı́sica Experimental de Partı́culas (LIP), University of Coimbra, P-3004 516 Coimbra, Portugal
+                         x
+                           Washington University in St. Louis, Department of Physics, St. Louis, MO 63130-4862, USA
+                        y
+                          University of Alabama, Department of Physics & Astronomy, Tuscaloosa, AL 34587-0324, USA
+                         z
+                           Pennsylvania State University, Department of Physics, University Park, PA 16802-6300, USA
+                 aa
+                     University of South Dakota, Department of Physics & Earth Sciences, Vermillion, SD 57069-2307, UK
+                       ab
+                           Northwestern University, Department of Physics & Astronomy, Evanston, IL 60208-3112, USA
+                      ac
+                         University of Rochester, Department of Physics and Astronomy, Rochester, NY 14627-0171, USA
+                                         ad
+                                            University of Bristol, H.H. Wills Physics Laboratory, Bristol, BS8 1TL, UK
+                                             ae
+                                                 Brookhaven National Laboratory (BNL), Upton, NY 11973-5000, USA
+                  af
+                     University of California, Santa Barbara, Department of Physics, Santa Barbara, CA 93106-9530, USA
+                                 ag
+                                     University of Massachusetts, Department of Physics, Amherst, MA 01003-9337, USA
+                                 ah
+                                     University at Albany (SUNY), Department of Physics, Albany, NY 12222-1000, USA
+                              ai
+                                 Royal Holloway, University of London, Department of Physics, Egham, TW20 0EX, UK
+                                           aj
+                                              IBS Center for Underground Physics (CUP), Yuseong-gu, Daejeon, KOR
+                                ak
+                                     University of Sheffield, Department of Physics and Astronomy, Sheffield S3 7RH, UK
+                              al
+                                 Black Hills State University, School of Natural Sciences, Spearfish, SD 57799-0002, USA
+                 am
+                     Texas A&M University, Department of Physics and Astronomy, College Station, TX 77843-4242, USA
+                               an
+                                    Case Western Reserve University, Department of Physics, Cleveland, OH 44106, USA
+
+
+
+
+Abstract
+    We describe the design and assembly of the LUX-ZEPLIN experiment, a direct detection search for cosmic WIMP
+dark matter particles. The centerpiece of the experiment is a large liquid xenon time projection chamber sensitive to
+low energy nuclear recoils. Rejection of backgrounds is enhanced by a Xe skin veto detector and by a liquid scintillator
+Outer Detector loaded with gadolinium for efficient neutron capture and tagging. LZ is located in the Davis Cavern
+at the 4850’ level of the Sanford Underground Research Facility in Lead, South Dakota, USA. We describe the major
+subsystems of the experiment and its key design features and requirements.
+
+
+1. Overview                                                            masses greater than a few GeV. The detector design and
+                                                                       experimental strategy derive strongly from the LUX and
+    In this article we describe the design and assembly of             ZEPLIN–III experiments [2, 3]. A Conceptual Design Re-
+the LUX-ZEPLIN (LZ) experiment, a search for dark mat-                 port and a Technical Design Report were completed in
+ter particles at the Sanford Underground Research Facil-               2015 and 2017, respectively [4, 5]. The projected cross-
+ity (SURF) in Lead, South Dakota, USA. LZ is capable                   section sensitivity of the experiment is 1.5 × 10−48 cm2 for
+of observing low energy nuclear recoils, the characteristic            a 40 GeV/c2 WIMP (90% C.L.) [6].
+signature of the scattering of WIMPs (Weakly Interact-                     A cutaway drawing of the experiment is shown in Fig. 1.
+ing Massive Particles). It is hosted in the Davis Cam-                 The LZ TPC monitors 7 active tonnes (5.6 tonnes fidu-
+pus water tank at SURF, formerly the home of the LUX                   cial) of LXe above its cathode. Ionizing interactions in
+experiment[1]. LZ features a large liquid xenon (LXe)                  the active region create prompt and secondary scintillation
+time projection chamber (TPC), a well-established tech-                signals (‘S1’ and ‘S2’), and these are observed as photo-
+nology for the direct detection of WIMP dark matter for                electrons (PEs) by two arrays of photomultiplier tubes
+
+                                                                   2
+                          4
+
+                          3
+
+                          2
+                                                                                                               6
+                          1
+
+
+
+                          5
+
+
+
+
+Figure 1: Rendering of the LZ experiment, showing the major detector subsystems. At the center is the liquid xenon TPC (1), monitored
+by two arrays of PMTs and serviced by various cable and fluid conduits (upper and lower). The TPC is contained in a double-walled
+vacuum insulated titanium cryostat and surrounded on all sides by a GdLS Outer Detector (2). The cathode high voltage connection is made
+horizontally at the lower left (5). The GdLS is observed by a suite of 8” PMTs (3) standing in the water (4) which provides shielding for the
+detector. The pitched conduit on the right (6) allows for neutron calibration sources to illuminate the detector.
+
+
+(PMTs). The nature of the interaction, whether electronic                assembled and integrated into the ICV in a surface lab-
+recoil (‘ER’) or nuclear recoil (‘NR’), is inferred from the             oratory cleanroom at SURF, with the ICV outer diame-
+energy partition between S1 and S2. The location of the                  ter taking maximal advantage of the available space in the
+event is measured from the drift time delay between S1                   Yates shaft. The OCV and OD, being larger than the ICV,
+and S2 (z coordinate) and from the S2 spatial distribution               cannot be transported underground in monolithic form.
+(x and y coordinates). The TPC is housed in an inner                     Therefore the OCV is segmented into three flanged com-
+cryostat vessel (ICV), with a layer of ‘skin’ LXe acting as a            ponents and integrated and sealed in the Davis Campus
+high voltage stand-off. The skin is separately instrumented              water tank, while the OD is subdivided into ten hermetic
+with PMTs to veto gamma and neutron interactions in                      AVs. This architecture does not require any underground
+this region. The ICV is suspended inside the outer cryo-                 titanium welding or acrylic bonding.
+stat vessel (OCV), cooled by a set of LN thermosyphons,                      Besides the instrumented skin and OD, several other
+and thermally isolated by an insulating vacuum. Both the                 design choices distinguish LZ from its LUX predecessor.
+ICV and OCV are fabricated from low radioactivity ti-                    The cathode HV connection, for example, is made at a
+tanium [7]. The cryostat stands inside the Davis Campus                  side port on the cryostat, while the PMT cables from the
+water tank, which provides shielding from laboratory gam-                lower half of the TPC are pulled from the bottom. The
+mas and neutrons. An additional set of PMTs immersed                     heat exchanger for LXe condensation, evaporation, and
+in the water observe an Outer Detector (OD) comprised of                 circulation is located in a separate and dedicated cryostat
+acrylic vessels (AVs) surrounding the cryostat. The AVs                  outside the water tank, with LXe being circulated to and
+contain organic liquid scintillator loaded with Gadolinium               from the bottom of the detector through vacuum insu-
+(GdLS) for efficient neutron and gamma tagging. The wa-                  lated transfer lines. To continuously reject heat from the
+ter tank and OD are penetrated by various TPC services,                  LN thermosyphon systems, a cryocooler is installed above
+including vacuum insulated conduits for LXe circulation,                 the water tank in the Davis Campus. This eliminates the
+instrumentation cabling, neutron calibration guide tubes,                need to transport LN to the underground, except during
+and the cathode high voltage (HV) connection.                            cryocooler maintenance and repair.
+    One goal of the experimental architecture is to mini-                    The experimental strategy is driven by the need to con-
+mize the amount of underground fabrication and assem-                    trol radon, krypton, and neutron backgrounds. Control of
+bly of the various detector sub-systems. The LZ TPC is                   dust on all xenon-wetted parts is essential, since it can be
+
+                                                                     3
+an important source of radon. Kr is removed from the ven-
+dor supplied xenon using an off-site charcoal chromatogra-
+phy facility. This purification step takes place prior to the
+start of underground science operations. Gamma back-
+grounds are highly suppressed by the self-shielding of the
+TPC, and by careful control and selection of detector ma-
+terials. Neutrons from spontaneous fission and alpha cap-
+ture on light nuclei are efficiently tagged and vetoed by
+the OD and skin.
+
+
+2. The Xenon Detector: TPC and Skin
+
+    The Xenon Detector is composed of the TPC and its
+Xe Skin Veto companion. The central TPC contains 7
+tonnes of active LXe which constitutes the WIMP target.
+This volume measures approximately 1.5 m in diameter
+and height, and is viewed by two arrays of PMTs. The
+liquid phase produces prompt S1 pulses. This is topped by
+a thin layer of vapor (8 mm thick) where delayed S2 elec-
+troluminescence light is produced from ionization emitted
+across the surface. Around and underneath the TPC, the
+Xe Skin detector contains an additional ∼2 tonnes of liq-
+uid, also instrumented with PMTs. This space is required
+for dielectric insulation of the TPC but it constitutes an
+anti-coincidence scintillation detector in its own right. An
+overview of the Xenon Detector is shown in Fig. 2.
+    The design of the Xenon Detector optimizes: i) the
+detection of VUV photons generated by both S1 and S2,
+through carefully chosen optical materials and sensors both
+in the TPC and the Xe Skin; and ii) the detection of ioniza-
+tion electrons leading to the S2 response, through carefully
+designed electric fields in the various regions of the TPC.
+The hardware components involved in the transport and
+detection of photons and of electrons in the detector are
+described in Sections 2.1 and 2.3. Section 2.4 describes the
+flow and the monitoring of the LXe fluid itself.
+
+2.1. Optical Performance of the TPC
+    Both the S1 and the S2 signals produced by particle
+interactions consist of vacuum ultraviolet (VUV) photons
+produced in the liquid and gas phases, respectively. It is
+imperative to optimize the detection of these optical sig-
+nals. For the S1 response, the goal is to collect as many
+VUV photons as possible, as this determines the thresh-
+old of the detector. This is achieved primarily by the
+use of high quantum efficiency (QE) PMTs optimized for
+this wavelength region, viewing a high-reflectance cham-
+ber covered in PTFE, and by minimizing sources of photon      Figure 2: The assembled Xenon Detector. Upper panel labels: 1-
+                                                              Top PMT array; 2-Gate-anode and weir region (liquid level); 3-Side
+extinction in all materials. Good photocathode coverage       skin PMTs (1-inch); 4-Field cage; 5-Cathode ring; 6-Reverse field
+is also essential. For the S2 response, the gain of the elec- region; 7-Lower side skin PMTs (2-inch); 8-Dome skin PMTs (2-
+troluminescence process makes it easier to collect enough     inch). Lower panel photo by Matthew Kapust, Sanford Underground
+photons even at the lowest energies, and the main design      Research Facility.
+driver is instead to optimize the spatial resolution, espe-
+cially for peripheral interactions.
+                                                              detection of the VUV luminescence. The “-22” variant was
+    The TPC PMTs are 3–inch diameter Hamamatsu R11410–
+                                                              tuned for LZ in particular: both for ultra-low radioactiv-
+22, developed for operation in the cold liquid xenon and
+                                                              ity and for resilience against spurious light emission ob-
+                                                                4
+served at low temperature in previous variants [8]. The                   ated in the TPC. These are shown in Fig. 3. An upward-
+average cold QE is 30.9% after accounting for the dual                    looking “bottom” array immersed in the liquid contains
+photoelectron emission effect measured for xenon scintil-                 241 units arranged in close-packed hexagonal pattern. A
+lation [9]. Key parameters were tested at low temperature                 downward-looking “top” array located in the gas phase
+for all tubes, including pressure and bias voltage resilience,            features 253 units arranged in a hybrid pattern that tran-
+gain and single photoelectron response quality, afterpuls-                sitions from hexagonal near the center to circular at the
+ing and dark counts. These are critical parameters that                   perimeter. This design was chosen to optimize the posi-
+directly influence the overall performance of the detector.               tion reconstruction of the S2 signal for interactions near
+The procurement, radioassay and performance test cam-                     the TPC walls, a leading source of background in these
+paign lasted for nearly three years. The PMTs are pow-                    detectors. The structural elements of the arrays are made
+ered by resistive voltage divider circuits attached to the                from low-background titanium. These include a thin plate
+tubes inside the detector. The voltage ladder is that rec-                reinforced by truss structures with circular cut-outs to
+ommended by Hamamatsu, using negative bias to extract                     which the individual PMTs are attached. In the bottom
+the signal near ground potential (two independent cables                  array this plate sits at the level of the PMT windows.
+are used for signal and bias). The nominal operating gain                 The exposed titanium is covered with interlocking PTFE
+of the PMTs is 3.5 × 106 measured at the end of the signal                pieces to maximize VUV reflectance. The PMTs are held
+cables.                                                                   by Kovar belts near their mid-point and attached to this
+                                                                          plate by thin PEEK rods. In the top array the struc-
+                                                                          tural plate is located at the back of the tubes, and the
+                                                                          gaps between PMT windows are covered with more com-
+                                                                          plex interlocking PTFE pieces secured to the back plate.
+                                                                          The array designs ensure that mechanical stresses induced
+                                                                          by the thermal contraction of PTFE and other materials
+                                                                          does not propagate significantly to the PMT envelopes. A
+                                                                          number of blue LEDs (Everlight 264-7SUBC/C470/S400)
+                                                                          are installed behind plastic diffusers between PMTs at the
+                                                                          face of both arrays. These are used to help optimize and
+                                                                          calibrate the PMT gains and the timing response of the
+                                                                          detector. The assembly and transport of the PMT arrays
+                                                                          required a robust QA process to prevent mechanical dam-
+                                                                          age, dust contamination, and radon-daughter plate-out.
+                                                                          At the center of this program were specially-designed her-
+                                                                          metic enclosures that protected the arrays during assem-
+                                                                          bly, checkout, transport and storage until assembly into
+                                                                          the TPC at SURF.
+                                                                              A key element of the optical systems is the ∼20 km
+                                                                          of cabling used for PMT and sensor readout. A 50-Ohm
+                                                                          coaxial cable from Axon Cable S.A.S. (part no. P568914Aˆ)
+                                                                          was selected for electrical and radioactivity performance.
+                                                                          This cable has a copper-made inner conductor and braid,
+                                                                          and extruded FEP insulator and outer sleeve (1.3-mm
+                                                                          nominal diameter). The 12 m span from the detector
+                                                                          to the external feed-throughs means that signal attenu-
+                                                                          ation, dispersion and cross-talk are important considera-
+                                                                          tions. The individual cables were pre-assembled into bun-
+Figure 3: Arrays of R11410–22 PMTs viewing the TPC. Upper panel:          dles which are routed together through two conduits that
+front view of the top PMT array within its assembly and transporta-       carry the cables from the top and bottom of the detector.
+tion enclosure. Note the circular PMT arrangement at the periph-          An additional consideration is the potential for radon em-
+ery transitioning to compact hexagonal towards the center, and the        anation. This is especially important for the fraction of
+coverage of non-sensitive surfaces by interlocking pieces of highly
+reflective PTFE. Photo by Matthew Kapust, Sanford Underground             the cabling located near room temperature. Low intrinsic
+Research Facility. Lower panel: Back view of bottom array PMTs            radioactivity of the cable materials can be easily achieved,
+in hexagonal arrangement, showing cable connections and routing           but dust and other types of contamination trapped within
+as well as 18 2-inch dome PMTs, which are part of the skin veto
+                                                                          the fine braid during manufacture can be problematic. We
+system. Also visible are the titanium support trusses and the LXe
+distribution lines. Most surfaces are covered in PTFE to aid light        developed additional cleanliness measures with Axon to
+collection.                                                               mitigate this and have opted for a jacketed version which
+                                                                          acts as a further radon barrier. In addition, the xenon
+   Two PMT arrays detect the xenon luminescence gener-                    flow purging the cable conduits is directed to the inline
+                                                                      5
+radon-removal system described in Sec. 3.2.                           pathology, the LZ field cage is designed to optically isolate
+    After the PMTs, the next main optical component of                the skin from the TPC.
+the detector is the PTFE that defines the field cage and                  The side region of the skin contains 4 cm of LXe at
+covers the non-sensitive detector components. The optical             the top, widening to 8 cm at cathode level for increased
+performance of the detector depends strongly on its VUV               standoff distance. This is viewed from above by 93 1–inch
+reflectivity – VUV photons reflect several times off PTFE             Hamamatsu R8520-406 PMTs. These are retained within
+surfaces before detection – and the radiopurity of this ma-           PTFE structures attached to the external side of the field
+terial is also critical due to its proximity to the active vol-       cage, located below the liquid surface. At the bottom of
+ume. We identified both the PTFE powder and process                   the detector a ring structure attached to the vessel con-
+that optimized radiological purity and VUV reflectivity in            tains a further 20 2–inch Hamamatsu R8778 PMTs view-
+liquid xenon during a long R&D campaign [10, 11]. The                 ing upward into this lateral region, as shown in Fig. 4.
+PTFE selected was Technetics 8764 (Daiken M17 powder),
+whose reflectivity when immersed in LXe we measured as
+0.973 (>0.971 at 95% C.L.). Our data are best fitted by
+a diffuse-plus-specular reflection model for this particular
+material, which was tested using the procedures described
+in Ref. [10]. Most PTFE elements were machined from
+moulds of sintered material, while thinner elements are
+‘skived’ from cast cylinders manufactured from the same
+powder.
+    Other factors influence the photon detection efficiency
+(PDE) for S1 and S2 light in the TPC. These include pho-
+ton absorption by the electrode grids (wires and ring hold-
+ers) and absorption by impurities in the liquid bulk. With
+realistic values for these parameters our optical model pre-
+dicts a photon detection efficiency of around 12% for S1
+light.
+    The optical design of the S2 signal is optimized for
+robust reconstruction of low energy events at the edge of
+the TPC, in particular from the decay of Rn daughters de-
+posited on the field cage wall, termed “wall events”. These
+events may suffer charge loss, thus mimicking nuclear re-
+coils [12]. If mis-reconstructed further into the active re-
+gion, they can be a significant background. Our aim is
+to achieve ∼106 :1 rejection for this event topology in the
+fiducial volume. A detailed study of this issue led to the
+adoption of a circular PMT layout near the detector edge,
+with the final PMT row overhanging the field cage inner               Figure 4: Upper panel: CAD section of the TPC below the cathode
+walls, an optimized distance between the top PMT ar-                  showing the location of the 2” bottom side skin (1) and lower dome
+ray and the liquid surface, and an absorbing optical layer            (2) PMTs. Lower panel: Photograph showing the PTFE panelling
+(Kapton foil) covering the lateral conical wall in the gas            attached to the ICV that ensures high reflectance in the skin region
+                                                                      and the lower side skin PMT ring at the bottom of the vessel.
+phase.
+                                                                          The dome region of the skin at the bottom of the de-
+2.2. The Xe Skin Detector
+                                                                      tector is instrumented with an additional 18 2–inch R8778
+    An important component of the Xenon Detector is the               PMTs. These are mounted horizontally below the bottom
+Xe Skin, the region containing around 2 tonnes of LXe                 array, with 12 looking radially outward and 6 radially in-
+between the field cage and the inner cryostat vessel. A               ward. To enhance light collection, all PMTs in that region
+primary motivation for this liquid is to provide dielec-              and array truss structures are dressed in PTFE. Moreover,
+tric insulation between these two elements. In addition               PTFE tiles line the ICV sides and bottom dome. To attach
+to its electrical standoff function, it is natural to instru-         the PTFE lining, low profile titanium buttons designed to
+ment this region for optical readout so that it can act as            minimize field effects were epoxied to the ICV wall with
+a scintillation-only veto detector, especially effective for          MasterBond EP29LPSP cryogenic epoxy. Holes were ma-
+gamma-rays. Also, if the skin were not instrumented,                  chined into the PTFE tiles to fit around the buttons, and
+light from particle interactions or electrical breakdown in           PTFE washers were attached to the buttons with PTFE
+this region could leak in to the TPC unnoticed and create             screws to secure the tiles in place. These are visible in
+difficult background topologies. To further suppress this             Fig. 4.
+
+                                                                  6
+2.3. TPC Electrostatic Design                                              at the core of the feed-through system mounted on top
+    The S2 signature detected from particle interactions                   of the water tank. The space between them is continu-
+in the liquid xenon comes from the transport of ioniza-                    ously pumped to provide a vacuum guard, monitored by
+tion electrons liberated by the recoiling nucleus or elec-                 a Residual Gas Analyzer. Located at room temperature
+tron, and their subsequent emission into the gas phase                     and far from the detector, a leak-tight seal to the xenon
+above the liquid, where the signal is transduced into a                    space can be reliably achieved and the feed-through mate-
+second VUV pulse via electroluminescence. Great care is                    rials are not a radioactivity concern. Another key feature
+required to ensure that the various electric field regions                 of the cathode HV system is the reliance on a single span
+in the detector achieve this with high efficiency and with                 of polyethylene cable (Dielectric Sciences SK160318), con-
+low probability for spurious responses. The LZ detector                    necting the power supply all the way to the cathode in the
+is instrumented as a traditional three-electrode two-phase                 liquid xenon many meters away. This 150 kV-rated cable
+detector, with cathode and gate wire-grid electrodes estab-                features a conductive polyethylene sheath and center core
+lishing a drift field in the bulk of the liquid, and a separate            and contains no metal components, avoiding differential
+extraction and electroluminescence region established be-                  contraction and thermal stress issues, and precluding the
+tween the gate and an anode grid. The former sits 5 mm                     appearance of insulation gaps between the dielectric and
+below the surface and the latter is 8 mm into the gas. The                 the sheath, which contract equally. The HV line ends in
+nominal operating pressure of the detector is 1.8 bara. At                 a complex voltage-grading structure near the cathode grid
+nominal fields, each electron emitted into the gas generates               ring where the conductive sheath splays away. This grades
+∼820 electroluminescence photons.                                          the potential along the dielectric, preventing very high field
+    The nominal 300 V/cm drift field established in the                    regions inside the detector. The maximum field in the liq-
+active region of the detector requires application of an                   uid xenon is 35 kV/cm. This voltage grading system ends
+operating voltage of −50 kV to the cathode grid, which                     in a bayonet connector that allows rapid engagement to
+allows LZ to meet its baseline performance for particle                    the cathode ring during installation, minimizing exposure
+discrimination. The design goal is −100 kV, the maxi-                      of the detector to radon.
+mum operating voltage for the system. The system to                            Inside the ICV there is a significant insulation stand-
+deliver the HV to the cathode grid contains some of the                    off distance of 4–8 cm between the field cage and the inner
+highest fields in the detector. The HV is delivered from                   vessel, and there is no instrumentation or cabling installed
+the power supply (Spellman SL120N10, 120 kV) via a                         along the length of the skin region, where the field is high
+room-temperature feed-through and into a long vacuum-                      and the possibility of discharges and stray light production
+insulated conduit entering the detector at the level of the                would be concerning. This region is instead optimized for
+cathode grid, as shown in Fig. 5. Most of the system was                   optical readout, becoming an integral part of the LZ veto
+tested to −120 kV in liquid argon, except for the flexible                 strategy.
+component connecting the grading structure to the cath-                        The drift region is 145.6 cm long between cathode and
+ode, for which a similarly-shaped part was tested in liquid                gate electrodes, and 145.6 cm in diameter, enclosed by a
+argon to surface fields 30% higher than those needed to                    cylindrical field cage which defines the optical environment
+meet the design goal.                                                      for scintillation light and shapes the electric field for elec-
+                                                                           tron transport. The field cage is constructed of 58 layers
+                                                                           of PTFE, which provides insulation and high reflectivity,
+                                                                           with a set of embedded titanium electrode rings. The lay-
+                                                                           ers are 25 mm tall, the Ti rings 21 mm tall, and each layer
+                                                                           of PTFE is azimuthally segmented 24 times. Due to their
+                                                                           proximity to the active volume, these are critical materials
+                                                                           for LZ. The metal rings are made from the same batch of
+                                                                           titanium used for the cryostat [7] (the PTFE is described
+                                                                           above). A key design driver was to achieve a segmented
+                                                                           field cage design: to prevent the excessive charge accumu-
+                                                                           lation observed in continuous PTFE panels, and to better
+                                                                           cope with the significant thermal contraction of PTFE be-
+                                                                           tween ambient and low temperature. The field cage em-
+                                                                           beds two resistive ladders connecting the metal rings, each
+                                                                           with two parallel 1 GΩ resistors per section (the first step
+                                                                           has 1 GΩ in parallel with 2 GΩ to tune the field close to
+Figure 5: The interface of the high voltage system with the cathode.       the cathode ring). This ladder ensures a vertical field with
+1-Polyethylene high voltage cable; 2-LXe displacer; 3-LXe space; 4-        minimal ripple near the field cage.
+Stress cone; 5-Grading rings.                                                  The lower PMT array cannot operate near the high
+                                                                           potential of the cathode and so a second, more compact
+    The cable enters the xenon space through two o-rings                   ladder is required below that electrode. This reverse field
+                                                                       7
+Figure 6: The electron extraction region assembly on the loom. 1-Anode grid; 2-Gate grid. During TPC operations the anode is above the
+LXe surface and the gate is below. The liquid level is registered to this assembly by three weir spillovers.
+
+
+region (RFR) contains only 8 layers with two parallel 5 GΩ                                                            ◦
+                                                                       Table 1: TPC electrode grid parameters (all 90 woven meshes).
+resistors per section, and terminates 13.7 cm away at a
+bottom electrode grid which shields the input optics of                     Electrode    Voltage     Diam.     Pitch      Num.
+the PMTs from the external field.                                                           (kV)      (µm)     (mm)
+    The electrode grids are some of the most challenging                    Anode          +5.75        100     2.5       1169
+components of the experiment, both to design and to fab-
+ricate. Mechanically, these are very fragile elements that                  Gate           −5.75         75     5.0       583
+nonetheless involve significant stresses and require very                   Cathode        −50.0        100     5.0       579
+fine tolerances for wire positioning. Besides optimizing                    Bottom          −1.5         75     5.0       565
+the conflicting requirements of high optical transparency
+and mechanical strength, electrical resilience was an addi-
+tional major driver – spurious electron and/or light emis-                At the top of the detector, the electron extraction and
+sion from such electrodes is a common problem in noble                electroluminescence region, which contains the gate-anode
+liquid detectors [13, 14].                                            system, is one of its most challenging aspects (see Fig. 7.)
+    The anode and gate grids are depicted in Fig. 6. All              It establishes the high fields that extract electrons from the
+grids are made from 304 stainless steel ultra-finish wire [15]        liquid and then produce the S2 light. The quality of the S2
+woven into meshes with a few mm pitch using a custom                  signal is strongly dependent on both the small- and large-
+loom. Key parameters of the four LZ grids are listed in               scale uniformity achieved in this region. In particular, the
+Table 1. Each wire is tensioned with 250 g weights on both            anode contains the finest mesh of any LZ grid (2.5 mm
+ends, and the mesh is glued onto a holder ring. The glue,             pitch) as this drives the S2 resolution.
+MasterBond EP29LPSP cryogenic epoxy, is dispensed by                      An important consideration was the electrostatic de-
+a computer-controlled robotic system. It includes acrylic             flection of the gate-anode system. We have directly mea-
+beads that prevent external stresses from being transferred           sured the deflection of the final grids as a function of
+to the wire crossings. A second metal ring captures the               field using a non-contact optical inspection method. This
+glued region, and the tensioning weights are released after           matches expectations from electrostatic and mechanical
+curing. This woven mesh has several advantages over wires             modeling, and predicts a ∼1.6 mm decrease in the 13 mm
+stretched in a single direction. The load on the ring set is          gap at the 11.5 kV nominal operating voltage. As a conse-
+azimuthally uniform and purely radial, allowing the mass              quence the field in the gas phase varies from 11.5 kV/cm
+of the rings to be minimized. The region of non-uniform               at the center to 10.1 kV/cm at the edge. The combined
+field near the wires is smaller for a mesh, which improves            effect of field increase and gas gap reduction increases
+the uniformity and hence energy resolution obtained in                the S2 photon yield by 5% at the center. This effect
+the S2 channel. Finally, a mesh grid has lower field trans-           can be corrected in data analysis. The gate wires sus-
+parency than stretched wires, resulting in a more uniform             tain the strongest surface fields of any cathodic element
+overall drift field. To preserve high S2 uniformity, it is im-        in the detector ('52 kV/cm, with no grid deflection, and
+portant that the woven mesh have uniform wire spacing.                '58 kV/cm with 1.6 mm combined gate/anode deflection).
+The loom design included several features to achieve high                 A major QA program was implemented to ensure the
+uniformity during fabrication, and great care was taken in            high quality of the grids throughout manufacture, clean-
+subsequent grid handling to avoid displacing wires.                   ing, storage and transport, and to prevent damage and
+
+                                                                  8
+                                                                        ICV and return liquid to the purification circuit through
+                                                                        a common vacuum-insulated transfer line.
+                                                                            A variety of sensors monitor the behavior and perfor-
+                                                                        mance of the TPC. Six Weir Precision Sensors (WPS) mea-
+                                                                        sure the liquid level to within ≈20 µm in the gate-anode
+                                                                        region. An additional WPS is installed in the lower dome
+                                                                        to monitor filling and draining of the detector. Long level
+                                                                        sensors (LLS) are installed in the LXe tower for providing
+                                                                        information during detector filling and for monitoring dur-
+                                                                        ing normal operation. RF loop antennae (LA) and acous-
+                                                                        tic sensors (AS) monitor the electrostatic environment of
+                                                                        the detector during electrode biasing and thereafter dur-
+                                                                        ing operation. The combination of WPS and AS sensors
+                                                                        will also be used to detect disturbances of the fluid system
+                                                                        and especially the liquid surface, such as bubbling or drip-
+                                                                        ping. These will be aided by dedicated resistors installed
+                                                                        in the bottom array that will be used to create bubbles in
+                                                                        the LXe so that their signature can be characterized. At
+                                                                        the top of the detector, a hexapod structure connects the
+                                                                        top PMT array to the ICV lid through six displacement
+                                                                        sensors, allowing the displacement and tilt between these
+                                                                        two elements to be measured to within 0.1 degrees. This is
+                                                                        especially important to prevent major stresses arising dur-
+                                                                        ing cool-down of the TPC. Finally, PT100 thermometers
+                                                                        are distributed at both ends of the detector. By design, all
+Figure 7: The electron extraction and electroluminescence region.       sensors and their cabling are excluded from the side skin
+1-TPC PMT; 2-Anode grid; 3-Gate grid; 4-Weir; 5-Xe Skin PMT.
+                                                                        region and other high electric field regions. All sensors
+                                                                        are read out by dedicated electronics attached to flanges
+dust contamination. A key feature of this program was                   enclosed in the signal breakout boxes.
+a series of measurements of the high voltage behavior in
+Xe gas of 1/10th scale and full scale prototype grids, and              3. Cryogenics and Xe Handling
+the final cathode, gate and anode grids. Emission of sin-
+gle electrons to a rate as low as ∼Hz was measured via an               3.1. Cryostat and cryogenics
+S2-like electroluminescent signal with PMTs. These mea-                     The Xenon Detector and its LXe payload are contained
+surements confirmed earlier work [14] showing that elec-                in the Inner Cryostat Vessel. The Outer Cryostat Vessel
+tron emission is strongly reduced by passivation, thus the              provides its vacuum jacket. As shown in Fig. 8, the OCV
+production gate grid was passivated in citric acid for 2                is supported at the bottom by three legs. The same as-
+hours at ∼125◦ F at AstroPak [16].                                      sembly provides shelves for the GdLS AVs located under-
+                                                                        neath the OCV. The ICV is suspended from the top head
+2.4. Fluid Systems and Sensors                                          of the OCV with a mechanism enabling its levelling from
+    Purified and sub-cooled LXe is prepared by the LXe                  above. Three long tubes run vertically to deploy calibra-
+tower and delivered to the Xenon Detector through two                   tion sources into the insulating vacuum space between the
+vacuum-insulated supply lines that connect at the ICV                   vessels (see Sec. 5). Both vessels were designed in com-
+bottom center flange (see Sec. 3.2). One line flushes the               pliance with the ASME Boiler and Pressure Vessel Code
+lower dome and side skin, the other fans out through a                  Section VIII Div. 1.
+manifold into seven PTFE tubes that penetrate the lower                     The ICV consists of a top head and a bottom vessel
+PMT array and supply LXe to the TPC. The fluid returns                  connected by a large flange near the top. The maximum
+to the external purification system by spilling over three              outer diameter of the ICV is constrained by the cross-
+weirs that establish the liquid surface height. The weirs               section of the Yates shaft. Its tapered shape is to reduce
+have 23.3 cm circumference, are uniformly spaced in az-                 the electric field near the cathode. The TPC structure is
+imuth around the top of the TPC, and are mounted to the                 anchored to the bottom of the ICV through six dedicated
+gate grid ring so that the liquid level is well registered to           ports in the dished end. Three angled ports below the
+the location of the gate and anode grids. The weirs drain               main flange are provided for the LXe weir drain return
+through three tubes that penetrate the ICV in the side                  lines. Two ports at the top head and the central port at
+skin region and descend in the insulating vacuum space.                 the bottom are for the PMT and instrumentation cables.
+The three lines are ganged together near the bottom of the              The high voltage port has been machined on the inside to
+
+                                                                    9
+form a curvature minimizing the electric field around the
+cathode HV feed-through. Five plastic blocks are attached
+to the tapered part of the ICV wall to prevent the ICV                     3
+from swinging during a seismic event.
+    The OCV consists of three segments in order to fit the
+largest into the conveyance of the Yates shaft. A port in
+the center of the top head hosts the low energy neutron                                                                   4
+source deployed in a large tungsten “pig” (see Sec. 5). A
+reinforcing ring allows the top AVs to rest on the OCV
+head.                                                                      1
+    The entire cryostat assembly is made out of a carefully
+selected ultra-radiopure Grade-1 titanium sourced from a
+single titanium supplier [7]. After a comprehensive mate-
+rial search campaign, a 5 metric ton Titanium Gr-1 slab
+was procured from Timet and used to fabricate all the
+stock material required for the cryostat. Initially it was
+cut into three pieces in order to roll the plates with mul-
+tiple thicknesses, forge all the flanges, and the ports and
+to draw the welding wires. The ICV and OCV were fab-                       2
+ricated from this material at Loterios in Milan, Italy (see
+Fig. 8). The cleaning and etching of the ICV and OCV is
+described in Sec. 8.
+    The ICV is maintained at its operating temperature
+by a set of closed-loop thermosyphon heat pipes utilizing
+nitrogen as the process fluid. The thermosyphons deliver
+                                                                                                                          5
+heat from the ICV to the Cryogen On Wheels (COW), a
+bath of LN located above the water tank in the Davis Cav-
+ern. A cryocooler, model SPC-1 from DH industries, re-
+condenses the boil-off nitrogen from the COW and trans-
+fers the heat to the chilled water system. During cry-
+ocooler maintenance and repair, the COW can be filled
+by transporting LN to the Davis Cavern from the surface.
+Four 450 liter storage dewars located underground, act as          Figure 8: The ICV and OCV during a test assembly at Loterios in
+an intermediate LN repository to enable this mode of op-           Italy, prior to cleaning and etching. The ICV is suspended from the
+                                                                   top dome of the OCV. 1-ICV; 2-middle section OCV; 3-top dome
+eration.                                                           section OCV; 4-ICV weir drain port; 5-OCV cathode high voltage
+    Six copper coldheads are bolted to welded titanium             port.
+fins on the ICV exterior and are serviced by three ther-
+mosyphon lines. The coldheads are placed at a height
+just below the LXe level. The cooling power of each ther-          detector with a TPC outgassing campaign described in
+mosyphon is set by adjusting the amount of process nitro-          Sec. 7. The electron lifetime goal is 800 µs, sufficient to
+gen in each circuit. Fine adjustment is provided by PID-           drift charge from the cathode to the anode while suffering
+controlled trim heaters located on each coldhead. Two ad-          an acceptable signal reduction factor of 1/e.
+ditional thermosyphon circuits remove heat from the LXe                An overview of the system is shown in Fig. 9. Xe
+tower (see Sec. 3.2).                                              gas is pumped through a hot zirconium getter at a de-
+    The total heat budget of the experiment is estimated           sign flow rate of 500 standard liters per minute (SLPM),
+to be 700 W. The largest contributing item, at 349 W, is           taking 2.4 days to purify the full 10 tonne Xe inventory
+due to the inefficiency of the primary two-phase xenon cir-        in a single pass. The getter, model PS5-MGT50-R from
+culation heat exchanger. The thermosyphon trim heaters             SAES [17], operates at 400 ◦ C. For thermal efficiency, the
+and the heat leak into the ICV each account for about              getter features a heat exchanger to couple the inlet and
+115 W.                                                             outlet Xe gas streams, substantially reducing the 3 kW
+                                                                   heat burden at 500 SLPM. A pre-heater ensures that the
+3.2. Online Xe handling and purification                           gas strikes the getter bed at the operating temperature.
+                                                                   Besides electronegative removal, the getter bed also serves
+    The online Xe purification system continuously removes
+                                                                   as a permanent repository for the tritium and 14 C radio-
+electronegative impurities from the Xe while also provid-
+                                                                   labeled methane species that calibrate the beta decay re-
+ing some measure of Rn removal and control. Rejection
+                                                                   sponse of the TPC (see Sec. 5).
+of electronegatives begins during the final assembly of the
+                                                                       Circulation flow is established by two all-metal diaphragm
+
+                                                              10
+                                                                                        Storage and Recovery
+
+
+                                            Getter                            Radon Removal
+                    Compressors
+                                                                     Cable                                                       Cable
+                                                                   Breakout                                                    Breakout
+
+
+
+
+                                                                                                                   Xe Vapor
+                        Liquid
+                                                                                                           Weir
+                        Xenon
+                                       2 Phase HX
+
+
+
+
+                        Tower
+                                                                       Cable
+
+
+
+
+                                                                                                                                                     Vacuum
+                                                                                        Weir Drain Pipe
+                                                                       Stand
+                                                                                                            LXe-TPC
+
+
+
+
+                                                                                                                                          LXe Skin
+                                                                        Pipe
+                                                       Reservoir
+
+
+
+
+                                                                                                                                                              Cathode
+                          Sub Cooler
+
+
+
+
+                                                                                                                                                                High
+                                                                                                                                                              Voltage
+
+
+
+                       HX/                                                                                TPCPTFE
+                     Gas Gap                                                                              Walls
+
+                                          Cryovalves                                                        LXe Skin
+
+                                                                                                                    Flow
+                                                                                                                  Restrictor
+
+                                                                                                                                                       Water Tank
+
+
+
+Figure 9: Overview of the online Xe purification system. LXe in the Xenon Detector (right) spills over a weir drain and flows horizontally to
+the Liquid Xenon tower, which stands outside the water tank. It is vaporized in a two phase heat exchanger, pumped through a hot zirconium
+getter, and returned to the detector after condensing. Cryovalves control the flow of LXe between the LXe tower and the Xenon Detector. A
+radon removal system treats Xe gas in the cable conduits and breakout feed-throughs before sending it to the compressor inlet.
+
+
+gas compressors, model A2-5/15 from Fluitron [18]. The                                     stainless steel. On its other side, condensing LXe flows into
+two compressors operate in parallel, each capable of 300                                   the subcooler vessel and subcooler HEX. The vessel sepa-
+SLPM at 16 PSIA inlet pressure. The system operates                                        rates any remaining Xe gas from the LXe, while the HEX
+with one compressor at reduced flow rate during peri-                                      cools the LXe to below its saturation temperature. The
+odic maintenance. The total achieved gas flow is trimmed                                   HEX consists of three isolated elements: the LXe volume,
+by a bellows-sealed bypass proportional valve, model 808                                   an LN thermosyphon coldhead cooled to 77 K, and a thin
+from RCV. Both circulation compressors have two stages,                                    thermal coupling gap. The power delivered to the LXe can
+each featuring copper seals plated onto stainless steel di-                                be varied from 90 W and 480 W by adjusting the compo-
+aphragms. All-metal sealing technology was chosen to                                       sition of the He/N2 gas mixture in the gap. An additional
+limit radon ingress from air.                                                              thermosyphon coldhead integrated with the reservoir re-
+    The LXe tower is a cryogenic device standing on the                                    moves excess heat during cooldown and operations. Both
+floor of the Davis Cavern outside the water tank and at a                                  the reservoir and the subcooler vessels are equipped with
+height somewhat below the Xenon Detector. Its primary                                      LXe purity monitors (LPMs) to monitor electronegatives
+purpose is to interface the liquid and gaseous portions of                                 entering and exiting the Xenon Detector. Each LPM is
+the online purification circuit and to efficiently exchange                                a small, single-phase TPC which drifts free electrons over
+heat between them. There are four vessels in the tower:                                    a distance, and measures the attenuation of the electrons
+the reservoir vessel, the two-phase heat exchanger (HEX),                                  during that transit.
+the subcooler vessel, and the subcooler HEX.                                                   LXe flows between the LXe tower and the Xenon De-
+    The reservoir vessel collects LXe departing the Xenon                                  tector through three vacuum insulated transfer lines that
+Detector via the weir system. It features a standpipe con-                                 run across the bottom of the Davis Cavern water tank.
+struction to decouple its liquid level from that in the weir                               Two lines connect to the bottom of the ICV and supply
+drain line. LXe flows from the bottom of the reservoir                                     sub-cooled LXe to the TPC and skin regions of the Xenon
+into the two-phase HEX, where it vaporizes after exchang-                                  Detector. The third line returns LXe from the ICV weir
+ing heat with purified Xe gas returning from the getter.                                   drain system to the reservoir. The lines are constructed
+The two-phase HEX is an ASME-rated brazed plate de-                                        by Technifab with an integrated vacuum insulation jacket.
+vice made by Standard Xchange consisting of corrugated                                     They are further insulated from the water by an additional
+
+                                                                                   11
+vacuum shell. Cryogenic control valves from WEKA reg-               Where possible, stainless steel components have been etched
+ulate the LXe flow in each of the three lines.                      in citric acid to reduce radon emanation.
+    Conduits connect to the ICV at its lower flange and
+upper dome to service PMT and instrumentation cables to             3.3. Removal of Kr from Xe
+the TPC. The lower conduit, which is vacuum insulated                    Beta decay of 85 Kr in the LXe is a challenging ER
+and filled with LXe, travels across the water tank floor,           background source. The acceptable Kr concentration, de-
+penetrates its side wall, and mates with a vertical LXe             rived by assuming an isotopic abundance of 85 Kr/Kr ∼
+standpipe. Its cables emerge into gaseous Xe and then               2 × 10−11 , is Kr/Xe < 0.3 parts-per-trillion (g/g). This
+connect to breakout feed-throughs at the standpipe top.             concentration is achieved prior to the start of LZ opera-
+Two upper conduits filled with gaseous Xe connect the               tions by separating trace Kr from the Xe inventory with a
+ICV top head to breakout feed-throughs and service cables           gas charcoal chromatography process.
+to the upper part of the Xenon Detector.                                 A total of 800 kg of Calgon PCB activated charcoal is
+    The Xe gas in the cable conduits and breakout feed-             employed, divided evenly into two columns. The charcoal
+throughs are treated for radon removal by a cold synthetic          was washed with water to remove dust and baked under
+charcoal column drawing 0.5 SLPM of Xe gas flow. The                an N2 purge for 10 days, ultimately achieving a charcoal
+system is designed to sequester 222 Rn for three half-lives,        temperature of 150 ◦ C. During processing the Xe inven-
+or 12.7 days, allowing 90% of these atoms to decay. The             tory is mixed with He carrier gas circulated by a compres-
+sequestration is accomplished by a gas chromatographic              sor (model 4VX2BG-131 from RIX). The Xe/He mixture
+process that employs 10 kilograms of synthetic charcoal             is passed through one of the two charcoal columns at a
+(Saratech Spherical Adsorbent, Blücher GmbH) cooled to             pressure of 1.7 bara. Trace Kr reaches the column outlet
+190 K [19]. The technique was previously demonstrated in            first and is directed to an LN-cooled charcoal trap where
+Ref.[20]. The charcoal was etched in nitric acid and rinsed         it is retained. A Leybold-Oerlikon Roots blower and screw
+with distilled water to reduce its radon emanation rate.            pump located at the charcoal column outlet then activates,
+    Besides the LPMs, surveillance of the impurity content          dropping the column pressure to 10 mbar. This purges the
+of the Xe is also provided by two coldtrap mass spectrom-           purified Xe from the column. The Xe is separated from the
+etry systems [21, 22]. These devices monitor for the pres-          He carrier gas by freezing it at 77 K in an LN-cooled heat
+ence of stable noble gas species such as 84 Kr and 40 Ar and        exchange vessel. This freezer is periodically warmed to va-
+also for electronegatives such as O2 . Ten standard liter           porize the Xe ice, and the recovered Xe gas is transferred
+samples of Xe gas are collected and passed through a cold-          at room temperature by a Fluitron Xe recovery compressor
+trap cooled to 77 K, a temperature at which Xe is retained          to one of the twelve Xe storage packs described above.
+while many impurities species pass through. The outlet of                The entire 10 tonne Xe inventory is processed in 16 kg
+the coldtrap is monitored by a Residual Gas Analyzer (an            batches. The chromatographic and Xe purge cycles each
+RGA200 from SRS). The sensitivity for detecting 84 Kr in            take about 2 hours. Two charcoal columns are employed to
+Xe is better than 10 parts-per-quadrillion (g/g). The cold-         allow processing and column purging to proceed in paral-
+trap is cooled either with a pulse tube refrigerator (model         lel. A Kr rejection factor greater than 1000 can be achieved
+PT60 from Cryomech Inc.) or with an open flask dewar                in a single pass through the system; two passes are envi-
+of liquid nitrogen. One of these systems is permanently             sioned to achieve the required concentration. The process-
+plumbed to fixed locations in the Xe handling system; the           ing is monitored by a coldtrap Xe mass spectrometry sys-
+other acts as a mobile utility system to be deployed as             tem for quality assurance. After processing, the Xe storage
+needed. Both are highly automated and allow for multiple            packs are shipped from SLAC to SURF in preparation for
+measurements per day.                                               condensing into the Xenon Detector.
+    To recover the ten tonne Xe inventory to long term
+storage, two high pressure gas compressors (Fluitron model
+D1-20/120) pump Xe gas into 12 Xe storage packs. The                4. Outer Detector
+recovery compressors use the same all-metal diaphragm
+                                                                        The principal purpose of the Outer Detector is to tag
+technology as the circulation compressors. Each Xe stor-
+                                                                    neutrons scattering events in the TPC. Most neutrons orig-
+age pack consist of 12 DOT-3AA-2400 49.1 liter cylinders
+                                                                    inate from radioactive impurities in material immediately
+sealed with Ceoduex D304 UHP tied diaphragm valves
+                                                                    adjacent to the TPC, such as those from (α,n) processes
+and ganged together in a steel frame. Each pack weighs
+                                                                    on PTFE. The OD is a near-hermetic liquid scintillator
+1,800 kg when full. During Xe recovery heat is added to
+                                                                    detector designed to capture and tag neutrons within a
+the LXe by electrical heaters and by softening the insulat-
+                                                                    time window that allows the signals to be correlated with
+ing vacuum of the lower cable conduit. Two backup diesel
+                                                                    the NR in the TPC.
+generators are provided in case of a power outage. The
+                                                                        The detection medium for the OD is gadolinium-doped
+emergency recovery logic is described in Sec. 6.3.
+                                                                    liquid scintillator contained within segmented acrylic ves-
+    All elements of the online Xe handling system were
+                                                                    sels that surround the OCV. Neutrons are detected pre-
+cleaned for ultra high vacuum with solvents and rinsed in
+                                                                    dominantly through capture on 155 Gd and 157 Gd; a total of
+de-ionized water. Orbital welds conform to ASME B31.3.
+                                                               12
+7.9 MeV (155 Gd) or 8.5 MeV (157 Gd) is released in a post-
+capture cascade of, on average, 4.7 gammas. About 10% of
+neutrons capture on hydrogen, emitting a single 2.2 MeV
+gamma. Gammas induce scintillation within the LS which
+is subsequently collected by the 120 8–inch PMTs that
+view the OD from a support system inside the water tank.
+To maximize light collection efficiency, there is both a
+Tyvek curtain behind, above and below the PMTs, and
+a layer of Tyvek surrounding the cryostat.
+     The OD has been designed to operate with a neutron
+detection efficiency of greater than 95%. To optimize this
+efficiency, the concentration of Gd was chosen such that
+capture on H is sub-dominant. Furthermore, the time be-
+tween a signal in the TPC and a neutron capture in the OD
+impacts the efficiency (see Fig. 10). The level of Gd chosen
+for LZ reduces the average capture time of thermal neu-
+trons in liquid scintillator from 200 µs to 30 µs. However,
+there is a significant population of neutrons that survive
+several times longer than 30 µs. Simulations demonstrate
+that neutrons can spend significant time scattering and
+thermalizing within the acrylic walls of the OD vessels. To
+minimize this effect, the acrylic walls are designed to be as
+thin as is structurally possible. Using less acrylic also re-
+duces the number of H-captures. The use of a 500 µs time
+window allows for an efficiency of 96.5% for a 200 keV
+threshold, while achieving a deadtime of less than 5%.
+ Inefficiency (%)
+
+
+
+
+                    10                                0 keV
+                                                      100 keV               Figure 11: The outer detector system in an exploded view. The
+                    8                                 200 keV               four large side vessels are shown in green and the 5 smaller top and
+                                                                            bottom vessels are shown in blue. Also shown are water displacers
+                                                                            in red, and the stainless steel base in grey.
+                    6
+
+                    4                                                       0.5–inch thick, whereas the flat tops and bottoms are 1–
+                                                                            inch thick for structural reasons. The AVs contain various
+                    2                                                       penetrations for conduits and cabling. All sheets of acrylic
+                                                                            used for fabrication were tested for optical transmission
+                     0   200   400     600        800          1000         and were found to exceed 92% between 400 and 700 nm,
+                                              OD Veto Window ( s)           meeting requirements. Acrylic samples were screened with
+                                                                            ICP-MS (see Sec. 8.1)and found to be sufficiently low in
+Figure 10: Monte Carlo derived OD inefficiency as a function of veto        radioactive contaminants.
+window (time between S1 in the TPC and signal in the OD). The
+energy thresholds referenced in the legend are for electron recoils.
+                                                                                The liquid scintillator used in the OD consists of a lin-
+                                                                            ear alkyl benzene (LAB) solvent doped at 0.1% by mass
+                                                                            with gadolinium. The full chemical make-up of the GdLS
+4.1. Outer Detector systems                                                 cocktail is shown in Table 2. Gd is introduced into LAB us-
+                                                                            ing trans-3-Methyl-2-hexenoic acid (TMHA) as a chelation
+    A total of ten ultra-violet transmitting (UVT) Acrylic
+                                                                            agent. Other components are the fluor, 2,5-Diphenyloxazole
+Vessels have been fabricated by Reynolds Polymer Tech-
+                                                                            (PPO), and a wavelength shifter, 1,4-Bis(2-methylstyryl)-
+nology in Grand Junction, Colorado. These consist of four
+                                                                            benzene (bis-MSB). The emission spectrum of this mix
+side vessels, three bottom vessels, two top vessels and a
+                                                                            spans 350 to 540 nm, with peaks at 400 and 420 nm, and
+‘plug‘ which can be removed for photoneutron source de-
+                                                                            the absorption length in this range is of order 10 m. LAB,
+ployment, see Fig. 11. The AVs were designed as seg-
+                                                                            TMHA and PPO are purified in order to remove metallic
+mented to allow transport underground and into the water
+                                                                            and coloured impurities to improve optical transmission;
+tank with no acrylic bonding necessary on site. All acrylic
+                                                                            LAB and TMHA by thin-film distillation and PPO by
+walls for the side AVs are nominally 1–inch thick. For the
+                                                                            water-extraction and recrystallization. For the chelated
+top and bottom AVs, the side and domed acrylic walls are
+                                                                            Gd product, a self-scavenging method is used to induce
+
+                                                                       13
+precipitation of uranium and thorium isotopes to improve             and significant findings of the LS Screener were the domi-
+radiopurity. Twenty-two tonnes of GdLS contained in 150              nance of the rate from nuclides within the 235 U chain, and
+55-gallon drums are shipped to SURF and transferred into             the presence of 176 Lu, now known to be introduced when
+the AVs through a reservoir. Exposure to air is minimized,           doping with gadolinium, since neither were observed in
+as oxygen, radon and krypton negatively impact the GdLS              the unloaded LS sample. A more aggressive purification
+performance. The GdLS is bubbled with nitrogen while                 of the GdLS resulted in a decrease in activity of almost
+in the reservoir in order to remove dissolved oxygen and             all contaminants. The new, lower activities were used in
+maximize the light yield. Furthermore, a light yield test is         combination with the LS Screener results to predict a rate
+performed on each drum of GdLS before transfer into the              of 5.9 Hz above the nominal 200 keV veto threshold for
+AVs. The test apparatus consists of a dark box containing            the OD.
+a radioactive source, one PMT, and a small sample of the                 The biggest contribution to the rate in the OD is from
+GdLS.                                                                the radioactivity within the Davis Cavern. Contamination
+    A total of 120 Hamamatsu R5912 8–inch PMTs view                  of the cavern walls with on the order of tens of Bq/kg for
+                                                                     40
+the GdLS and AVs from a Tyvek curtain situated 115 cm                   K, 238 U and 232 Th has been established using dedicated
+radially from the outer wall of the acrylic (see Fig. 1). The        measurements of the γ-ray flux with a NaI detector [24],
+interaction rate in the OD from radioistopes in the PMT              and simulation studies suggest a rate above 200 keV of
+system is predicted to be only 2.5 Hz due to the shielding           27 ± 7 Hz, concentrated in the top and bottom AVs.
+provided by the water gap. The PMTs are arranged in 20                   With an expected overall rate of ∼50 Hz, the OD can
+ladders spaced equally around the water tank in φ with 6             be expected to operate with an efficiency of 96.5% for a
+PMTs per ladder. Each PMT is held by a ‘spider’ support              200 keV threshold. The energy threshold of the OD is
+and covered by a Tyvek cone.                                         nominally a number of photoelectrons corresponding to
+    A dedicated Optical Calibration System (OCS) has                 an energy deposit of 200 keV, predicted to be 10 PE by
+been designed for PMT monitoring and measurement of                  photon transport simulations. The threshold is chosen to
+the optical properties of the GdLS and acrylic. Thirty               eliminate the rate from internal 14 C contamination, as it
+LED duplex optical fibres are mounted with the PMT                   is a low energy β-decay with an endpoint of 156 keV. The
+supports, with an additional five beneath the bottom AVs             OD may be operated instead with a 100 keV threshold,
+placed specifically to check transmission through the acrylic.       depending on the observed rate, which would decrease the
+Short, daily calibrations with the OCS will be performed             inefficiency at a window of 500 µs from 3.5% to 2.8%.
+in order to check the PE/keV yield at the veto threshold,                The impact of the OD on NR backgrounds is charac-
+and weekly calibrations will be used to check PMT gains              terized through neutron Monte Carlo simulations. The
+and optical properties.                                              total NR background in 1000 livedays is predicted to be
+                                                                     reduced from 12.31 to 1.24 NR counts when the OD and
+4.2. Performance                                                     skin vetoes are applied, with the OD providing most of
+    The performance of the OD strongly depends on its                the vetoing power. Due to the spatial distribution of these
+event rate. The sources can be divided into internal and             NRs in the LXe TPC, the OD is necessary to utilize the
+external; internal backgrounds are contamination intrinsic           full 5.6 tonne fiducial volume.
+to the OD, i.e. inside the GdLS; while external sources
+can be subdivided again into radioactivity from LZ com-
+                                                                     5. Calibrations
+ponents and radioactivity from the Davis Cavern itself (see
+Table 3).                                                                Many attributes of the LZ detector response require
+    Radioactive contaminants internal to the GdLS have               in situ calibration. Calibration goals range from low-level
+been measured through a campaign with an LS Screener, a              quantities such as PMT gain and relative timing to high-
+small detector containing 23 kg of liquid scintillator viewed        level quantities such as models of electron recoil and nu-
+by three low background LZ PMTs, fully described in                  clear recoil response. To these ends, the LZ detector in-
+Ref. [23]. The LS Screener took data with both loaded                cludes significant accommodations for a suite of calibra-
+(with Gd) and unloaded (no Gd) samples of the liquid                 tions. Large-scale accommodations (some visible in Fig. 1)
+scintillator that is used in the Outer Detector. The un-             include three small-diameter conduits to transport exter-
+loaded sample allowed a clear determination of what con-             nal sources to the cryostat side vaccum region, one large-
+taminants were introduced during the Gd-doping process,              diameter conduit to transport large (γ,n) sources to the
+as well as a clearer low energy region to allow a measure-           cryostat top, and two evacuated conduits to enable neu-
+ment of the 14 C concentration, particularly important as            tron propagation from an external neutron generator to
+its rate influences the choice of energy threshold. Use of           the cryostat side.
+pulse shape discrimination allowed for efficient separation
+of alpha decays from betas and gammas, and constraints               5.1. Internal sources
+were placed on activity from the 238 U, 235 U and 232 Th
+                                                                        Gaseous sources can mix with the LXe in order to reach
+decay-chains, 40 K, 14 C, 7 Be (from cosmogenic activation
+                                                                     the central active volume, where self-shielding limits cali-
+of carbon in the LS), 85 Kr and 176 Lu. Some surprising
+                                                                14
+                                          Table 2: Chemical components in 1 L of GdLS.
+            Acronym               Molecular Formula                     Molecular Weight (g/mol)               Mass (g)
+              LAB                      C17.14 H28.28                              234.4                         853.55
+              PPO                       C15 H11 NO                                221.3                           3.00
+            bis-MSB                       C24 H22                                 310.4                          0.015
+             TMHA                        C9 H17 O2                                157.2                           2.58
+               Gd                           Gd                                    157.3                           0.86
+              GdLS        C17.072 H28.128 O0.0126 N0.0037 Gd0.0015                233.9                          860.0
+
+
+
+Table 3: Predictions for the event rate in the Outer Detector.        Table 4: Overview of radioactive nuclide sources planned for LZ
+Rates are given in the case of the nominal 200 keV threshold.         calibration, grouped according to deployment method. A: gaseous
+         Type       Component        OD Rate (Hz)                     sources released into GXe circulation, B: sealed sources lowered down
+                    PMTs & Bases         0.9                          small-diameter conduits to cryostat side vacuum, C: (γ,n) sources
+                    TPC                  0.5                          requiring dense shielding, lowered down a large-diameter conduit to
+                    Cryostat             2.5                          the cryostat top, D: DD generator sources, in which neutrons travel
+         External                                                     through conduits from the generator, through the water tank and
+                    OD                   8.0
+                    Davis Cavern         31                           outer detector.
+         Internal   GdLS                 5.9                                  Nuclide       Type       Energy [keV]            τ1/2
+         Total                           51                                   83m
+                                                                                  Kr        γ          32.1 , 9.4              1.83 h
+                                                                              131m
+                                                                                   Xe       γ          164                     11.8 d
+                                                                              220
+bration via external gamma sources. The baseline suite of               A         Rn        α, β, γ    various                 10.6 h
+                                                                              3
+such ‘internal’ sources is listed in Group A of Table 4.                        H           β          18.6 endpoint           12.5 y
+                                                                              14
+     Long-lived gaseous sources (3 H, 14 C) can be stored as                     C          β          156 endpoint            5730 y
+                                                                              241
+a pressurized gas, with purified Xe serving as the carrier.                       AmLi      (α,n)      1500 endpoint (a)       432 y
+Because the nuclide is long-lived, it must be in a chemi-                     252
+                                                                                  Cf        n          Watt spectrum           2.65 y
+cal form that can be efficiently removed by the getter (see                   241
+                                                                                  AmBe      (α,n)      11,000 endpoint         432 y
+Sec. 3.2). The LZ implementation builds on the successful                     57
+                                                                                 Co         γ          122                     0.74 y
+example of LUX, in which isotopically-labeled CH4 served                      228
+                                                                        B         Th        γ          2615                    1.91 y
+as the calibration gas. CH4 was seen to be efficiently re-                    22
+                                                                                 Na         γ          511,1275                2.61 y
+moved, as long as it did not contain trace amounts of other                   60
+labeled hydrocarbons [25, 26].                                                   Co         γ          1173 , 1333             5.27 y
+                                                                              133
+     The short-lived gaseous sources (83m Kr, 131m Xe, 220 Rn)                    Ba        γ          356                     10.5 y
+                                                                              54
+are stored in the form of their parent nuclide, which can                        Mn         γ          835                     312 d
+                                                                              88
+be handled and stored in a compact solid form and placed                         YBe        (γ,n)      152                     107 d
+within ‘generator’ plumbing in which it emanates the cal-                     124
+                                                                        C         SbBe      (γ,n)      22.5                    60.2 d
+ibration daughter. 83 Rb serves as the parent nuclide of                      205
+                                                                                  BiBe      (γ,n)      88.5                    15.3 d
+83m
+     Kr, and is deposited in aqueous solution on high pu-                     206
+                                                                                  BiBe      (γ,n)      47                      6.24 d
+rity, high surface area charcoal before baking (as in [27]).
+131                                                                     D     DD            n          2450                    −
+    I serves as the parent nuclide of 131m Xe, and is com-
+mercially available in a pill form of high Xe emanation ef-                   D Ref.        n          272 → 400               −
+ficiency. 228 Th serves as the parent nuclide of 220 Rn, and
+is available commercially from Eckert & Ziegler as a thin
+                                                                      HFC-D-302B) and volumes of precise pressure measure-
+electroplated film for optimal Rn emanation. In the LZ
+                                                                      ment (MKS 872). Once a dose of calibration gas has been
+implementation, these generator materials are housed in
+                                                                      isolated, the volume containing the dose is flushed into the
+transportable and interchangeable plumbing sections (see
+                                                                      main GXe circulation flow path, either before the getter
+Fig. 12). These assemblies contain both a port for material
+                                                                      for noble-element calibration species or after the getter for
+access and a pair of sintered nickel filter elements (3 nm
+                                                                      long-lived CH4 -based species.
+pore size, Entegris WG3NSMJJ2) to prevent contamina-
+tion by the parent nuclide of the active Xe.
+                                                                      5.2. External sources
+     Both long-lived and short-lived gaseous sources require
+precise dose control on the injected activity, accomplished               External sources are lowered through three 23.5 mm
+via a gas handling system dedicated to injection control.             ID 6 m long conduits to the vacuum region between the
+A specific GXe cylinder supplies the carrier gas to trans-            ICV and OCV. Each conduit is capped by a deployment
+port small quantities of calibration gas through a series of          system (Fig. 13) which raises and lowers the sources with
+high-precision Mass Flow Controllers (Teledyne-Hastings               final position accuracy of ±5 mm. The position measure-
+                                                                      ment is accomplished via an ILR1181-30 Micro-Epsilon
+                                                                 15
+                                                                                Figure 13: LEFT: One of three external source deployment systems,
+                                                                                including the laser ranging system (top black component) and the
+                                                                                stepper motor and gear/winding assembly (enclosed in a KF50 Tee
+                                                                                at the back). A transparent plate makes visible the region in which
+                                                                                the sources are installed and removed. RIGHT: An external source
+                                                                                assembly, showing the acrylic body, the source region (at bottom),
+                                                                                and the filament connection, black skids, and laser reflector (at top).
+
+
+                                                                                up to about 4.6 keV. This range corresponds to the ex-
+Figure 12: TOP: Three example solid materials containing parent                 pected energy depositions from 8 B solar neutrino coherent
+nuclides that emit daughter calibration gaseous sources. Charcoal               scattering. Only about one neutron is produced for every
+              83
+dosed with Rb is fixed to the a 1/2-inch VCR plug (1). A gas-
+                                 131                                            104 gammas emitted, so a significant quantity of gamma
+permeable pill (2) containing        I and a disk source (3) of electro-
+        228                                                                     shielding is required (see Fig. 14). The neutrons are quasi
+plated      Th can also be fixed in place. BOTTOM: Photograph of
+a typical gaseous source generator. Carrier Xe gas flows from left              mono-energetic at production (within a few percent) but
+to right. The active parent material is stored in the central region            undergo additional scatterings before they reach the liq-
+(4), accessed via a 1/2-inch VCR port. This region is bounded by a              uid xenon. The utility of this calibration source is derived
+pair of filter elements (5) of 3 nm pore size sintered nickel and then
+                                                                                from the endpoint energy the neutron deposits, which sim-
+a pair of lockable manual valves for isolation during shipping and
+installation.                                                                   ulations indicate will be clearly distinguishable after a few
+                                                                                days of calibration.
+                                                                                    A ∼140 kg tungsten shield block is designed to be de-
+laser ranger (visible at the top of Fig. 13), supplying live                    ployed at the top of LZ via a crane. In the unlikely event
+data for an active feedback protocol to a SH2141-5511                           the shield block were to become lodged inside the LZ water
+(SANYO DENKO Co) stepper motor. A ∼100 µm nylon                                 tank, it would be possible to separately remove the conical
+composite filament suspends the sources, rated to a maxi-                       structure which contains the gamma source and the Be.
+mum load of 12 kg. The external sources themselves are in
+most cases commercial sources (Eckert & Ziegler type R).                        5.4. Deuterium-deuterium neutron sources
+A special case is the AmLi source, custom fabricated but
+                                                                                     An Adelphi DD-108 deuterium-deuterium (DD) neu-
+of the same form factor. To enable smooth transport up
+                                                                                tron generator produces up to 108 neutrons per second. A
+and down the conduit, each source is epoxied and encap-
+                                                                                custom upgrade will allow up to 109 n/s. The neutrons
+sulated at the lower end of a 5” long by 0.625” diameter
+                                                                                are delivered through the Davis Cavern water tank and
+acrylic cylinder. The top end contains the capsule holder
+                                                                                Outer Detector via dedicated neutron conduits. There are
+allowing connection to the filament and includes a ferro-
+                                                                                two sets of conduits, one level and one inclined at 20 de-
+magnetic connection rod for recovery in case of filament
+                                                                                grees from the horizontal. Each conduit assembly includes
+breakage.
+                                                                                a 2–inch diameter and a 6–inch diameter path, and all are
+                                                                                filled with water during dark matter search. As shown in
+5.3. Photoneutron sources
+                                                                                Fig. 14, the generator is permanently mounted on an Ekko
+    A selection of photoneutron (γ,n) sources, including                        Lift (model EA15A), and surrounded by custom neutron
+88
+  YBe, 124 SbBe, 204 BiBe and 205 BiBe, are planned to cal-                     shielding material. A kinematic mounting plate, located
+ibrate the nuclear recoil energy range from below 1 keV                         between the forks of the lift, will bolt to threaded inserts
+
+                                                                           16
+in the concrete floor. This is designed to provide precise,                  with neutron capture on Gd, which generates a γ-ray cas-
+repeatable positioning.                                                      cade with a total energy between 7.9 and 8.5 MeV, do not
+    The DD-108 produces 2450 keV mono-energetic neu-                         saturate the analog and digital electronics. Such events
+trons. This source has already been used by LUX to ob-                       generate at most 100 PEs in a single PMT. For muon in-
+tain a precise, in-situ calibration of the low-energy nuclear                teractions in the outer detector, a few PMTs may saturate,
+recoil response [28]. In addition to this mode of operation,                 depending on the location of the muon track.
+LZ obtains 272 keV quasi mono-energetic neutrons by re-                          The Data Acquisition system (DAQ) is designed to al-
+flecting the 2450 keV beam from a deuterium oxide (D2 O)                     low LED calibrations of the TPC PMTs in about 10 min-
+target. This allows the lowest nuclear recoil energies to be                 utes. This requires an event rate of 4-kHz, resulting in a
+calibrated with decreased uncertainty.                                       ∼340 Mb/s total waveform data rate. Monte Carlo sim-
+                                                                             ulations predict a total background rate is about 40 Hz.
+                                                                             The background rate between zero and 40 keV is about
+                                                                             0.4 Hz. Due to the maximum drift time of 800 µs in the
+                                                                             TPC, the rate for TPC source calibrations is limited to
+                                                                             150 Hz. A 150 Hz calibration rate results in a 10% prob-
+                                                                             ability of detecting a second calibration event within the
+                                                                             drift time of the previous calibration event.
+                                                                                 The slow control system is responsible for controlling
+                                                                             and monitoring all LZ systems. It is described in detail in
+                                                                             Sec. 6.3.
+
+                                                                             6.1. Signal Flow
+                                                                                 The processing of the signals generated by the TPC
+Figure 14: LEFT: Brass mockup of the photoneutron source shield-             PMTs is schematically shown in Fig. 15. The TPC and
+ing assembly, which will be made of tungsten alloy. The main body            skin PMTs operate at a negative HV, supplied by the HV
+is at top. Depicted below is a conical insert that houses radioactive        system, using MPOD EDS 20130n 504 and MPOD EDS
+source. RIGHT: Rendering of the DD generator in its boron-doped
+shielding assembly, all mounted on a movable positioning system.
+                                                                             20130p 504 HV distribution modules from from WIENER
+                                                                             Power Electronics [29]. HV filters are installed at the HV
+                                                                             flange on the breakout box. The PMT signals leave the
+                                                                             breakout box via a different flange and are processed by
+6. Electronics and Controls                                                  the analog front-end electronics. The amplified and shaped
+                                                                             signals are connected to the DAQ. The digitized data are
+    The signal processing electronics, described in detail in
+                                                                             sent to Data Collectors and stored on local disks. The
+Sec. 6.1, processes the signals from 494 TPC PMTs, 131
+                                                                             PMTs of the outer-detector system operate at positive HV.
+skin PMTs, and 120 outer-detector PMTs. The electronics
+                                                                             The same type of amplifier used for the TPC and skin
+is designed to ensure a detection efficiency for single pho-
+                                                                             PMTs is also used for the outer-detector PMTs.
+toelectrons (PEs) of at least 90%. The PMT signals are
+digitized with a sampling frequency of 100 MHz and 14-bit                                                                                                         External Triggers
+accuracy. The gain and shaping parameters of the ampli-
+                                                                                                 Low/High Gain Amp
+
+
+
+
+                                                                                                                                 Data Extractors
+
+
+
+
+fiers are adjusted to optimize the dynamic range for the
+                                                                                                                                                     DAQ Master
+
+
+
+                                                                                                                                                                   Level 1 DS
+
+
+
+                                                                                                                                                                                DS Master
+                                                                                                                     DDC-32s
+
+
+
+
+PMTs. The dynamic range for the TPC PMTs is defined
+by the requirement that the S2 signals associated with a
+full-energy deposition of the 164 keV 131m Xe activation
+line do not saturate the digitizers. Larger energy deposi-
+tions will saturate a number of channels of the top PMT                           PMTs
+array, but the size of the S2 signal can be reconstructed
+                                                                                                                                                                                Event Building
+                                                                                                                     HV Supply
+                                                                                                  HV Filter
+
+
+
+
+using the S2 signals detected with the bottom PMT array.
+                                                                                                                                                     Data
+The saturation of a few top PMTs for S2 signal will not                                                                                            Collectors
+impact the accuracy of the position reconstruction. For                          Xenon Space
+the skin PMTs, the dynamic range is defined by the re-
+quirement that the skin PMT signals associated with the
+interaction of a 511-keV γ-ray in the skin do not saturate                   Figure 15: Schematic of the signal processing of the TPC PMTs.
+                                                                             The TPC and outer-detector PMTs use dual-gain signal processing.
+the digitizers. Simulations show that such an interaction                    The skin PMTs only utilize the high-gain section of the amplifiers.
+can generate up to 200 PEs in a single PMT, depending                        The signals are digitized using the DDC-32 digitizer, developed for
+on the location of the interaction. The dynamic range                        LZ in collaboration with SkuTek [30]. Event selection is made by
+                                                                             the Data Sparsification (DS) system [31].
+for the outer-detector PMTs is defined by the requirement
+that the size of the outer-detector PMT signals associated
+
+                                                                        17
+                                                                              Counts (#)
+    The PMT signals are processed with dual-gain am-
+plifiers. The low-gain channel has a pulse-area gain of              300
+four and a 30-ns full width at tenth maximum (FWTM)                  250
+shaping-time constant. The high-gain channel has a pulse-
+area gain of 40 and a shaping time of 60-ns (FWTM). The              200
+high-gain channel is optimized for an excellent single PE
+                                                                     150
+response. The shaping times and gains are derived from
+one assumption: the DAQ has a usable dynamic range of                100
+1.8 V at the input. A 0.2 V offset is applied to the digitizer
+channels in order to measure signal undershoots of up to              50
+0.2 V. Measurements with prototype electronics and the
+                                                                                   100            200          300        400          500
+LZ PMTs have shown that the same amplifier parameters                                              Four sample wide S1 Filter peak output (ADCC)
+can be used for all of them. For the TPC and the Outer
+Detector PMTs, both high-gain and low-gain channels are         Figure 16: Measurements of the TPC PMT response to a single PE.
+digitized; for the skin PMTs, only the high-gain channel        The output of the four-sample wide S1 filter, in units of ADC Counts
+is digitized.                                                   (ADCC), is shown.
+    The top-level architecture of the DAQ system is shown
+schematically in Fig. 15. The DDC-32s digitizers, evel-                         CPU                                      Tape
+                                                                   DAQ 1     DAQM + DQM                                Archive
+oped for LZ in collaboration with SkuTek [30], continu-
+ously digitize the incoming PMT signals and store them                               x% of Data
+
+in circular buffers. When an interesting event is detected,
+                                                                                 CPU                                                      Data
+the Data Extractors (DE) collect the information of inter-         DAQ 15    Event Building
+                                                                                                  Event
+                                                                                                  Files
+                                                                                                              RAID
+                                                                                                             Surface
+                                                                                                                        RAID
+                                                                                                                        US DS
+                                                                                                                                     (Re)processing
+est from the DDC-32s. The DEs compress and stack the                                                                                   Simulations
+extracted data using their FPGAs and send the data to
+                                                                                                                                          Data
+Data Collectors for temporary storage. The Event Builder                                                                             (Re)processing
+
+takes the data organized by channels and assembles the                                         SURF           SURF      RAID
+                                                                                           Underground       Surface    UK DS          Simulations
+buffers into full event structures for online and offline anal-
+ysis. The DAQ operation is controlled by the DAQ Master                      Figure 17: A schematic of the LZ data flow.
+for high-speed operations such as system synchronization
+and waveform selection, and by the DAQ Expert Con-
+trol/Monitoring system, not shown in Fig. 15, for slow               Redundant connections exist between the surface and
+operations such as running setup/control and operator di-       the  Davis Cavern. A pair of managed 10 Gbs switches is
+agnostics. The entire system runs synchronously with one        installed   on the surface and underground. Each switch on
+global clock.                                                   the  surface   is connected via two fibers, travelling through
+    The performance of the entire signal processing chain       the  Yates    and    the Ross shafts, to the two underground
+has been evaluated in an electronics chain test. Pre-production switches.    Since    each link supports 10 Gbs, this configura-
+prototypes of the analog and digital as well as signal ca-      tion  can  support        data transfer rates of up to 40 Gbs.
+bles of the same type and length as those to be installed            A  fraction   of   the     data is analyzed online by the Detec-
+at SURF were used. The measured response of a four-             tor  Quality    Monitor         (DQM), running on a dedicated on-
+sample wide S1 filter is shown in Fig. 16. The measured         line  server,  installed        in  the Davis Laboratory. The DQM
+single photoelectron (PE) efficiency is 99.8%, much better      applies   elements       of   the    offline analysis to the data being
+than the requirement of 90%. The threshold at which the         collected,   in  order      to   monitor      the performance of the de-
+                                                                                                          83m
+false-trigger rate is 1 Hz is 43 ADC Counts (ADCC) or           tector.   For  example,         during          Kr calibrations, the DQM
+16% of a single PE.                                             will  monitor     the     electron      life  time   and the energy reso-
+                                                                lution. Various detector parameters, such as PMT mul-
+6.2. Data Flow and Online Data Quality                          tiplicity, hit distributions across both PMT arrays, and
+    The data flow is schematically shown in Fig. 17. Five       trigger rates, will be monitored. If significant deviations
+event builders (EB) assemble the events by extracting the       from prior observed patterns are seen, experts will be au-
+relevant information from the Data Collector disks, DAQ1-       tomatically notified via the slow control system.
+DAQ15. A 10 Gigabit per second (Gbs) line connects the
+                                                                             6.3. Controls
+Data Collectors to the Event Builders. The event files are
+stored on the 16 TB local disk array of each EB, before                          The Controls system performs supervisory control and
+being transferred to the 192 TB RAID array installed on                      monitoring of all the major subsystems of the experiment,
+the surface. From there, the event files are distributed to                  including cryogenics, fluid handling, detector diagnostic
+the data-processing centers for offline data processing and                  sensors, high voltage, and electronics monitoring. Not
+analysis.                                                                    included in this system are the SURF-managed controls
+                                                                             ensuring personnel safety (for example, oxygen deficiency
+                                                                        18
+alarms and sensors). The functionality provided by the                 The PLC system is responsible for the automated re-
+Controls system can be classified in the following four cat-      covery of xenon in emergency scenarios and must be ro-
+egories: 1) protection against xenon loss and contamina-          bust against single-point failures. This begins with the
+tion, 2) experiment parameter monitoring and logging, 3)          the Siemens dual-CPU system. The system is powered by
+control over LZ subsystems, and 4) providing the interface        redundant 24 VDC supplies fed by two separate electrical
+to operators.                                                     panels, one of which is supported by an 8 kVA APC Sym-
+     In order to minimize risks associated with possible xenon    metra UPS. Both panels are also supported by backup
+loss or contamination, instruments and subsystems are di-         diesel powered electrical generator, capable of powering
+vided in two major groups with respect to the perceived           the PLC system and xenon recovery compressors for the
+impact of their possible malfunction on the integrity of the      time required to complete xenon recovery.
+xenon supply. Those where equipment failure or operator                Each Siemens CPU has its own connection to a com-
+error can lead to xenon loss or contamination are desig-          mon set of S7-300 I/O Modules, which connect directly
+nated “critical” and the rest are “non-critical”. During a        to individual instruments/sensors, as well as to a set of
+power failure, a combination of UPS and generator power           PROFIBUS-DP Y-links, allowing for redundant control of
+will provide continuity to the critical components of the         PROFIBUS instruments. In either case, redundancy does
+slow control system.                                              not in general extend to the I/O modules and instruments.
+     The PLC system provides automatic protection in the          However, those instruments critical for xenon recovery are
+case of an emergency. If the Xe pressure inside the ICV           duplicated to eliminate single-point failures.
+reaches a threshold value, or if there is an extended power            Several integrated instruments, including the xenon
+outage in the Davis Cavern, the Xe compressors will acti-         compressors, vacuum pump systems, and the liquid ni-
+vate and the vaporized xenon will be safely transferred to        trogen generator, have their own dedicated PLCs which
+the Xe storage packs. In these scenarios Xe transfer occurs       function as PROFIBUS slaves to the Master PLC. These
+automatically without assistance from a human operator.           smaller PLCs are either provided and programmed by the
+Additionally, the PLC is programmed with a set of inter-          instrument vendor or, in the case of the xenon compres-
+locks to protect the experiment from erroneous operator           sors, built and programmed by LZ.
+commands or equipment failure during routine operations.               Each of the four xenon compressors (two circulation
+     The functional diagram of the slow control system and        and two recovery) is run by a dedicated Beckhoff CX8031
+its interaction with the experiment subsystems and infras-        PLC, which governs compressor startup and shutdown se-
+tructure is shown in Fig. 18. The core of the slow control        quences. The PLCs running the two xenon recovery com-
+system is composed of three components: (1) the inte-             pressors have the extra feature that they are capable of ini-
+grated supervisory control and data acquisition (SCADA)           tiating xenon recovery in response to an over-pressure sce-
+software platform Ignition from Inductive Automation [32],        nario, triggered by xenon pressure transducers connected
+(2) a Siemens SIMATIC S7-410H dual-CPU PLC with Re-               directly to each PLC. The intent is that emergency xenon
+dundant Hot Backup, allowing bumpless transfer from one           recovery will be initiated and coordinated by the Master
+active CPU to the backup, and (3) associated I/O mod-             PLC, with this slave-initiated recovery as a backup.
+ules [33]. Non-critical instruments connect directly to the            The choice of Ignition as the software platform for LZ
+Ignition server, typically using MODBUS-TCP over the              Controls is based on the wide range of highly customizable,
+slow control local network. Critical instruments are man-         easy to use core functions and tools for development of ef-
+aged by the PLCs, which in turn communicates with the             ficient and robust SCADA systems. Ignition also comes
+Ignition server.                                                  with a versatile toolbox for GUI design and a comprehen-
+     The Ignition server provides a single operator interface,    sive library of device drivers supporting most of the hard-
+alarm system, and historical record for all slow control in-      ware used in LZ. One of these drivers supports Siemens
+strumentation. It provides authorized users with access to        PLCs allowing to export the PLC tags (internal variables).
+specific controls. In addition, the Ignition server provides      Devices connected to the PLC can be exposed to Ignition
+the scripting engine for experiment automation. Ignition          as sensors and controls. For the rest of the devices the
+also provides a GUI for accessing historical data in the          preferred protocol is MODBUS which is also supported by
+form of plots by local and remote clients. The config-            the Ignition server. For those devices that do not support
+uration data (properties of sensors and controls, alarms,         MODBUS (e.g. RGA units), two interfacing methods are
+and user preferences) are stored in the local configuration       envisaged: 1) custom Java drivers written in the Ignition
+database.                                                         software development kit, and 2) Python MODBUS server
+     For critical systems, which include xenon handling,          with plugin system or custom Python drivers.
+cryogenics, and grid high voltage, PLCs add an additional              The operator interface is comprised of a set of pan-
+layer between the slow control software and the physical          els, organized into a tree view. At a lower GUI level, the
+instruments. This ensures uninterrupted control of critical       panels represent the experiment subsystem via functional
+instruments and separates the low level logic governed by         diagrams with relevant information on the state of sensors
+PLCs from the higher level operations run by the Ignition         and controls displayed in real time. The authorized system
+scripting engine.                                                 experts can also use these GUI panels to alter the controls
+                                                             19
+                                                                                                   SURF surface
+             LN Distribution            Local    Local HMI      Direct                            (direct ﬁber link)
+             Thermosiphons               Dev. (Ignition Client) control                                   Remote HMI
+                                                                                                         (Ignition client)
+                 Gids HV                                                                     SURF
+                                                                                            gateway VPN
+              Xe gas system                                                 Local
+                                                 Local Network              switch
+                 Storage                                                                        DAQ & Electronics
+                                        Master
+                                         PLC                Ignition Server                           Detector
+                Circulation                          HW Interface       Alarm system                 Calibration
+             Compressor 1         PLC                Tag manager        Automation
+                                                     DB interface       Historian                  Environment
+             Compressor 2         PLC
+                                                                       ICE module                     PMT HV
+                                                     Conﬁg. DB
+                Recovery
+             Compressor 1         PLC                                                               Run Control
+
+             Compressor 2         PLC                Online DB
+                                                                                                     Ofﬂine DB
+                                  UPS/Generator Powered
+
+                                          Figure 18: Slow control functional diagram.
+
+
+not protected by the PLC interlocks. At a higher level,
+several panels show the real-time status of the system and
+subsystems from which a trained operator is able to tell
+the overall health of the system. These panels also allow
+to assess high level information, for example alarm sta-
+tus, current operation mode, status of automation scripts,
+etc. At a very high level, a single summary plot of the
+entire system can be prepared by slow control and sent to
+run control for display in a single status panel on the run
+control GUI.
+
+7. Detector Assembly
+    LZ is being installed inside the existing 25’ diameter,
+20’ tall Davis Cavern water tank used for the LUX ex-
+periment. Access to the water tank is down the 4850’
+vertical Yates shaft and through horizontal drifts. Some
+large items of equipment are segmented and transported
+underground in sections, including the OCV (three sec-
+tions), and the tall AVs (four sections). Other items, like
+the ICV and its TPC payload, and the LXe tower, are
+                                                                   Figure 19: Intermediate assembly. A section through the Davis Cam-
+transported and installed after being fully assembled on           pus showing the OCV ready to receive the ICV, and the ICV sus-
+the surface.                                                       pended above with cable conduits. 1-Deck; 2-Water tank.
+    Substantial changes to the infrastructure of the Davis
+Campus were required to accommodate the detector size
+increase from LUX to LZ. This included creating more               frame was mounted in a rotatable assembly, slung under
+floor space with a platform for cable breakouts, conversion        the cage, and lowered to the 4850’ level. The rotatable
+of the compressor room roof to a space for purification and        assembly was used to move each 5000 pound unit around
+Xe sampling equipment, and converting two previously un-           duct work and other obstacles between the cage and the
+used excavations to spaces for Xe storage and Rn removal           Davis Cavern upper deck. Each AV was wrapped in two
+equipment.                                                         plastic bags to keep dust from contaminating the acrylic
+    Underground assembly started in 2018 with the trans-           and the water tank. The AVs are sensitive to large tem-
+port of the 12-foot tall AVs. Each AV was contained in             perature changes so timing and speed were also important
+a heavy steel frame. At the top of the Yates shaft the             considerations during transport.
+
+                                                              20
+    After the four tall AVs were placed inside the water            8. Materials Screening & Backgrounds
+tank, the three sections of the OCV were transported un-
+derground and installed on support legs inside. After a                 Material screening is the primary route to controlling
+leak cheak, and a final washing of the water tank and its           the ER and NR backgrounds resulting from radioactiv-
+equipment, the OCV top was removed and stored to pre-               ity in the experiment. Measurements of radioactive nu-
+pare for ICV installation, and cleanroom protocols were             clides in and on all detector components are required. The
+instituted for entering and exiting the area. An under-             ubiquitous and naturally occurring radioactive materials
+ground radon reduction system treats the air supplied to            (NORM) of particular concern are the γ-ray emitting nu-
+the water tank during the remainder of the assembly.                clides 40 K; 137 Cs; and 60 Co, as well as 238 U, 235 U, 232 Th,
+    Much of the TPC assembly work was done in the Sur-              and their progeny. The U and Th chains are also respon-
+face Assembly Lab (SAL) at SURF because of its superior             sible for neutron production following spontaneous fission
+logistics compared to the underground. A well sealed class          and (α,n) reactions. Kr and Rn outgassing from materials
+1000 clean room with reduced radon air supply [34] and              into the Xe also results in ER backgrounds, and α-emitting
+a clean monorail crane was used for cryostat acceptance,            Rn daughters can contribute to neutron backgrounds when
+TPC assembly, and insertion of the TPC into the ICV.                deposited on certain materials.
+The Reduced Radon System (RRS) has been measured                        Fixed contamination, referring to non-mobile NORM
+to produce air laden with radon at a specific activity of           nuclides embedded within materials, is the dominant source
+4 mBq/m3 given input air at about 8.5 Bq/m3 . The PMT               of neutron and γ-ray emission in LZ. To ensure a sub-
+and instrumentation cables are routed through three rein-           dominant contribution from fixed contaminants, relative
+forced bellows attached to the ICV, and the entire assem-           to irreducible backgrounds, all materials considered for
+bly is transported underground together. During trans-              use in the construction of the experiment are screened for
+port the bellows are sealed and the ICV is purged with              NORM nuclides to ≈0.2 mBq/kg sensitivities, equivalent
+boil off LN. This begins the process of removing H2 O, O2 ,         to tens of parts per trillion (ppt) g/g for 238 U and 232 Th.
+and Kr from the large mass of PTFE in the detector. All             This ensures a maximum contribution from fixed contam-
+subsequent assembly steps are designed to keep the TPC              ination of less than 0.4 NR and 1 × 10−6 events/(kev ·
+under nitrogen purge until it can be evacuated and filled           kg · year) ER in the LZ exposure. For materials such as
+with Xe gas.                                                        PTFE, which are produced in granular form before being
+    The TPC is assembled and installed into the ICV ver-            sintered in molds, plate-out constitutes additional risk be-
+tically. To move underground, the assembly is rotated to            cause surface contamination of the granular form becomes
+horizontal, set in a transport frame, and moved to the              contamination in bulk when the granules are poured into
+Yates headframe. Slings attached to the underside of the            molds. A limit of 10 mBq/kg of 210 Po and 210 Pb in PTFE
+cage are used to lift the assembly into a vertical position         maintains an NR contribution of <0.1 count in the LZ
+underneath the cage. This process is reversed at the 4850’          exposure.
+level, returning it to horizontal, for transport down the               Radon emanated from within detector components is
+drift. It is set vertical again on a shielding platform over        the dominant contributor to background in LZ, primar-
+the water tank. A temporary clean room is constructed               ily through the “naked” beta emission from 214 Pb in the
+                                                                    222
+around the ICV, and the last protective bag is removed.                 Rn sub-chain as it decays to 214 Bi. The 214 Bi beta
+The ICV is connected to the OCV top by three tie bars               decay itself is readily identified by the subsequent 214 Po
+(instrumented threaded rods) that allow for precision lev-          alpha decay that would be observed within an LZ event
+eling of the TPC relative to the liquid Xe surface while            timeline (T1/2 =160 µs). Similar coincidence rejection also
+minimizing thermal losses. During final lowering into the           occurs where beta decay is accompanied by a high-energy
+OCV the ICV is supported by the tie bars. Once sealed,              γ-ray, which may still be tagged by the Xe Skin or OD ve-
+the ICV is evacuated, and the AVs and OD PMTs are as-               toes even if it leaves the active Xe volume. 220 Rn generates
+                                                                    212
+sembled around the OCV in the water tank. A rendering                   Pb, resulting in 212 Bi-212 Po sequential events which can
+of the ICV just prior to nesting within the OCV is shown            be tagged. Radon daughters are readily identified through
+in Fig. 19.                                                         their alpha decay signatures and can be used to character-
+    A second radon reduction system is available in the             ize the 222 Rn and 220 Rn decay chain rates and distribu-
+Davis Cavern to supply air depleted of radon. It has                tions in the active region, providing a useful complement to
+demonstrated an output of 100 mBq/m3 given input air                estimating radon concentration from the beta decay con-
+of 70 Bq/m3 .                                                       tribution to the ER background.
+    The water and GdLS are co-filled to minimize stress in              The specific activity of 222 Rn in LZ is required to be
+the AV walls. The GdLS will be transported underground              less than 2 µBq/kg of LXe, equivalent to 20 mBq. All
+in 150 sealed barrels. Each is placed on a scale in a clean         xenon-wetted components in LZ have been constructed
+tent before connection to the liquid transfer system. The           from low-radon materials selected through dedicated mea-
+liquid is pumped into the GdLS reservoir and distributed            surement facilities. Due to the large number of expected
+to the AVs. Once the liquids are filled detector commis-            emitters, these facilities were required to achieve sensi-
+sioning can begin.                                                  tivity of 0.2 mBq to 222 Rn. Measurements are made at
+
+                                                               21
+room temperature, however, the expected emanation can                 and 232 Th, particularly those with energies in excess of
+depend strongly on temperature depending on the source                several hundred keV. Background-subtracted γ-ray count-
+material. A conservative approach is adopted in estimat-              ing is performed around specific energy ranges to identify
+ing radon emanation in our model, taking credit for a re-             radioactive nuclides. Taking into account the detector ef-
+duction at LXe temperatures wherever this is supported                ficiency at that energy for the specific sample geometry
+in the literature. Significant background from 220 Rn is not          allows calculation of isotopic concentrations. A typical as-
+expected given its very short half-life; we conservatively in-        say lasts 1–2 weeks per sample to accrue statistics at the
+clude in our background model a contribution from 220 Rn              sensitivities required for the LZ assays. These direct γ-ray
+of 20% of the ER counts from 222 Rn.                                  assays probe radioactivity from the bulk of materials and
+    The accumulation of 222 Rn-daughters plated-out dur-              may identify equilibrium states.
+ing the manufacture and assembly of components as well                     Sixteen HPGe detectors located in facilities both above-
+as dust and particulates contribute to the LZ background.             and underground have been used for LZ, with differences in
+The α-particle emitting Rn-daughters can induce neutrons              detector types and shielding configuration providing use-
+via (α,n) processes, particularly problematic for materials           ful dynamic range both in terms of sensitivity to partic-
+with large cross-sections for this process such as flourine,          ular nuclides and to varying sample geometries. The de-
+present in the TPC walls (PTFE). Plate-out on the inside              tectors are typically several hundreds of grams to several
+of the TPC walls causes α-particles and recoiling ions to             kilograms in mass, with a mixture of n-type, p-type, and
+enter the active volume. The risk of mis-reconstructing               broad energy Ge (BEGe) crystals, providing relative effi-
+these recoils into the fiducial volume in particular sets             ciency at the tens of percent through to in excess of 100%
+stringent constraints on plate-out on the PTFE. LZ in-                (as compared to the detection efficiency of a (3 × 3)-inch
+stituted a target for plate-out of 210 Pb and 210 Po of less          NaI crystal for 1.33 MeV γ-rays from a 60 Co source placed
+than 0.5 mBq/m2 on the TPC walls and below 10 mBq/m2                  25 cm from the detector face). While p-type crystals can
+everywhere else.                                                      be grown to larger sizes and hence require less counting
+    Generic dust containing NORM also releases γ-rays                 time due to their high efficiency, the low energy perfor-
+and induce neutron emission. Dust is further expected                 mance of the n-type and broad energy crystals is superior
+to be the single largest contributor to radon emanation.              due to less intervening material between source and ac-
+Dust contamination is limited to less than 500 ng/cm2 on              tive Ge. Clean samples are placed close to the Ge crystal
+all wetted surfaces in the detector and xenon circulation             and assayed for several days to weeks in order to accrue
+system. Under the conservative assumption that 25% of                 sufficient statistics, depending on the minimum detectable
+222
+    Rn is released from the dust, via either emanation or             activity (MDA). The detectors are generally shielded with
+recoils out of small grain-size particulates, this limits the         low-activity Pb and Cu, flushed with dry nitrogen to dis-
+222
+    Rn activity from dust to less than 10 mBq.                        place the Rn-carrying air, and sometimes are surrounded
+                                                                      by veto detectors to suppress background from Compton
+8.1. HPGe + MS Techniques and Instruments                             scattering that dominates the MDA for low-energy γ-rays.
+    The LZ screening campaign deploys several mature tech-            To reduce backgrounds further, most of the detectors are
+niques for the identification and characterization of ra-             operated in underground sites [35, 36], lowering the muon
+dioactive species within these bulk detector materials, pri-          flux by several orders of magnitude. We also utilize a num-
+marily γ-ray spectroscopy with High Purity Germanium                  ber of surface counters, some of them employing active
+(HPGe) detectors and Inductively-Coupled Plasma Mass                  cosmic rate veto systems, that are particularly useful for
+Spectrometry (ICP-MS), supported by Neutron Activation                pre-screenings before more sensitive underground assays.
+Analysis (NAA). These complementary techniques collec-                     To ensure uniform analysis outputs for all HPGe detec-
+tively produce a complete picture of the fixed radiological           tors, a cross-calibration program was performed using all
+contaminants.                                                         detectors active in 2014. This involved the blind assay of
+    Sensitivity to U and Th decay chain species down to               a Marinelli beaker containing ≈ 2 kg of Rhyolite sourced
+≈10 ppt has been demonstrated using ultralow-background               from the Davis Cavern at SURF. This sample had previ-
+HPGe detectors. HPGe can also assay 60 Co, 40 K, and                  ously been characterized using the MAEVE p-type HPGe
+other radioactive species emitting γ-rays. This technique             detector at LBNL. Across the eight detectors online at
+is nondestructive and, in addition to screening of candi-             the time, assays for both 238 U and 232 Th were within 1σ
+date materials, finished components can be assayed prior              of each-other. As additional detectors have been brought
+to installation. Under the assumption of secular equilib-             online, consistency has been assured by cross-calibration
+rium, the U and Th content, assuming natural terres-                  intra-facility.
+trial abundance ratios, may be inferred from the mea-                      ICP-MS offers precise determination of elemental con-
+surement of isotopic decay emissions lower in their respec-           tamination with potentially up to 100× better sensitivity
+tive chains. However, secular equilibrium can be broken               for the progenitor U and Th concentrations compared to γ-
+through removal of reactive nuclides during chemical pro-             ray spectroscopy. Since ICP-MS directly assays the 238 U,
+                                                                      235
+cessing or through emanation. HPGe readily identifies the                 U, and 232 Th progenitor activity it informs the contri-
+concentrations of nuclides from mid- to late-chain 238 U              bution to neutron flux from (α,n) in low-Z materials, but
+                                                                 22
+Table 5: Primary material radio-assay techniques, indicating isotopic sensitivity and detection limits, as well as typical throughput or single-
+sample measurement duration.
+                                                                                   Destructive/Non-         Locations (and
+                    Isotopic                Typical         Sample    Sampling                                                     Samples
+   Technique                                                                        destructive and           Number of
+                   Sensitivity             Sensitivity       Mass     Duration                                                     Assayed
+                                                                                         Notes              Systems if > 1)
+                    238        235
+                          U,  U,
+                         232                                                         Non-destructive,
+                          Th                                                                                    SURF ×6,
+                           40
+                                          5 × 10
+                                                 −11
+                                                   g/g U,                          very versatile, not as
+                   chains, K,                                          Up to 2                                  LBNL ×1,
+     HPGe          60     137                −10              kg                     sensitive as other                               926
+                      Co,     Cs           10    g/g Th                 weeks                                U. Alabama ×2,
+                                                                                     techniques, large
+                    any γ-ray                                                                                   Boulby ×7
+                                                                                          samples
+                      emitter
+                    238        235
+                       U,    U,                                                    Destructive, requires
+                    232                       −12                                                           UCL, IBS, BHUC,
+    ICP-MS             Th (top              10      g/g     mg to g     Days        sample digestion,                                 157
+                                                                                                              U. Alabama
+                     of chain)                                                     preparation critical
+
+                    238        235                                                  Destructive, useful       Irradiated at
+                        U,    U,             −12
+                    232                    10   g/g to                 Days to       for non-metals,         MITR-II, HPGe
+     NAA                Th (top               −14             g                                                                        3
+                                            10    g/g                   weeks        minimal sample              assay at
+                    of chain), K
+                                                                                       preparation            U. Alabama
+
+                                                                                   Destructive, minimal
+                    238        235
+                       U,    U,                                                       matrix effects,
+                    232                       −10                                                           National Research
+    GD-MS              Th (top              10      g/g     mg to g     Days          cannot analyze                                   2
+                                                                                                             Council Canada
+                     of chain)                                                      ceramics and other
+                                                                                        insulators
+
+                                                                                      Non-destructive,          UCL ×2,
+   Radon                 222                                           1 to 3          large samples,         U. Maryland,
+                               Rn            0.1 mBq          kg                                                                      175
+  Emanation                                                            weeks         limited by size of      SDSM&T ×2,
+                                                                                    emanation chamber        U. Alabama ×2
+
+                                                                                                            SDSM&T (Si),
+                         210                           2                           Non-destructive, thin
+                               Pb,          120 α/(m ·                                                       Brown (XIA),             306
+   Surface α       210         210                          g to kg   <1 week          samples, large
+                         Bi,         Po        day)                                                          Boulby (XIA),
+                                                                                   surface area required
+                                                                                                            U. Alabama (Si)
+
+
+
+also the contribution from spontaneous fission, which in                     simply monitored and reported as an equivalent concen-
+specific materials can dominate. However, it cannot iden-                    tration, and lower concentration samples allow for external
+tify daughter nuclides in the U and Th decay chains that                     calibrations and a significantly relaxed cleaning schedule,
+are better probed by HPGe. The ICP-MS technique as-                          allowing to measure less demanding samples at the rate
+says very small samples that are atomized and measured                       of several per day with sensitivities to U and Th on the
+with a mass spectrometer. As a destructive technique,                        order of a few hundred ppt. Finally, some initial work has
+it is not used on finished components. The limitation of                     been done to develop measurements of potassium using
+ICP-MS is that the sample must be acid soluble and that                      the cold plasma configuration, leading to measurements of
+several samples from materials must be screened to probe                     a few hundred ppb of K.
+contamination distribution and homogeneity. Assays take                          NAA has been used by LZ to assay PTFE to sub-ppt
+1–2 days per material, dominated by the sample prepa-                        g/g levels of 238 U and 232 Th that is not well suited to
+ration time, where extreme care must be taken to avoid                       HPGe, due to the sensitivity, nor ICP-MS, due to diffi-
+contamination of solvents and reactants.                                     culty in digesting PTFE. However, as with ICP-MS, this
+    ICP-MS assays for LZ materials have been performed                       technique requires small sample masses, does not assay fin-
+using several facilities, the majority of which operate Ag-                  ished components, and assumptions of secular equilibrium
+ilent 7900 ICP-MS systems within minimum ISO Class 6                         need to be made since this technique measures the top
+cleanrooms [37]. These are capable of achieving sensitiv-                    of the U and Th chains. Samples are irradiated with neu-
+ity to U and Th in materials at the level of several ppt.                    trons from a reactor to activate some of the stable nuclides,
+Protocols and methodologies for sample preparation are                       which subsequently emit γ-rays of well-known energy and
+largely based on well established procedures [38–40].                        half-life that are detected through γ-ray spectroscopy. El-
+    These measurements take significant time owing to the                    emental concentrations are then inferred, using tabulated
+need for high statistics, standard addition calibration of                   neutron-capture cross sections convolved with the reac-
+high-concentration samples, and frequent machine clean-                      tor neutron spectra. Depending on the surface treatment,
+ing. For more routine measurements, the backgrounds are                      NAA can probe both bulk and surface contamination. Its
+
+                                                                        23
+application and sensitivity are limited by the composition          8.4. Cleaning procedures and protocols (ASTM standards)
+of the material.                                                        A rigorous program of cleanliness management is im-
+                                                                    plemented to ensure that the accumulated surface and dust
+8.2. Radon Emanation Techniques and Instruments                     contamination are monitored, tracked and do not exceed
+     Radon emanation measurements of all xenon-wetted               requirements. All detector components that contact xenon
+components within the inner cryostat and those in the               must be cleaned and assembled according to validated
+gas system that come into contact with Xe during experi-            cleanliness protocols to achieve the dust deposition levels
+mental operation have been performed using four facilities          below 500 ng/cm2 and plate-out levels below 0.5 mBq/m2
+available to LZ, listed in Table 5. In all of the facilities        for the TPC inner-walls, and 10 mBq/m2 everywhere else.
+radon is accumulated in emanation chambers, where sam-              Witness plates accompany the production and assembly
+ples typically remain for two weeks or more. In many cases          of all detector components to ensure QC and demonstrate
+multiple measurements are performed per sample. The                 QA through the plate-out and dust assays. The titanium
+radon is then transferred using a carrier gas to a detector         cryostat was cleaned by AstroPak [16] to ASTM standard
+to be counted.                                                      IEST-STD-CC1246 (rev E) level 50R1 (ICV) and level
+     In one of the stations, the radon atoms are collected          VC-0.5-1000-500UV (OCV). The ICV cleaning standard
+and counted by passing the radon-bearing gas through liq-           is equivalent to the requirement that mass density of dust
+uid, dissolving most of the radon. The scintillator is then         be less than 100 ng/cm2 . The vessels were etched accord-
+used to count Bi-Po coincidences, detected through gated            ing to ASTM B-600.
+coincidence logic, using one PMT viewing the scintillator.              As described in Sec. 7, detector integration is done in a
+In the other three stations, radon atoms and daughters are          reduced-radon cleanroom at the SAL at SURF. Dust and
+collected electrostatically onto silicon PIN diode detectors        plate-out monitoring on-site was continuously performed
+to detect 218 Po and 214 Po alpha decays. The radon screen-         to measure and maintain compliance with tolerable dust
+ing systems have been developed such that anything from             and plate-out levels.
+individual components through to sections of LZ pipework
+may be assayed.                                                     8.5. Backgrounds summary
+     All stations were initially evaluated using calibrated             Measured material radioactivity and anticipated levels
+sources of radon, with a cross-calibration program per-             of dispersed and surface radioactivity are combined with
+formed to ensure the accuracy of each system’s overall ef-          the Monte Carlo simulations and analysis cuts to deter-
+ficiency and ability to estimate and subtract backgrounds.          mine background rates in the detector. Table 8.3 presents
+     The radon-emanation screening campaign extends be-             integrated background ER and NR counts in the 5.6 tonne
+yond the material selection and construction phase and              fiducial mass for a 1000 live day run using a reference cut-
+into detector integration and commissioning phases. A               and-count analysis, both before and after ER discrimina-
+system is available underground at SURF in order to screen          tion cuts are applied. For the purposes of tracking mate-
+large-scale assembled detector elements and plumbing lines.         rial radioactivity throughout the design and construction
+As pieces or sections are completed during installation of          of LZ, Table 8.3 is based on a restricted region of interest
+gas pipework for the LZ experiment, they are isolated and           relevant to a 40 GeV/c2 WIMP spectrum, equivalent to
+assessed for Rn emanation and outgassing for early iden-            approximately 1.5–6.5 keV for ERs and 6–30 keV for NRs.
+tification of problematic seals or components that require              The expected total from all ER(NR) background sources
+replacement, cleaning, or correction.                               is 1195(1.24) counts in the full 1000 live day exposure.
+                                                                    Applying discrimination against ER at 99.5% for an NR
+8.3. Surface Assays (XIA, Si, dust microscopy)                      acceptance of 50% (met for all WIMP masses given the
+    Two sensitive detectors have been used to carry out             nominal drift field and light collection efficiency in LZ [4])
+assays of Rn plate-out to ensure the requirements are met           suppresses the ER(NR) background to 5.97(0.62) counts.
+and inform the experiment background model. The first               Radon presents the largest contribution to the total num-
+is the commercial XIA Ultralo-1800 surface alpha detec-             ber of events. Atmospheric neutrinos are the largest con-
+tor system, suitable for routine screening of small sam-            tributor to NR counts, showing that LZ is approaching
+ples including witness plates and coupons deployed dur-             the irreducible background from coherent neutrino scat-
+ing component assembly and transport to track exposure.             tering [41].
+The second detector employs a panel of large-area Si de-
+tectors installed in a large vacuum chamber. These sys-
+                                                                    9. Offline Computing
+tems exceed the requisite sensitivity to 210 Po at the level
+of 0.5 mBq/m2 . Dust assays are performed using high-                  The LZ data is stored, processed and distributed using
+powered microscopy and x-ray fluorescence techniques.               two data centers, one in the U.S. and one in the U.K. Both
+                                                                    data centers are capable of storing, processing, simulating
+                                                                    and analyzing the LZ data in near real-time. Resource
+                                                                    optimization, redundancy, and ease of data access for all
+
+                                                               24
+Table 6: The estimated backgrounds from all significant sources in the LZ 1000 day WIMP search exposure. Mass-weighted average activities
+                                        8
+are shown for composite materials. Solar B and hep neutrinos are only expected to contribute at very low energies (i.e. WIMP masses)
+and are excluded from the table.
+                                                                                                              ER      NR
+             Background Source
+                                                                                                             (cts)   (cts)
+
+            Detector Components                                                                                 9       0.07
+
+            Surface Contamination                                                                              40       0.39
+                                              2
+            Dust (intrinsic activity, 500 ng/cm )                                                              0.2      0.05
+                                                    2
+            Plate-out (PTFE panels, 50 nBq/cm )                                                                 -       0.05
+            210
+                  Bi mobility (0.1 µBq/kg)                                                                    40.0          -
+                                              2
+            Ion misreconstruction (50 nBq/cm )                                                                  -       0.16
+            210
+                  Pb (in bulk PTFE, 10 mBq/kg)                                                                  -       0.12
+
+            Laboratory and Cosmogenics                                                                          5       0.06
+            Laboratory Rock Walls                                                                              4.6      0.00
+            Muon Induced Neutrons                                                                               -       0.06
+            Cosmogenic Activation                                                                              0.2          -
+
+            Xenon Contaminants                                                                                 819          0
+            222
+                  Rn (1.81 µBq/kg)                                                                             681          -
+            220
+                  Rn (0.09 µBq/kg)                                                                             111          -
+            nat
+                  Kr (0.015 ppt)                                                                              24.5          -
+            nat
+                  Ar (0.45 ppb)                                                                                2.5          -
+
+            Physics                                                                                            322      0.51
+            136
+                  Xe 2νββ                                                                                      67           -
+                                     7   13
+            Solar Neutrinos: pp+ Be+ N                                                                         255          -
+            Diffuse Supernova Neutrinos                                                                         -       0.05
+            Atmospheric Neutrinos                                                                               -       0.46
+
+            Total                                                                                             1,195     1.03
+            Total (with 99.5 % ER discrimination, 50 % NR efficiency)                                         5.97      0.51
+            Sum of ER and NR in LZ for 1000 days, 5.6 tonne FV, with all analysis cuts                               6.49
+
+
+
+
+                                                                   25
+LZ collaborators are the guiding principles of this dual           applies the calibrations, looks for S1 and S2 candidate
+data-center design.                                                events, performs the event reconstruction, and produces
+    LZ raw data are initially written to the surface stag-         the so-called reduced quantity (RQ) files, which represent
+ing computer at SURF, which was designed with sufficient           the primary input for the physics analyses.
+capacity to store approximately two months of LZ data,                 LZap is based on the Hive version of the Gaudi code,
+running in WIMP-search mode. This guarantees conti-                which is specially designed to provide multi-threading at
+nuity of operations in case of a major network outage.             the sub-event level. The framework supports the develop-
+The surface staging computer at SURF transfers the raw             ment of different physics modules from LZ collaborators
+data files to the U.S. data center, where initial process-         and automatically takes care of the basic data handling
+ing is performed. The reconstructed data files are made            (I/O, event/run selection, DB interfaces, etc.). Gaudi fea-
+available to all groups in the collaboration and represent         tures a well established mechanism for extending its input
+the primary input for the physics analyses. The U.S. data          and output modules to handle custom formats. This func-
+center is hosted at the National Energy Research Scientific        tionality has has been exploited in the design of the LZ
+Computing (NERSC) center [42]. Data simulation and re-             raw data and RQ formats.
+construction at NERSC is performed using a number of                   All non-DAQ data, i.e. any data that is not read out by
+Cray supercomputers [43].                                          the DAQ with each event, is stored in a database known
+    The raw and reconstructed files are mirrored to the            as the “conditions database”. This database can auto-
+U.K. data center (hosted at Imperial College London) both          matically understand the interval of validity for each piece
+as a backup, and to share the load of file access and pro-         of data (based on timestamps), and supports data ver-
+cessing. Subsequent reprocessing of the data (following            sioning for instances such as when better calibrations be-
+new calibrations, updated reconstruction and identifica-           come available. This design implements a hierarchy of data
+tion algorithms, etc.) is expected to take place at one or         sources, which means that during development of code or
+both locations, with the newly generated files mirrored at         calibrations it is possible to specify alternate sources, al-
+both sites and made available to the collaboration. Sim-           lowing for the validation of updated entries.
+ulation and data processing at the U.K. data center are                All LZ software is centrally maintained through a soft-
+performed using distributed GridPP resources [44, 45].             ware repository based on GitLab [51]. GitLab provides a
+                                                                   continuous integration tool, allowing for automatic testing
+9.1. The Offline Software Stack                                    and installation of the offline codebase on the U.S. and
+     The LZ Offline software stack is based on standard            U.K. data center servers. Build automation is inherited
+HEP frameworks, specifically Geant4 for simulations [46]           from the Gaudi infrastructure and supported via CMake.
+and Gaudi for reconstruction [47].                                 Release Management and Version Control standards were
+     The simulation package is called BACCARAT [48]. This          strictly enforced from a very early stage of the experiment
+software provides object-oriented coding capability specif-        to ensure sharing, verifiability and reproducibility of the
+ically tuned for noble liquid detectors, working on top of         results. Each code release undergoes a battery of tests be-
+the Geant4 engine. BACCARAT can produce detailed, ac-              fore being deployed to production. Release management
+curate simulations of the LZ detector response and back-           ensures that all the changes are properly communicated
+grounds, which are crucial both for detector design and            and documented, to achieve full reproducibility.
+during data analysis. The physics accuracy of the LZ sim-              Software distribution is achieved via CernVM File Sys-
+ulations package was validated during the science run of           tem (CVMFS) [52]. CVMFS is a CERN-developed net-
+LUX, as described in [49].                                         work file system based on HTTP and optimized to de-
+     BACCARAT is integrated into the broader LZ analy-             liver experiment software in a fast, scalable, and reliable
+sis framework, from production to validation and analysis.         way. Files and file metadata are cached and downloaded on
+Two output formats are supported, a raw simulation out-            demand. CVMFS features robust error handling and se-
+put at the interaction level, and a reduced tree format at         cure access over untrusted networks [53]. The LZ CVMFS
+the event level. Both output files are written in the ROOT         server is visible to all the machines in the U.S. and U.K.
+data format [50]. A Detector Electronics Response pack-            data centers. All the LZ software releases and external
+age can be used to emulate the signal processing done by           packages are delivered via CVMFS: this ensures a unified
+the front-end electronics of LZ. It reads raw photon hits          data production and analysis stream, because every user
+from BACCARAT to create mock digitized waveforms, or-              can access identical builds of the same executables, remov-
+ganized and written in an identical format to the output of        ing possible dependencies on platform and configuration.
+the LZ data acquisition system. These can be read in by                A rigorous program of Mock Data Challenges has been
+the analysis software, providing practice data for frame-          enacted, in order to validate the entire software stack and
+work development and analysis.                                     to prepare the collaboration for science analysis. The first
+     The data processing and reconstruction software (LZ           data challenge simulated the initial LZ commissioning and
+analysis package, or LZap for short) extracts the PMT              tested the functionality of the reconstruction framework.
+charge and time information from the digitized signals,            The second data challenge covered the first science run of
+                                                                   LZ and tested the entire data analysis chain, including cal-
+                                                              26
+ibrations, detailed backgrounds and potential signals. The          References
+third and final data challenge is currently underway (2019)
+                                                                     [1] D. S. Akerib, et al., The Large Underground Xenon (LUX) Ex-
+and will test the complete analysis strategy, validating the             periment, Nucl. Instrum. Meth. A704 (2013) 111–126. arXiv:
+readiness of the offline system just before the underground              1211.3788, doi:10.1016/j.nima.2012.11.135.
+installation of LZ.                                                  [2] D. S. Akerib, et al., Results from a search for dark matter in the
+                                                                         complete LUX exposure, Phys. Rev. Lett. 118 (2) (2017) 021303.
+                                                                         arXiv:1608.07648, doi:10.1103/PhysRevLett.118.021303.
+10. Conclusion                                                       [3] D. Yu. Akimov, et al., WIMP-nucleon cross-section results from
+                                                                         the second science run of ZEPLIN-III, Phys. Lett. B709 (2012)
+    Considerable progress has been made towards imple-                   14–20. arXiv:1110.4769, doi:10.1016/j.physletb.2012.01.
+menting the LZ conceptual and technical designs described                064.
+                                                                     [4] B. J. Mount, et al., LUX-ZEPLIN (LZ) Technical Design Re-
+in Refs. [4, 5]. The start of science operations is ex-                  portarXiv:1703.09144.
+pected 2020. The projected background rate enables a                 [5] D. S. Akerib, et al., LUX-ZEPLIN (LZ) Conceptual Design Re-
+1000 day exposure of the 5.6 tonne fiducial mass, with a                 port, Conceptual Design Report; LBNL-190005, FERMILAB-
+spin-independent cross-section sensitivity of 1.5×10−48 cm2              TM-2621-AE-E-PPD. arXiv:1509.02910.
+                                                                     [6] D. S. Akerib, et al., Projected WIMP Sensitivity of the LUX-
+(90% C.L.) at 40 GeV/c2 . This will probe a significant por-             ZEPLIN (LZ) Dark Matter ExperimentarXiv:1802.06039.
+tion of the viable WIMP dark matter parameter space. LZ              [7] D. S. Akerib, et al., Identification of Radiopure Titanium for the
+is also be sensitive to spin-dependent interactions, through             LZ Dark Matter Experiment and Future Rare Event Searches,
+                                                                         Astropart. Phys. 96 (2017) 1–10. arXiv:1702.02646, doi:10.
+the odd neutron number isotopes 129 Xe and 131 Xe (26.4%                 1016/j.astropartphys.2017.09.002.
+and 21.2% respectively by mass). For spin-dependent WIMP-            [8] D. Y. Akimov, A. I. Bolozdynya, Y. V. Efremenko, V. A. Kaplin,
+neutron(-proton) scattering a sensitivity of 2.7×10−43 cm2               A. V. Khromov, Y. A. Melikyan, V. V. Sosnovtsev, Observation
+(8.1×10−42 cm2 ) is expected at 40 GeV/c2 .                              of light emission from Hamamatsu R11410-20 photomultiplier
+                                                                         tubes, Nucl. Instrum. Meth. A794 (2015) 1–2. arXiv:1504.
+                                                                         07651, doi:10.1016/j.nima.2015.04.066.
+11. Acknowledgements                                                 [9] B. López Paredes, H. M. Araújo, F. Froborg, N. Marangou,
+                                                                         I. Olcina, T. J. Sumner, R. Taylor, A. Tomás, A. Vacheret,
+    This work was partially supported by the U.S. Depart-                Response of photomultiplier tubes to xenon scintillation light,
+                                                                         Astropart. Phys. 102 (2018) 55–66. arXiv:1801.01597, doi:
+ment of Energy (DOE) Office of Science under contract                    10.1016/j.astropartphys.2018.04.006.
+number DE-AC02-05CH11231 and under grant number                     [10] F. Neves, A. Lindote, A. Morozov, V. Solovov, C. Silva, P. Bras,
+de-sc0019066; by the U.S. National Science Foundation                    J. P. Rodrigues, M. I. Lopes, Measurement of the absolute re-
+(NSF); by the U.K. Science & Technology Facilities Coun-                 flectance of polytetrafluoroethylene (PTFE) immersed in liq-
+                                                                         uid xenon, JINST 12 (01) (2017) P01017. arXiv:1612.07965,
+cil under award numbers, ST/M003655/1, ST/M003981/1,                     doi:10.1088/1748-0221/12/01/P01017.
+ST/M003744/1, ST/M003639/1, ST/M003604/1, and                       [11] J. Haefner, et al., Reflectance dependence of polytetrafluo-
+ST/M003469/1; and by the Portuguese Foundation for                       roethylene on thickness for xenon scintillation light, Nucl. In-
+                                                                         strum. Meth. A856 (2017) 86–91. arXiv:1608.01717, doi:
+Science and Technology (FCT)under award number
+                                                                         10.1016/j.nima.2017.01.057.
+PTDC/FIS-PAR/28567/2017; and by the Institute for Ba-               [12] C. Lee, Mitigation of Backgrounds for the Large Underground
+sic Science, Korea (budget number IBS-R016-D1). Uni-                     Xenon Dark Matter Experiment, Ph.D. thesis, Case Western
+versity College London and Lawrence Berkeley National                    Reserve University (2015).
+                                                                    [13] E. Bernard, C. H. Faham, T. M. Ito, B. Lundberg, M. Messina,
+Laboratory thank the U.K. Royal Society for travel funds                 F. Monrabal, S. P. Pereverzev, F. Resnati, P. C. Rowson,
+under the International Exchange Scheme (IE141517). We                   M. Soderberg, T. Strauss, A. Tomas, J. Va’vra, H. Wang, in:
+acknowledge additional support from the Boulby Under-                    B. Rebel, C. Hall (Eds.), High Voltage in Noble Liquids for
+ground Laboratory in the U.K.; the University of Wis-                    High Energy Physics, Vol. 9 of J. Instrum., 2014, p. T08004,
+                                                                         pp. 23-26. arXiv:1403.3613.
+consin for grant UW PRJ82AJ; and the GridPP Collab-                 [14] A. Tomás, H. M. Araújo, A. J. Bailey, A. Bayer, E. Chen,
+oration, in particular at Imperial College London. This                  B. López Paredes, T. J. Sumner, Study and mitigation of spu-
+work was partially enabled by the University College Lon-                rious electron emission from cathodic wires in noble liquid time
+don Cosmoparticle Initiative. Futhermore, this research                  projection chambers, Astropart. Phys. 103 (2018) 49–61. arXiv:
+                                                                         1801.07231, doi:10.1016/j.astropartphys.2018.07.001.
+used resources of the National Energy Research Scientific           [15] California Fine Wire, Grover Beach, California, USA, http:
+Computing Center, a DOE Office of Science User Facility                  //www.calfinewire.com//.
+supported by the Office of Science of the U.S. Department           [16] Astropak Corp., Costa Mesa, California, https://astropak.
+of Energy under Contract No. DE-AC02-05CH11231. The                      com//.
+                                                                    [17] SAES Pure Gas Inc., San Luis Obispo, California, USA, http:
+University of Edinburgh is a charitable body, registered in              //www.saespuregas.com/.com//.
+Scotland, with the registration number SC005336. The re-            [18] Fluitron Inc., Ivyland, Pennsylvania, USA, http://fluitron.
+search supporting this work took place in whole or in part               com//.
+                                                                    [19] K. Pushkin, et al., Study of radon reduction in gases for rare
+at the Sanford Underground Research Facility (SURF) in
+                                                                         event search experiments, Nucl. Instrum. Meth. A903 (2018)
+Lead, South Dakota. The assistance of SURF and its per-                  267–276. arXiv:1805.11306, doi:10.1016/j.nima.2018.06.
+sonnel in providing physical access and general logistical               076.
+and technical support is acknowledged. SURF is a feder-             [20] K. Abe, et al., Radon removal from gaseous xenon with acti-
+                                                                         vated charcoal, Nucl. Instrum. Meth. A 661 (1) (2012) 50 – 57.
+ally sponsored research facility under Award Number de-                  doi:10.1016/j.nima.2011.09.051.
+sc0020216.
+                                                               27
+     URL http://www.sciencedirect.com/science/article/pii/                          mass spectrometry, Anal. Chem. 77 (2005) 2432–2436. doi:
+     S0168900211018468                                                              10.1021/ac048539t.
+[21] D. S. Leonard, A. Dobi, C. Hall, L. Kaufman, T. Langford,                 [41] J. Billard, L. Strigari, E. Figueroa-Feliciano, Implication of neu-
+     S. Slutsky, Y.-R. Yen, A simple high-sensitivity technique for                 trino backgrounds on the reach of next generation dark matter
+     purity analysis of xenon gas, Nucl. Instrum. Meth. A621 (2010)                 direct detection experiments, Phys. Rev. D89 (2) (2014) 023524.
+     678–684. arXiv:1002.2742, doi:10.1016/j.nima.2010.04.152.                      arXiv:1307.5458, doi:10.1103/PhysRevD.89.023524.
+[22] A. Dobi, C. G. Davis, C. Hall, T. Langford, S. Slutsky, Y.-R.             [42] National Energy Research Scientific Computing Center, ac-
+     Yen, Detection of krypton in xenon for dark matter applications,               cessed: 2019-03-19 (2019).
+     Nucl. Instrum. Meth. A665 (2011) 1–6. arXiv:1103.2714, doi:               [43] DOE to Build Next-Generation Supercomputer at Lawrence
+     10.1016/j.nima.2011.11.043.                                                    Berkeley National Laboratory, accessed: 2019-03-19 (2019).
+[23] S. Haselschwardt, S. Shaw, H. Nelson, M. Witherell, M. Yeh,               [44] P. J. W. Faulkner, et al., Gridpp: development of the uk com-
+     K. Lesko, A. Cole, S. Kyre, D. White, A liquid scintillation                   puting grid for particle physics, J. Phys. G: Nucl. Part. Phys.
+     detector for radioassay of gadolinium-loaded liquid scintillator               32 (1) (2006) N1. doi:10.1088/0954-3899/32/1/N01.
+     for the lz outer detectorarXiv:1808.05595.                                [45] D. Britton, et al., Gridpp: the uk grid for particle physics,
+[24] D. S. Akerib, et al., Measurement of the Gamma Ray Back-                       Philos. Trans. R. Soc. London, Ser. A 367 (1897) (2009) 2447–
+     ground in the Davis Cavern at the Sanford Underground Re-                      2457. doi:10.1098/rsta.2009.0036.
+     search FacilityarXiv:1904.02112.                                          [46] S. Agostinelli, et al., GEANT4: A Simulation toolkit,
+[25] A. Dobi, Measurement of the Electron Recoil Band of the                        Nucl. Instrum. Meth. A506 (2003) 250–303. doi:10.1016/
+     LUX Dark Matter Detector With a Tritium Calibration Source,                    S0168-9002(03)01368-8.
+     Ph.D. thesis, University of Maryland, College Park (2014).                [47] G. Barrand, et al., GAUDI - A software architecture and
+[26] D. S. Akerib, et al., Tritium calibration of the LUX dark matter               framework for building HEP data processing applications,
+     experiment, Phys. Rev. D93 (7) (2016) 072009. arXiv:1512.                      Comput. Phys. Commun. 140 (2001) 45–55. doi:10.1016/
+     03133, doi:10.1103/PhysRevD.93.072009.                                         S0010-4655(01)00254-5.
+                            83m                                                [48] D. S. Akerib, et al., Simulations of Events for the LUX-ZEPLIN
+[27] D. S. Akerib, et al.,       Kr calibration of the 2013 LUX dark
+     matter search, Phys. Rev. D96 (11) (2017) 112009. arXiv:1708.                  (LZ) Dark Matter Experiment, In preparation (2019).
+     02566, doi:10.1103/PhysRevD.96.112009.                                    [49] D. S. Akerib, et al., LUXSim: A Component-Centric Approach
+[28] D. S. Akerib, et al., Low-energy (0.7-74 keV) nuclear recoil cali-             to Low-Background Simulations, Nucl. Instrum. Meth. A675
+     bration of the LUX dark matter experiment using D-D neutron                    (2012) 63–77. arXiv:1111.2074, doi:10.1016/j.nima.2012.
+     scattering kinematicsarXiv:1608.05381.                                         02.010.
+[29] W.-I.-N.-R. P. Electronics, http://www.wiener-d.com/.                     [50] R. Brun, F. Rademakers, ROOT: An object oriented data
+[30] Skutek instrumentation, http://skutek.com/.                                    analysis framework, Nucl. Instrum. Meth. A389 (1997) 81–86.
+[31] E. Druszkiewicz, The Data Acquisition System for LZ, JINST                     doi:10.1016/S0168-9002(97)00048-X.
+     11 (02) (2016) C02072.         arXiv:1511.08385, doi:10.1088/             [51] Gitlab Inc., accessed: 2015-12-07 (2015).
+     1748-0221/11/02/C02072.                                                   [52] J. Blomer, C. Aguado Sanchez, P. Buncic, A. Harutyunyan,
+[32] Inductive Automation, 340 Palladio Parkway, Suite 540 (4th                     Distributing LHC application software and conditions databases
+     Floor) Folsom, CA 95630-8833, USA, Ignition SQL Bridge                         using the CernVM file system, J. Phys.: Conf. Ser. 331 (2011)
+     (2015).                                                                        042003. doi:10.1088/1742-6596/331/4/042003.
+[33] Siemens Simatic PCS 7 CPU 410-5H Contoller (2016).                        [53] D. Dykstra, J. Blomer, Security in the CernVM File System and
+     URL        http://www.industry.siemens.com/topics/global/                      the Frontier Distributed Database Caching System, J. Phys.
+     en/magazines/process-news/process-automation/pages/                            Conf. Ser. 513 (2014) 042015. doi:10.1088/1742-6596/513/4/
+     simatic-pcs7-cpu410-5h.aspx                                                    042015.
+[34] ATEKO a.s., Hradec Králové, Czech Republic, http://www.
+     ateko.cz.
+[35] P. Scovell, E. Meehan, H. Araújo, J. Dobson, C. Ghag,
+     H. Kraus, V. Kudryavtsev, X.-R. Liu, P. Majewski, S. Paling,
+     R. Preece, R. Saakyan, A. Tomás, C. Toth, L. Yeoman, Low-
+     background gamma spectroscopy at the boulby underground
+     laboratory, Astroparticle Physics 97 (2018) 160 – 173. doi:
+     https://doi.org/10.1016/j.astropartphys.2017.11.006.
+     URL http://www.sciencedirect.com/science/article/pii/
+     S0927650517302517
+[36] B. J. Mount, et al., Black Hills State University Underground
+     Campus, Appl. Radiat. Isot. 126 (2017) 130–133. doi:10.1016/
+     j.apradiso.2017.02.025.
+[37] J. Dobson, C. Ghag, L. Manenti, Ultra-low background
+     mass spectrometry for rare-event searches, Nucl. Instrum.
+     Meth. AarXiv:1708.08860, doi:https://doi.org/10.1016/j.
+     nima.2017.10.014.
+     URL http://www.sciencedirect.com/science/article/pii/
+     S0168900217310513
+[38] D. S. Leonard, et al., Systematic study of trace radioactive
+     impurities in candidate construction materials for EXO-200,
+     Nucl. Instrum. Meth. A591 (2008) 490–509. arXiv:0709.4524,
+     doi:10.1016/j.nima.2008.03.001.
+[39] B. D. LaFerriere, T. C. Maiti, I. J. Arnquist, E. W. Hoppe,
+     A novel assay method for the trace determination of Th and
+     U in copper and lead using inductively coupled plasma mass
+     spectrometry, Nucl. Instrum. Meth. A775 (2015) 93–98. doi:
+     10.1016/j.nima.2014.11.052.
+[40] P. Grinberg, S. Willie, R. Sturgeon, Determination of thorium
+     and uranium in ultrapure lead by inductively coupled plasma
+
+                                                                          28
+

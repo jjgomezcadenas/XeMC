@@ -169,7 +169,7 @@ def validate_source_geometry(source_path: str) -> int:
         ("TPC PMT cables (top+bot)",
          ["PMT_TOP_cables", "PMT_BOT_cables"], 88.7, "equivalent_mass_kg"),
         ("Skin PMTs+bases (all)",
-         ["PMT_BARREL_R8520", "PMT_SKIN_LOWER_RING", "PMT_BOT_R8778_dome"], 8.59,
+         ["PMT_SKIN_UPPER_RING", "PMT_SKIN_LOWER_RING", "PMT_BOT_R8778_dome"], 8.59,
          "equivalent_mass_kg"),
         ("Field grids+holders (top+bot)",
          ["FC_topgrid", "FC_botgrid"], 89.1, "equivalent_mass_kg"),
@@ -194,7 +194,7 @@ def validate_source_geometry(source_path: str) -> int:
         ("TPC PMT bases", "PMT_TOP_bases", 75.9, 33.1),
         ("TPC PMT structures", "PMT_TOP_structure", 1.60, 1.06),
         ("TPC PMT cables", "PMT_TOP_cables", 4.31, 0.82),
-        ("Skin PMTs+bases", "PMT_BARREL_R8520", 46.0, 14.9),
+        ("Skin PMTs+bases", "PMT_SKIN_UPPER_RING", 46.0, 14.9),
         ("Cryo insulation (MLI)", "MLI", 11.1, 7.79),
         ("Field grids+holders", "FC_topgrid", 2.63, 1.46),
     ]

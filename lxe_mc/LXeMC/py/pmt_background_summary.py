@@ -4,14 +4,16 @@ Rows = component types (TPC PMTs, TPC PMT bases, TPC PMT structures,
 TPC PMT cables, Skin PMTs + bases). Columns = mass, activities,
 background per isotope, total.
 
-Reads summary.json from pmt_top, pmt_bottom, and pmt_barrel analysis
-directories. Tolerant of missing isotopes (e.g., Tl208 not yet computed).
+Reads summary.json from pmt_top, pmt_bottom, pmt_skin_upper_ring, and
+pmt_skin_lower_ring analysis directories. Tolerant of missing isotopes
+(e.g., Tl208 not yet computed).
 
 Usage:
     python py/pmt_background_summary.py \\
         --top results/bfv/pmt/top/Bi214/analysis \\
         --bottom results/bfv/pmt/bottom/Bi214/analysis \\
-        --barrel results/bfv/pmt/barrel/Bi214/analysis \\
+        --skin-upper results/bfv/pmt/skin_upper_ring/Bi214/analysis \\
+        --skin-lower results/bfv/pmt/skin_lower_ring/Bi214/analysis \\
         -o results/bfv/pmt/Bi214_summary \\
         --display
 
@@ -19,10 +21,12 @@ Usage:
     python py/pmt_background_summary.py \\
         --top results/bfv/pmt/top/Bi214/analysis \\
         --bottom results/bfv/pmt/bottom/Bi214/analysis \\
-        --barrel results/bfv/pmt/barrel/Bi214/analysis \\
+        --skin-upper results/bfv/pmt/skin_upper_ring/Bi214/analysis \\
+        --skin-lower results/bfv/pmt/skin_lower_ring/Bi214/analysis \\
         --top-tl results/bfv/pmt/top/Tl208/analysis \\
         --bottom-tl results/bfv/pmt/bottom/Tl208/analysis \\
-        --barrel-tl results/bfv/pmt/barrel/Tl208/analysis \\
+        --skin-upper-tl results/bfv/pmt/skin_upper_ring/Tl208/analysis \\
+        --skin-lower-tl results/bfv/pmt/skin_lower_ring/Tl208/analysis \\
         -o results/bfv/pmt/summary \\
         --display
 """
@@ -41,10 +45,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--top", required=True, type=Path, help="pmt_top Bi214 analysis dir")
     parser.add_argument("--bottom", required=True, type=Path, help="pmt_bottom Bi214 analysis dir")
-    parser.add_argument("--barrel", required=True, type=Path, help="pmt_barrel Bi214 analysis dir")
+    parser.add_argument("--skin-upper", required=True, type=Path,
+                        help="pmt_skin_upper_ring Bi214 analysis dir")
+    parser.add_argument("--skin-lower", required=True, type=Path,
+                        help="pmt_skin_lower_ring Bi214 analysis dir")
     parser.add_argument("--top-tl", type=Path, default=None, help="pmt_top Tl208 analysis dir")
     parser.add_argument("--bottom-tl", type=Path, default=None, help="pmt_bottom Tl208 analysis dir")
-    parser.add_argument("--barrel-tl", type=Path, default=None, help="pmt_barrel Tl208 analysis dir")
+    parser.add_argument("--skin-upper-tl", type=Path, default=None,
+                        help="pmt_skin_upper_ring Tl208 analysis dir")
+    parser.add_argument("--skin-lower-tl", type=Path, default=None,
+                        help="pmt_skin_lower_ring Tl208 analysis dir")
     parser.add_argument("-o", "--output", required=True, type=Path, help="Output directory")
     parser.add_argument("--display", action="store_true", help="Show plots interactively")
     return parser.parse_args()
@@ -93,7 +103,7 @@ GROUPS = [
     ("TPC PMT bases",      ["PMT_TOP_bases", "PMT_BOT_bases"]),
     ("TPC PMT structures", ["PMT_TOP_structure", "PMT_BOT_structure"]),
     ("TPC PMT cables",     ["PMT_TOP_cables", "PMT_BOT_cables"]),
-    ("Skin PMTs + bases",  ["PMT_BARREL_R8520", "PMT_SKIN_LOWER_RING", "PMT_BOT_R8778_dome"]),
+    ("Skin PMTs + bases",  ["PMT_SKIN_UPPER_RING", "PMT_SKIN_LOWER_RING", "PMT_BOT_R8778_dome"]),
 ]
 
 
@@ -310,13 +320,15 @@ def main() -> None:
     bi_summaries = {
         "top": load_summary(args.top),
         "bottom": load_summary(args.bottom),
-        "barrel": load_summary(args.barrel),
+        "skin_upper": load_summary(args.skin_upper),
+        "skin_lower": load_summary(args.skin_lower),
     }
 
     tl_summaries = {
         "top": load_summary(args.top_tl) if args.top_tl else None,
         "bottom": load_summary(args.bottom_tl) if args.bottom_tl else None,
-        "barrel": load_summary(args.barrel_tl) if args.barrel_tl else None,
+        "skin_upper": load_summary(args.skin_upper_tl) if args.skin_upper_tl else None,
+        "skin_lower": load_summary(args.skin_lower_tl) if args.skin_lower_tl else None,
     }
 
     has_tl = any(v is not None for v in tl_summaries.values())

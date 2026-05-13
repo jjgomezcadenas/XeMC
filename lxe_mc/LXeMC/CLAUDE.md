@@ -54,7 +54,7 @@ See `design/lxemc.tex` for the complete reference.
 | `source_flux.jl` | Flux tables, source geometry loader, single/compound generators |
 | `source_sampling.jl` | 2D PDF sampler, surface point generators, `sample_gamma_from_flux` |
 | `cryostat_sources.jl` | `cryostat_barrel_flux`, `cryostat_top_flux`, `cryostat_bottom_flux` |
-| `pmt_sources.jl` | `pmt_top_flux`, `pmt_bottom_flux`, `pmt_bottom_lxe_flux`, `pmt_barrel_flux` |
+| `pmt_sources.jl` | `pmt_top_flux`, `pmt_bottom_flux`, `pmt_bottom_lxe_flux`, `pmt_top_cables_flux`, `pmt_bottom_cables_flux`, `pmt_skin_upper_ring_flux`, `pmt_skin_lower_ring_flux` |
 | `flux_utils.jl` | Flux table merging, CSV I/O, JSON metadata |
 | `source_dispatch.jl` | `dispatch_source_flux`, `VirtualEnvelope`, `make_surface_sampler` |
 | `analysis.jl` | Offline: `cluster_deposits_in_z`, `is_single_site` |
