@@ -364,7 +364,7 @@
             }
         },
         {
-            "_doc": "Upper-conduit TPC PMT cables. Virtual transparent cylinder source carrier representing the cold cable segment inside the AirDome above PMT_TOP_structure. Radius 10 cm matches the LZ TDR 4-inch (10.16 cm ID) cable conduit. Mass split by upper-conduit TPC PMT cable count (506 of 988, LZ TDR Table 3.4.1). z range [154.0, 189.0] sits entirely inside AirDome; the dome ceiling at r=10 cm is z=189.24.",
+            "_doc": "Upper-conduit TPC PMT cables, COLD segment only. Per LZ TDR section 3.4.4 (line 4763), each upper cable is 12.8 m long with ~8 m of warm routing outside the cryostat -> 4.8 m of cold cable inside. Per-conduit cable counts (LZ TDR Table 3.4.1): 506 upper, 482 lower. Cold cable-meters: 506x4.8=2429 upper, 482x10.6=5109 lower; cold fraction of total = 7538/12068 = 0.625. Of the 88.7 kg total cable mass in LZ paper Table I, the cold portion is ~55.4 kg, of which 17.9 kg (32.2%) is in the upper routing. Warm cables outside the cryostat are not modelled (they sit in the unmodelled MARS region and would be heavily attenuated by the cryostat walls + OD anyway). Virtual transparent cylinder, R=10 cm, z range [154, 189] in AirDome above PMT_TOP_structure.",
             "name": "PMT_TOP_cables",
             "shape": "cylinder",
             "radius_cm": 10.0,
@@ -373,7 +373,7 @@
             "material": "Vacuum",
             "source_class": "virtual_source",
             "transport_source": "transparent",
-            "equivalent_mass_kg": 45.4,
+            "equivalent_mass_kg": 17.9,
             "approximation": "mass_equivalent_cylinder",
             "activity": {
                 "Bi214_mBq_per_kg": 4.31,
@@ -381,7 +381,7 @@
             }
         },
         {
-            "_doc": "Lower-conduit TPC PMT cables. Virtual transparent cylinder source carrier representing the cold cable segment inside the cryostat below PMT_BOT_structure. The cables exit through a 4-inch bellows at the bottom flange (LZ TDR section 6.4.7). z range [-68.0, -17.0] spans LXe_below_FC and LXe_dome; at r=10 cm the dome bottom is z=-68.50. Mass split by lower-conduit TPC PMT cable count (482 of 988).",
+            "_doc": "Lower-conduit TPC PMT cables, COLD segment only. Per LZ TDR section 3.4.4 (line 4763), each lower cable is 11.6 m long with ~1 m of warm routing -> 10.6 m of cold cable inside the cryostat. Lower routing contains 67.8% of the cold cable-meters (5109/7538), so 37.5 kg of the 55.4 kg total cold mass. Cables exit through a 4-inch bellows at the central port at the bottom of the ICV (LZ paper line 558). Virtual transparent cylinder, R=10 cm, z range [-68, -17] spanning LXe_below_FC and LXe_dome; at r=10 cm the dome bottom is z=-68.50.",
             "name": "PMT_BOT_cables",
             "shape": "cylinder",
             "radius_cm": 10.0,
@@ -390,7 +390,7 @@
             "material": "Vacuum",
             "source_class": "virtual_source",
             "transport_source": "transparent",
-            "equivalent_mass_kg": 43.3,
+            "equivalent_mass_kg": 37.5,
             "approximation": "mass_equivalent_cylinder",
             "activity": {
                 "Bi214_mBq_per_kg": 4.31,

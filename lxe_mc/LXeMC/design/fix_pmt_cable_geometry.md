@@ -418,3 +418,65 @@ the "Skin PMTs + bases" rate after re-running the pipeline must come
 from a different source (e.g., veto efficiency modelling, LZ paper
 applying analysis cuts beyond the prompt veto, or modelling of the
 PMT_BOT_R8778_dome attenuation path).
+
+---
+
+## Step 4 update — TPC PMT cables: use cold cable mass only
+
+**Applied**. After Step 1, the MC predicted 1.32 cts/yr for TPC PMT
+cables vs the LZ paper's 0.526 cts/yr — a 2.5x over-prediction. After
+the Step 1 + 3 geometry refactors a fresh pipeline run gave 2.23
+cts/yr (worse — 4.2x over). Root cause: the equivalent mass on the
+cable cylinders was the *full* 88.7 kg from LZ paper Table I, which
+includes both the cold cable segment inside the cryostat *and* the
+warm cable segment outside.
+
+LZ TDR §3.4.4 (line 4763) breaks the cable length down:
+
+> "Rn emanation from cables is expected to be dominated by the warm
+> region, which is ≈8 m long for the upper routing, and only ≈1 m
+> for the lower routing."
+
+With typical per-cable lengths 12.8 m upper, 11.6 m lower, the cold
+fractions are:
+
+| Routing | Per-cable cold length | Cable count | Cold cable-meters |
+|:--------|----------------------:|------------:|------------------:|
+| Upper   | 4.8 m                 | 506         | 2,429             |
+| Lower   | 10.6 m                | 482         | 5,109             |
+| **Total** | —                    | —           | **7,538**         |
+
+Total cable-meters (warm + cold) = 12,068. Cold fraction = 7,538 /
+12,068 = **62.5%**.
+
+The warm cable mass sits *outside* the cryostat (and outside our MC
+tracked volume entirely), shielded by the cryostat walls and OD
+scintillator. Its contribution to FV background is negligible. So
+the relevant mass for our MC is the cold portion only:
+
+- Cold total: 88.7 x 0.625 = 55.4 kg
+- Upper cold: 55.4 x (2429/7538) = **17.9 kg** (was 45.4 kg)
+- Lower cold: 55.4 x (5109/7538) = **37.5 kg** (was 43.3 kg)
+
+Note the redistribution: under cable count alone (Step 1) the upper
+routing carried ~half the cable mass; with cold-meter accounting the
+lower routing carries ~68% (because the lower routing has very little
+warm cable).
+
+Changes made:
+
+- `data/source_geometry_lz_v1.json`: `PMT_TOP_cables.equivalent_mass_kg`
+  45.4 -> 17.9; `PMT_BOT_cables.equivalent_mass_kg` 43.3 -> 37.5.
+  `_doc` fields extended with the cold-fraction justification.
+- `py/util/validate_geometry_vs_paper.py`: aggregate check for "TPC
+  PMT cables" updated from 88.7 kg (LZ paper Table I, includes warm)
+  to 55.4 kg (cold only) with explanatory comment.
+- `py/util/validate_activities_vs_paper.py`: unchanged (validator
+  only checks mBq/kg activities, not masses).
+- Tests: unchanged (mass values are not asserted in the test suite).
+
+After this step the cold cable mass is the only relevant component
+in the MC and matches the physical setup: gammas from warm cable
+outside the cryostat cannot reach the FV without losing most of their
+energy to the cryostat + OD, so omitting them is the right
+approximation.

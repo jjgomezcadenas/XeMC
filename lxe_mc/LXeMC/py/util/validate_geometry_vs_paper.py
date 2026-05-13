@@ -166,8 +166,12 @@ def validate_source_geometry(source_path: str) -> int:
          ["PMT_TOP_bases", "PMT_BOT_bases"], 2.80, "equivalent_mass_kg"),
         ("TPC PMT structures (top+bot)",
          ["PMT_TOP_structure", "PMT_BOT_structure"], 166.0, "equivalent_mass_kg"),
-        ("TPC PMT cables (top+bot)",
-         ["PMT_TOP_cables", "PMT_BOT_cables"], 88.7, "equivalent_mass_kg"),
+        # LZ paper Table I quotes 88.7 kg total cable mass (warm + cold).
+        # Our MC models only the cold cable segment inside the cryostat:
+        # ~62.5% of the cable length is cold (LZ TDR 3.4.4 line 4763 -> 4.8 m
+        # cold per upper cable, 10.6 m cold per lower cable). Cold mass = 55.4 kg.
+        ("TPC PMT cables (top+bot, cold only)",
+         ["PMT_TOP_cables", "PMT_BOT_cables"], 55.4, "equivalent_mass_kg"),
         ("Skin PMTs+bases (all)",
          ["PMT_SKIN_UPPER_RING", "PMT_SKIN_LOWER_RING", "PMT_BOT_R8778_dome"], 8.59,
          "equivalent_mass_kg"),
