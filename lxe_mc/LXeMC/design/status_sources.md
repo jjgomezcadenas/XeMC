@@ -120,6 +120,29 @@ Pushed and synced with `origin/sources`.
 | `pmt_barrel` | Transparent | cables, R8520 skin PMTs, R8778 lower-ring PMTs | Complete |
 
 
+## Remaining work: field-cage sources
+
+Six field-cage sources are defined in `source_geometry_lz_v1.json` but not
+yet implemented in the flux pipeline:
+
+| Source | Type | Transport | Notes |
+|:-------|:-----|:----------|:------|
+| `FC_PTFE` | Dense | KN self-shielding | PTFE reflector walls, barrel VE |
+| `FC_rings` | Dense | KN self-shielding | Ti rings, barrel VE |
+| `FC_topgrid` | Dense | KN | SS grid holder, slab geometry |
+| `FC_botgrid` | Dense | KN | SS grid holder, slab geometry |
+| `FC_resistors` | Transparent | Vacuum | Mass-equivalent carrier |
+| `FC_sensors` | Transparent | Vacuum | Mass-equivalent carrier |
+
+All emit directly into the LXe (no compound propagation). Each needs:
+1. A flux function in a new `fc_sources.jl` (or added to an existing file)
+2. A dispatch entry in `source_dispatch.jl`
+3. A `make_virtual_envelope` case (barrel-type VE for all six)
+
+The infrastructure (`dispatch_source_flux`, `make_virtual_envelope`,
+flux table I/O, `generate_flux_tables.jl`, `run_source_backgrounds.jl`)
+is already in place.
+
 ## Geometry (source_geometry_lz_v1.json)
 
 ### ICV wall thickness fix
