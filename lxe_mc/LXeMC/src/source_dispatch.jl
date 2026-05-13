@@ -288,12 +288,14 @@ function make_virtual_envelope(source::String,
         VirtualEnvelope(:barrel, R, z_min, z_max, 0.0, 0.0)
 
     elseif source == "pmt_top_cables"
-        merged, _ = _merge_pmt_volume(sg,
+        merged, _ = _merge_pmt_barrel_volume(sg,
             ["PMT_TOP_cables"],
-            "PMT_TOP_cables_merged", :up)
-        sv = SourceVolumeInfo("PMT_TOP_cables_merged", merged, merged.material,
-            Dict{String,Float64}(), 0.0, :transparent, "virtual_source", "merged")
-        make_virtual_envelope(sv)
+            "PMT_TOP_cables_merged")
+        lv = merged.logical
+        R = lv.solid.R_inner_cm - ε
+        z_min = lv.position[3] - lv.solid.half_height_cm
+        z_max = lv.position[3] + lv.solid.half_height_cm
+        VirtualEnvelope(:barrel, R, z_min, z_max, 0.0, 0.0)
 
     elseif source == "pmt_bottom_cables"
         merged, _ = _merge_pmt_volume(sg,

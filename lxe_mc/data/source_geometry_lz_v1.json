@@ -364,17 +364,18 @@
             }
         },
         {
-            "_doc": "Upper-conduit TPC PMT cables, COLD segment only. Per LZ TDR section 3.4.4 (line 4763), each upper cable is 12.8 m long with ~8 m of warm routing outside the cryostat -> 4.8 m of cold cable inside. Cold cable-meters: 506x4.8=2429 upper, 482x10.6=5109 lower; cold fraction = 0.625 of LZ paper Table I 88.7 kg -> 55.4 kg cold total, of which 17.9 kg (32.2%) is in the upper routing. Geometry: per LZ paper line 558, the upper TPC PMT cables exit through TWO off-center ports in the ICV top head (not the central axis -- that is the bottom routing). Cables route up from the top PMT array (which spans r in [0, 72.8] cm) along the TPC periphery to the off-center ports. Modelled here as a wide solid cylinder (Option A approximation) spanning r in [0, 72.8] cm and z in [154, 165] cm, entirely inside AirDome. The uniform fill is ugly (over-includes the central r region where cables don't physically run) but the dV = r dr dphi dz weighting puts most of the radioactivity at large r ((<r> = 2/3 R = 49 cm), which is a better solid-angle representation of the real off-center bundle routing than the previous central-axis cylinder. Half_height 5.5 cm chosen so the cylinder fits inside AirDome at r=72.8 (dome ceiling there is z=167.5).",
+            "_doc": "Upper-conduit TPC PMT cables, COLD segment only. Per LZ TDR section 3.4.4 (line 4763), each upper cable is 12.8 m long with ~8 m of warm routing outside the cryostat -> 4.8 m of cold cable inside. Cold cable-meters: 506x4.8=2429 upper, 482x10.6=5109 lower; cold fraction = 0.625 of LZ paper Table I 88.7 kg -> 55.4 kg cold total, of which 17.9 kg (32.2%) is in the upper routing. Geometry: per LZ paper line 558, the upper TPC PMT cables exit through TWO off-center ports in the ICV top head (not the central axis -- that is the bottom routing). Cables route up from the top PMT array along the TPC periphery to the off-center ports. Modelled as a narrow cylindrical shell (Option B) at R_inner=72.8 cm with 2 cm wall thickness, half_height 5.5 cm, centred at z=159.5 cm (z range [154, 165]). Source sampling concentrates the radioactivity at <r> ~ 73.9 cm, very close to the TPC outer edge -- a better match to the off-center bundle routing than a uniform-fill cylinder. Uses the same PCylShell + inward-radial cos_theta_to_lxe filter as PMT_SKIN_UPPER_RING and PMT_SKIN_LOWER_RING. The radial filter is physically right here: pure-axial-downward gammas from R~73 would traverse ~159 cm of FC_PTFE/FC_rings/Skin LXe (mfp ~5-11 cm at 2.4 MeV) before reaching FV and are fully absorbed; only gammas with an inward radial component clear the field cage and have a chance of reaching FV.",
             "name": "PMT_TOP_cables",
-            "shape": "cylinder",
-            "radius_cm": 72.8,
+            "shape": "cylinder_shell",
+            "R_inner_cm": 72.8,
+            "wall_thickness_cm": 2.0,
             "half_height_cm": 5.5,
             "position_cm": [0.0, 0.0, 159.5],
             "material": "Vacuum",
             "source_class": "virtual_source",
             "transport_source": "transparent",
             "equivalent_mass_kg": 17.9,
-            "approximation": "mass_equivalent_cylinder",
+            "approximation": "mass_equivalent_shell",
             "activity": {
                 "Bi214_mBq_per_kg": 4.31,
                 "Tl208_mBq_per_kg": 0.82

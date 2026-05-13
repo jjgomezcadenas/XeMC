@@ -2264,15 +2264,18 @@ end
     src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
     sg = load_source_geometry(src_path, MATS)
 
-    merged, comps = LXeMC._merge_pmt_volume(sg,
-        ["PMT_TOP_cables"], "PMT_TOP_cables_merged", :up)
+    merged, comps = LXeMC._merge_pmt_barrel_volume(sg,
+        ["PMT_TOP_cables"], "PMT_TOP_cables_merged")
     @test length(comps) == 1
-    @test merged isa PDisk
-    @test merged.logical.orientation === :up
+    @test merged isa PCylShell
+    @test merged.material.density ≈ 0.0  # vacuum
+    # Shell at the TPC outer edge (R ~ 72.8), above the LXe surface
+    @test merged.logical.solid.R_inner_cm ≈ 72.8
+    @test merged.logical.position[3] > 145.6  # above LXe surface
 
     result = pmt_top_cables_flux(5000, sg, CFG, MersenneTwister(42))
     f = sum(result.bi214.pdf)
-    @test 0.3 < f < 0.7  # downward hemisphere
+    @test 0.3 < f < 0.7  # inward-radial hemisphere
 
     @test length(result.bi214_rate.component_names) == 1
     @test "PMT_TOP_cables" in result.bi214_rate.component_names

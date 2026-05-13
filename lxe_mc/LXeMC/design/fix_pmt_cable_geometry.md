@@ -550,3 +550,62 @@ over-predicts.
 
 Mass, activity, dispatch, and Julia/Python pipeline plumbing are all
 unchanged from Step 4.
+
+---
+
+## Step 6 update — Option B: shell at the TPC edge, inward-radial filter
+
+**Applied**. After Step 5, the cable rate was 1.50 cts/yr vs LZ paper
+0.526 (2.86x over). The cold-mass adjustment (Step 4) accounted for
+the bulk of the improvement from 2.23 -> 1.50; the radial widening
+(Step 5, Option A) contributed only an additional ~7% reduction. The
+residual over-prediction was attributed to source mass still being
+sampled near the central axis where physical cables do not run.
+
+Option B (this step) replaces the uniform-fill cylinder with a thin
+cylindrical shell concentrated at R=72.8 cm. The PCylShell shape and
+the inward-radial `cos_theta_to_lxe` filter are the same machinery
+used by `PMT_SKIN_UPPER_RING` and `PMT_SKIN_LOWER_RING`, so no new
+dispatch plumbing is required.
+
+### Physical justification for the inward-radial filter at z=160
+
+The cables sit at R=72.8 cm in AirDome gas, ~14 cm above the LXe
+surface. A pure-axial-downward gamma from this position would enter
+the field cage at z=145.6 still at R~73 cm and travel ~159 cm straight
+down through FC_PTFE (mfp ~11 cm), FC_rings Ti (mfp ~5.5 cm), or Skin
+LXe (mfp ~8 cm). Attenuation factors range from exp(-29) to exp(-14)
+-- the gamma is fully absorbed before reaching FV.
+
+Only gammas with an inward radial component large enough to clear the
+field cage (tan(theta) > 0.014, i.e., even ~1 deg inward) can leave
+the high-r structural region and enter TopActive/BarrelActive LXe.
+The inward-radial filter therefore captures exactly the trajectories
+that physically reach FV; the pure-axial-down gammas the filter
+excludes are the ones that get absorbed anyway.
+
+### Changes made
+
+- `data/source_geometry_lz_v1.json`: `PMT_TOP_cables.shape`
+  `cylinder` -> `cylinder_shell`; `radius_cm` removed; `R_inner_cm` =
+  72.8, `wall_thickness_cm` = 2.0; `half_height_cm` and `position_cm`
+  unchanged from Step 5. Source sampling now concentrates at
+  <r> ~ 73.9 cm (vs <r> ~ 49 cm under Option A's uniform fill).
+- `src/pmt_sources.jl::pmt_top_cables_flux`: switched from
+  `_merge_pmt_volume(..., :up)` to `_merge_pmt_barrel_volume(...)`.
+  The merge produces a `PCylShell` instead of a `PDisk`; the
+  inward-radial filter is the standard fallback for `PCylShell`.
+- `src/source_dispatch.jl::make_virtual_envelope` for
+  `pmt_top_cables`: barrel VE (`:barrel`, R = R_inner - eps, z range
+  from the shell) replacing the disk-flat VE.
+- `test/runtests.jl`: `pmt_top_cables flux` testset updated to assert
+  `merged isa PCylShell`, `R_inner_cm == 72.8`, and `position[3] >
+  145.6` (above LXe surface). Hemisphere fraction check unchanged.
+- `PMT_BOT_cables`: unchanged. The LZ paper places the lower bundle
+  on the central axis, so the existing PCyl + axial-filter model is
+  the right one for that endpoint.
+
+The new model uses the same source-side machinery as the Skin PMTs,
+which gave perfect agreement with the LZ paper (0.270 vs 0.274
+cts/yr). Whether the cable rate now converges to ~0.526 cts/yr will
+be verified in the next pipeline run.

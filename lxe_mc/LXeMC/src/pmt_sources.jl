@@ -154,17 +154,20 @@ end
     pmt_top_cables_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
 
 Compute upper-conduit TPC PMT cables flux tables. Single component
-`PMT_TOP_cables` (cylinder, R=10 cm, z=[154, 189], in AirDome above
-the top PMT array). Uses the same merge-into-PDisk path as
-`pmt_top_flux` so volumetric sampling and downward-only filtering
-(`:up` orientation → cos_theta_to_lxe = -dir_z, gammas with dir_z<0
-are kept) come for free.
+`PMT_TOP_cables` modelled as a narrow cylindrical shell at R=72.8 cm
+(TPC outer edge), wall thickness 2 cm, half_height 5.5 cm, centred
+at z=159.5 cm in AirDome. Per LZ paper arXiv:1910.09124v2 line 558
+the upper TPC PMT cables exit through two off-center ports in the
+ICV top head and run along the TPC periphery; the shell representation
+concentrates source sampling at <r> ~ 73.9 cm. Uses PCylShell +
+inward-radial `cos_theta_to_lxe` filter (same machinery as
+`pmt_skin_upper_ring_flux` / `pmt_skin_lower_ring_flux`).
 """
 function pmt_top_cables_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
                               cfg::SimConfig, rng::AbstractRNG;
                               verbose::Bool=false, kwargs...)
     pmt_names = ["PMT_TOP_cables"]
-    merged, components = _merge_pmt_volume(sg, pmt_names, "PMT_TOP_cables_merged", :up)
+    merged, components = _merge_pmt_barrel_volume(sg, pmt_names, "PMT_TOP_cables_merged")
 
     t0 = time()
     bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
