@@ -151,6 +151,77 @@ end
 
 
 """
+    pmt_top_cables_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
+
+Compute upper-conduit TPC PMT cables flux tables. Single component
+`PMT_TOP_cables` (cylinder, R=10 cm, z=[154, 189], in AirDome above
+the top PMT array). Uses the same merge-into-PDisk path as
+`pmt_top_flux` so volumetric sampling and downward-only filtering
+(`:up` orientation → cos_theta_to_lxe = -dir_z, gammas with dir_z<0
+are kept) come for free.
+"""
+function pmt_top_cables_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
+                              cfg::SimConfig, rng::AbstractRNG;
+                              verbose::Bool=false, kwargs...)
+    pmt_names = ["PMT_TOP_cables"]
+    merged, components = _merge_pmt_volume(sg, pmt_names, "PMT_TOP_cables_merged", :up)
+
+    t0 = time()
+    bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
+    tl = generate_flux_tl208(N, merged, cfg, rng; kwargs...)
+    verbose && @printf("  [pmt_top_cables] flux generation done (%.1fs)\n", time() - t0)
+
+    A_bi = "Bi214_mBq_per_kg"
+    A_tl = "Tl208_mBq_per_kg"
+
+    rate_bi = _build_rate_table(:top, BR_BI214_2448,
+        [(sv.name, _get_activity_Bq(sv, A_bi), sv.mass_kg, bi) for sv in components],
+        bi.E_min, bi.E_max, bi.n_E, bi.n_u)
+
+    rate_tl = _build_rate_table(:top, BR_TL208_2615,
+        [(sv.name, _get_activity_Bq(sv, A_tl), sv.mass_kg, tl) for sv in components],
+        tl.E_min_main, tl.E_max_main, tl.n_E_main, tl.n_u)
+
+    (bi214=bi, tl208=tl, bi214_rate=rate_bi, tl208_rate=rate_tl)
+end
+
+
+"""
+    pmt_bottom_cables_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
+
+Compute lower-conduit TPC PMT cables flux tables. Single component
+`PMT_BOT_cables` (cylinder, R=10 cm, z=[-68, -17], spans
+LXe_below_FC and LXe_dome below the bottom PMT array). `:down`
+orientation → cos_theta_to_lxe = +dir_z so gammas heading upward
+toward the FV are kept.
+"""
+function pmt_bottom_cables_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
+                                 cfg::SimConfig, rng::AbstractRNG;
+                                 verbose::Bool=false, kwargs...)
+    pmt_names = ["PMT_BOT_cables"]
+    merged, components = _merge_pmt_volume(sg, pmt_names, "PMT_BOT_cables_merged", :down)
+
+    t0 = time()
+    bi = generate_flux_bi214(N, merged, cfg, rng; kwargs...)
+    tl = generate_flux_tl208(N, merged, cfg, rng; kwargs...)
+    verbose && @printf("  [pmt_bot_cables] flux generation done (%.1fs)\n", time() - t0)
+
+    A_bi = "Bi214_mBq_per_kg"
+    A_tl = "Tl208_mBq_per_kg"
+
+    rate_bi = _build_rate_table(:bottom, BR_BI214_2448,
+        [(sv.name, _get_activity_Bq(sv, A_bi), sv.mass_kg, bi) for sv in components],
+        bi.E_min, bi.E_max, bi.n_E, bi.n_u)
+
+    rate_tl = _build_rate_table(:bottom, BR_TL208_2615,
+        [(sv.name, _get_activity_Bq(sv, A_tl), sv.mass_kg, tl) for sv in components],
+        tl.E_min_main, tl.E_max_main, tl.n_E_main, tl.n_u)
+
+    (bi214=bi, tl208=tl, bi214_rate=rate_bi, tl208_rate=rate_tl)
+end
+
+
+"""
     pmt_bottom_lxe_flux(N, sg, mats, cfg, rng; kwargs...) -> NamedTuple
 
 Compute bottom PMT flux tables at the cathode after propagation
@@ -270,15 +341,17 @@ end
 """
     pmt_barrel_flux(N, sg, cfg, rng; kwargs...) -> NamedTuple
 
-Compute barrel PMT flux tables. Three sub-components (cables, R8520
-skin PMTs, R8778 lower-ring PMTs) are lumped into a single transparent
-cylindrical shell. Gammas going inward pass the VE; outward gammas
-are lost (filtered by cos_theta_to_lxe for CylShell = inward radial).
+Compute barrel PMT flux tables. Two sub-components (R8520 skin PMTs,
+R8778 lower-ring PMTs) are lumped into a single transparent
+cylindrical shell. TPC PMT cables previously included here have been
+moved to `pmt_top_cables_flux` / `pmt_bottom_cables_flux` (LZ TDR
+section 3.4.4: cables route through separate upper/lower conduits,
+not through the side Skin region).
 """
 function pmt_barrel_flux(N::Int, sg::Dict{String,SourceVolumeInfo},
                           cfg::SimConfig, rng::AbstractRNG;
                           verbose::Bool=false, kwargs...)
-    pmt_names = ["PMT_BARREL_cables", "PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"]
+    pmt_names = ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"]
     merged, components = _merge_pmt_barrel_volume(sg, pmt_names, "PMT_BARREL_merged")
 
     t0 = time()

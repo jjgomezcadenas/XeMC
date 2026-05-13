@@ -364,18 +364,34 @@
             }
         },
         {
-            "_doc": "TPC PMT cables. Virtual transparent cylindrical shell source carrier.",
-            "name": "PMT_BARREL_cables",
-            "shape": "cylinder_shell",
-            "R_inner_cm": 81.2,
-            "wall_thickness_cm": 0.150,
-            "half_height_cm": 79.675,
-            "position_cm": [0.0, 0.0, 65.925],
+            "_doc": "Upper-conduit TPC PMT cables. Virtual transparent cylinder source carrier representing the cold cable segment inside the AirDome above PMT_TOP_structure. Radius 10 cm matches the LZ TDR 4-inch (10.16 cm ID) cable conduit. Mass split by upper-conduit TPC PMT cable count (506 of 988, LZ TDR Table 3.4.1). z range [154.0, 189.0] sits entirely inside AirDome; the dome ceiling at r=10 cm is z=189.24.",
+            "name": "PMT_TOP_cables",
+            "shape": "cylinder",
+            "radius_cm": 10.0,
+            "half_height_cm": 17.5,
+            "position_cm": [0.0, 0.0, 171.5],
             "material": "Vacuum",
             "source_class": "virtual_source",
             "transport_source": "transparent",
-            "equivalent_mass_kg": 88.7,
-            "approximation": "mass_equivalent_shell",
+            "equivalent_mass_kg": 45.4,
+            "approximation": "mass_equivalent_cylinder",
+            "activity": {
+                "Bi214_mBq_per_kg": 4.31,
+                "Tl208_mBq_per_kg": 0.82
+            }
+        },
+        {
+            "_doc": "Lower-conduit TPC PMT cables. Virtual transparent cylinder source carrier representing the cold cable segment inside the cryostat below PMT_BOT_structure. The cables exit through a 4-inch bellows at the bottom flange (LZ TDR section 6.4.7). z range [-68.0, -17.0] spans LXe_below_FC and LXe_dome; at r=10 cm the dome bottom is z=-68.50. Mass split by lower-conduit TPC PMT cable count (482 of 988).",
+            "name": "PMT_BOT_cables",
+            "shape": "cylinder",
+            "radius_cm": 10.0,
+            "half_height_cm": 25.5,
+            "position_cm": [0.0, 0.0, -42.5],
+            "material": "Vacuum",
+            "source_class": "virtual_source",
+            "transport_source": "transparent",
+            "equivalent_mass_kg": 43.3,
+            "approximation": "mass_equivalent_cylinder",
             "activity": {
                 "Bi214_mBq_per_kg": 4.31,
                 "Tl208_mBq_per_kg": 0.82

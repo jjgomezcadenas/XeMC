@@ -151,7 +151,6 @@ def validate_source_geometry(source_path: str) -> int:
         "MLI": ("Cryo insulation", 13.8),
         "FC_resistors": ("FC resistors", 0.06),
         "FC_sensors": ("TPC sensors", 5.02),
-        "PMT_BARREL_cables": ("TPC PMT cables", 88.7),
     }
     for json_name, (label, paper_m) in paper_virtual_masses.items():
         s = sources[json_name]
@@ -167,6 +166,8 @@ def validate_source_geometry(source_path: str) -> int:
          ["PMT_TOP_bases", "PMT_BOT_bases"], 2.80, "equivalent_mass_kg"),
         ("TPC PMT structures (top+bot)",
          ["PMT_TOP_structure", "PMT_BOT_structure"], 166.0, "equivalent_mass_kg"),
+        ("TPC PMT cables (top+bot)",
+         ["PMT_TOP_cables", "PMT_BOT_cables"], 88.7, "equivalent_mass_kg"),
         ("Skin PMTs+bases (all)",
          ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower", "PMT_BOT_R8778_dome"], 8.59,
          "equivalent_mass_kg"),
@@ -192,7 +193,7 @@ def validate_source_geometry(source_path: str) -> int:
         ("TPC PMTs", "PMT_TOP_PMTs", 3.22, 1.61),
         ("TPC PMT bases", "PMT_TOP_bases", 75.9, 33.1),
         ("TPC PMT structures", "PMT_TOP_structure", 1.60, 1.06),
-        ("TPC PMT cables", "PMT_BARREL_cables", 4.31, 0.82),
+        ("TPC PMT cables", "PMT_TOP_cables", 4.31, 0.82),
         ("Skin PMTs+bases", "PMT_BARREL_R8520", 46.0, 14.9),
         ("Cryo insulation (MLI)", "MLI", 11.1, 7.79),
         ("Field grids+holders", "FC_topgrid", 2.63, 1.46),

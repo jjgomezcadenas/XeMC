@@ -1730,11 +1730,11 @@ end
     z_bottom = lv.position[3] - lv.solid.half_height_cm
     @test env.z_equator_cm ≈ z_bottom
 
-    # PMT_BARREL_cables is a PCylShell → should give :barrel
-    sv_cables = sg["PMT_BARREL_cables"]
-    env2 = make_virtual_envelope(sv_cables)
+    # PMT_BARREL_R8520 is a PCylShell → should give :barrel
+    sv_skin = sg["PMT_BARREL_R8520"]
+    env2 = make_virtual_envelope(sv_skin)
     @test env2.kind === :barrel
-    lv2 = sv_cables.volume.logical
+    lv2 = sv_skin.volume.logical
     @test env2.R_cm ≈ lv2.solid.R_inner_cm
     @test env2.z_min_cm ≈ lv2.position[3] - lv2.solid.half_height_cm
     @test env2.z_max_cm ≈ lv2.position[3] + lv2.solid.half_height_cm
@@ -2198,7 +2198,8 @@ end
 
 
 # =====================================================================
-# PMT barrel: cables, skin PMTs, lower-ring PMTs
+# PMT barrel: skin PMTs (R8520) + lower-ring PMTs (R8778). Cables now
+# live in pmt_top_cables / pmt_bottom_cables (LZ TDR §3.4.4).
 # =====================================================================
 @testset "pmt_barrel flux" begin
     src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
@@ -2206,9 +2207,9 @@ end
 
     # Merged barrel geometry
     merged, comps = LXeMC._merge_pmt_barrel_volume(sg,
-        ["PMT_BARREL_cables", "PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"],
+        ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower"],
         "PMT_BARREL_merged")
-    @test length(comps) == 3
+    @test length(comps) == 2
     @test merged isa PCylShell
     @test merged.material.density ≈ 0.0  # vacuum
 
@@ -2217,16 +2218,57 @@ end
     f = sum(result.bi214.pdf)
     @test 0.3 < f < 0.7
 
-    # Rate table has 3 components with correct names
-    @test length(result.bi214_rate.component_names) == 3
+    # Rate table has 2 components with correct names
+    @test length(result.bi214_rate.component_names) == 2
     @test result.bi214_rate.total_rate > 0
-    @test "PMT_BARREL_cables" in result.bi214_rate.component_names
     @test "PMT_BARREL_R8520" in result.bi214_rate.component_names
     @test "PMT_BARREL_R8778_lower" in result.bi214_rate.component_names
 
     # Tl208 works
     @test sum(result.tl208.pdf_main) > 0
     @test result.tl208_rate.total_rate > 0
+end
+
+
+# =====================================================================
+# PMT cables: upper conduit (top) and lower conduit (bottom)
+# =====================================================================
+@testset "pmt_top_cables flux" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+
+    merged, comps = LXeMC._merge_pmt_volume(sg,
+        ["PMT_TOP_cables"], "PMT_TOP_cables_merged", :up)
+    @test length(comps) == 1
+    @test merged isa PDisk
+    @test merged.logical.orientation === :up
+
+    result = pmt_top_cables_flux(5000, sg, CFG, MersenneTwister(42))
+    f = sum(result.bi214.pdf)
+    @test 0.3 < f < 0.7  # downward hemisphere
+
+    @test length(result.bi214_rate.component_names) == 1
+    @test "PMT_TOP_cables" in result.bi214_rate.component_names
+    @test result.bi214_rate.total_rate > 0
+end
+
+@testset "pmt_bottom_cables flux" begin
+    src_path = normpath(joinpath(@__DIR__, "..", "..", "data", "source_geometry_lz_v1.json"))
+    sg = load_source_geometry(src_path, MATS)
+
+    merged, comps = LXeMC._merge_pmt_volume(sg,
+        ["PMT_BOT_cables"], "PMT_BOT_cables_merged", :down)
+    @test length(comps) == 1
+    @test merged isa PDisk
+    @test merged.logical.orientation === :down
+
+    result = pmt_bottom_cables_flux(5000, sg, CFG, MersenneTwister(42))
+    f = sum(result.bi214.pdf)
+    @test 0.3 < f < 0.7  # upward hemisphere
+
+    @test length(result.bi214_rate.component_names) == 1
+    @test "PMT_BOT_cables" in result.bi214_rate.component_names
+    @test result.bi214_rate.total_rate > 0
 end
 
 

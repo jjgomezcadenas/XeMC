@@ -41,7 +41,7 @@ PAPER_TABLE_I = [
     ("TPC PMT structures", 166.0, 1.60, 1.06, 2.65, 0.12, 2.77,
      ["PMT_TOP_structure", "PMT_BOT_structure"], "PMT_TOP_structure"),
     ("TPC PMT cables", 88.7, 4.31, 0.82, 1.44, 0.19, 1.63,
-     ["PMT_BARREL_cables"], "PMT_BARREL_cables"),
+     ["PMT_TOP_cables", "PMT_BOT_cables"], "PMT_TOP_cables"),
     ("Skin PMTs and bases", 8.59, 46.0, 14.9, 0.75, 0.02, 0.78,
      ["PMT_BARREL_R8520", "PMT_BARREL_R8778_lower", "PMT_BOT_R8778_dome"],
      "PMT_BARREL_R8520"),
