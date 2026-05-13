@@ -480,3 +480,73 @@ in the MC and matches the physical setup: gammas from warm cable
 outside the cryostat cannot reach the FV without losing most of their
 energy to the cryostat + OD, so omitting them is the right
 approximation.
+
+---
+
+## Step 5 update — `PMT_TOP_cables` radial position: TPC edge approximation
+
+**Applied**. After Steps 1, 3, and 4 the MC predicted 2.23 cts/yr
+for TPC PMT cables vs the LZ paper's 0.526 cts/yr (4.2x over). After
+the cold-mass adjustment in Step 4 this scales down by 0.625 ->
+predicted ~1.4 cts/yr (~2.6x over), still high. The residual cause is
+the *radial* position of `PMT_TOP_cables`: the previous model placed
+the upper cable bundle as a thin cylinder at R=10 cm on the central
+axis, giving its gammas a clean straight-down line of sight to the
+FV through ~75 cm of LXe.
+
+LZ paper arXiv:1910.09124v2 §2.4 (line 558):
+
+> "Two ports at the top head and the central port at the bottom are
+> for the PMT and instrumentation cables."
+
+The bottom cables therefore *do* exit through the central axis, but
+the upper cables exit through two off-center ports. The cold cable
+segment for the upper routing physically extends from the top of the
+PMT array up to those off-center ports. The cables are routed along
+the TPC periphery rather than down the central axis.
+
+### Implementation choice: Option A (wide disk)
+
+To represent this without adding new dispatch plumbing, the upper
+cable cylinder is widened from `radius=10 cm` (central axis only) to
+`radius=72.8 cm` (full TPC top region). The volume integration weight
+`dV = r dr dphi dz` makes the average radial position
+`<r> = (2/3) x 72.8 = 48.5 cm` — most of the cable radioactivity is
+sampled at moderate-to-large r, which is closer to the physical
+off-center port routing than the previous central-axis placement.
+
+The half_height is reduced to 5.5 cm so the cylinder fits inside the
+AirDome at r=72.8 (dome ceiling there is z=167.5). Position center
+z=159.5 cm; z range [154, 165].
+
+Limitations of Option A:
+
+- The fill is *uniform* across r in [0, 72.8], so some cable mass is
+  still placed near the central axis where cables don't physically
+  run. The volume weighting biases against this but doesn't eliminate
+  it.
+- Azimuthal symmetry is enforced even though the real cables emerge
+  from two specific ports, not a uniform ring. For the integrated FV
+  rate this is the right average (FV itself is azimuthally
+  symmetric), so the approximation is justified.
+
+A more faithful Option B (thin cylindrical-shell ring at R=72.8 with
+axial cos_theta_to_lxe filter) would require either a new
+`cos_theta_to_lxe(::PCylShell, ...)` axial method or a custom flux
+function bypassing the existing `_merge_pmt_volume` /
+`_merge_pmt_barrel_volume` helpers. Deferred unless Option A still
+over-predicts.
+
+### Changes made
+
+- `data/source_geometry_lz_v1.json`: `PMT_TOP_cables.radius_cm`
+  10 -> 72.8; `half_height_cm` 17.5 -> 5.5;
+  `position_cm[3]` 171.5 -> 159.5. The `_doc` field is extended with
+  the LZ paper port reference and the Option A approximation
+  justification.
+- `PMT_BOT_cables`: unchanged. The LZ paper explicitly places the
+  lower-conduit cable bundle on the central axis at the bottom flange
+  of the ICV, matching our existing model.
+
+Mass, activity, dispatch, and Julia/Python pipeline plumbing are all
+unchanged from Step 4.
