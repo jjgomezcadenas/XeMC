@@ -549,20 +549,18 @@ is analytic for the supported region shapes (cylinder, cylindrical shell,
 ellipsoidal cap), which is what makes the kernel fast: no generic CSG ray
 intersection.
 
-\textbf{Note on name-based dispatch in the transport layer.} While the
-geometry compiler and classifier are fully data-driven (no volume names in
-\texttt{compile\_fastkernel\_geometry} or \texttt{classify\_fastkernel}),
-the transport-level helpers in \texttt{tracking\_fast.jl} do reference
-region names for veto and policy decisions:
-\texttt{\_visible\_threshold\_MeV} checks \texttt{"TopActive"},
-\texttt{"BarrelActive"}, \texttt{"BottomActive"} for the TPC veto and
-\texttt{"Skin"} for the skin veto; \texttt{\_is\_passive\_region} checks
-the three passive-LXe names and the two FC names. Similarly,
-\texttt{\_classify\_escape\_volume} in \texttt{tracking.jl} uses region
-names to classify FV-escape deposits as \texttt{:active} or
-\texttt{:passive}. Adding a new tracked region to the JSON therefore
-requires updating these helpers if the region should participate in veto
-or escape-volume classification.
+\textbf{Tag-based dispatch in the transport layer.} The transport-level
+helpers in \texttt{tracking\_fast.jl} (\texttt{\_is\_passive\_region},
+\texttt{\_terminal\_status}, and the veto checks inside
+\texttt{transport\_gamma\_fastkernel}) and in \texttt{tracking.jl}
+(\texttt{\_classify\_escape\_volume}) dispatch on the
+\texttt{RegionTag} enum carried by each \texttt{FastKernelRegion}, not
+on region names. Adding a new region with one of the existing tags
+(\texttt{TAG\_TPC\_ACTIVE}, \texttt{TAG\_SKIN}, \texttt{TAG\_PASSIVE\_LXE},
+\texttt{TAG\_STRUCTURAL}, etc.) is therefore a pure JSON change; the
+transport helpers automatically apply the right veto and
+classification policy. Tag-coverage tests in the test suite enforce
+that every \texttt{RegionTag} value has a defined behavior.
 
 \subsection{Source vs. tracking geometry: the two-file model}
 \label{sec:geometry-twofile}

@@ -4,26 +4,6 @@ Things a new Claude instance (or developer) should know before editing
 the codebase. These are not bugs — they are deliberate design choices
 that have non-obvious consequences.
 
-## Name-based dispatch in transport helpers
-
-The FastKernel geometry compiler (`compile_fastkernel_geometry`) and
-classifier (`classify_fastkernel`) are fully data-driven — no volume
-names in their logic. However, the **transport-level helpers** do
-hardcode region names:
-
-- `tracking_fast.jl::_visible_threshold_MeV` — checks `"TopActive"`,
-  `"BarrelActive"`, `"BottomActive"` for TPC veto and `"Skin"` for
-  skin veto.
-- `tracking_fast.jl::_is_passive_region` — checks `"LXe_dome"`,
-  `"LXe_below_FC"`, `"LXe_below_cathode"`, `"FC_PTFE"`, `"FC_rings"`.
-- `tracking.jl::_classify_escape_volume` — classifies FV-escape
-  positions as `:active` (Skin, TopActive, BarrelActive, BottomActive)
-  or `:passive` (the three passive LXe + FC volumes).
-
-**Consequence**: adding a new region to `detector_lz_v3.json` is NOT
-a pure JSON change if the region should participate in veto or
-escape-volume classification. You must also update these three helpers.
-
 ## ParticleStack is a struct, not a type alias
 
 `ParticleStack` wraps `Vector{Track}` as a LIFO stack struct with
@@ -43,10 +23,12 @@ Signatures:
 
 ## Adding a new tracked region — checklist
 
-1. Add volume entry to `data/detector_lz_v3.json` (tag, role, shape)
-2. Update `_visible_threshold_MeV` in `tracking_fast.jl` if it needs a veto
-3. Update `_is_passive_region` in `tracking_fast.jl` if it's passive
-4. Update `_classify_escape_volume` in `tracking.jl` if it's active or passive
-5. Run the partition test (`FastKernel geometry partition` testset)
-6. If the region is also a source, add it to `source_geometry_lz_v1.json`
-   and update the source/tracking consistency test
+1. Add volume entry to `data/detector_lz_v3.json` with the correct
+   `tag` (`world`/`vacuum`/`structural`/`tpc_active`/`fv`/`skin`/
+   `passive_lxe`). Transport helpers dispatch on this tag — no
+   Julia edits needed.
+2. Run the partition test (`FastKernel geometry partition` testset)
+   and the tag-coverage tests (`_is_passive_region`, `_terminal_status`,
+   `_classify_escape_volume`).
+3. If the region is also a source, add it to `source_geometry_lz_v1.json`
+   and update the source/tracking consistency test.

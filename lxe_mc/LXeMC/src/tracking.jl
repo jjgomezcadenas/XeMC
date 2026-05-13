@@ -107,10 +107,9 @@ or `:fv` (should not happen for escapes, but included for completeness).
 @inline function _classify_escape_volume(fk::FastKernelGeometry, pos::Vector{Float64})::Symbol
     region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
     region === nothing && return :passive
-    rname = region.name
-    rname == "FV" && return :fv
-    rname == "Skin" && return :active
-    rname in ("TopActive", "BarrelActive", "BottomActive") && return :active
+    region.tag == TAG_FV && return :fv
+    region.tag == TAG_SKIN && return :active
+    region.tag == TAG_TPC_ACTIVE && return :active
     return :passive
 end
 

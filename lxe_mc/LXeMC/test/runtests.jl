@@ -801,6 +801,69 @@ end
 
 
 # =====================================================================
+# Tag-based dispatch coverage (refactor/tag-dispatch)
+# =====================================================================
+@testset "_is_passive_region tag coverage" begin
+    expected_passive = Set([TAG_PASSIVE_LXE, TAG_STRUCTURAL])
+    for tag in instances(RegionTag)
+        @test LXeMC._is_passive_region(tag) == (tag in expected_passive)
+    end
+end
+
+
+@testset "_terminal_status tag coverage" begin
+    expected_status = Dict(
+        TAG_SKIN         => :vetoed_skin,
+        TAG_TPC_ACTIVE   => :vetoed_tpc,
+        TAG_PASSIVE_LXE  => :absorbed_passive,
+        TAG_STRUCTURAL   => :absorbed_passive,
+        TAG_FV           => :below_cut,
+        TAG_VACUUM       => :below_cut,
+        TAG_WORLD        => :below_cut,
+    )
+    deposits = LXeMC.FastGammaDeposit[]
+    pos = Float64[0.0, 0.0, 0.0]
+    dir = Float64[0.0, 0.0, 1.0]
+    for tag in instances(RegionTag)
+        @test haskey(expected_status, tag)  # fails loudly if a new tag is added without updating the test
+        result = LXeMC._terminal_status(deposits, tag, "probe", pos, dir)
+        @test result.status == expected_status[tag]
+        @test result.terminal_region == "probe"
+    end
+end
+
+
+@testset "_classify_escape_volume tag mapping (per region)" begin
+    fk = compile_fastkernel_geometry(DET3)
+    expected = Dict(
+        TAG_FV           => :fv,
+        TAG_TPC_ACTIVE   => :active,
+        TAG_SKIN         => :active,
+        TAG_PASSIVE_LXE  => :passive,
+        TAG_STRUCTURAL   => :passive,
+    )
+    seen_tags = Set{RegionTag}()
+    for region in fk.regions
+        haskey(expected, region.tag) || continue
+        # Probe at the bounding-box center; skip if classify_fastkernel doesn't
+        # round-trip (region has caps, or center hits a sibling).
+        r_probe = 0.5 * (region.rmin_cm + region.rmax_cm)
+        z_probe = 0.5 * (region.zmin_cm + region.zmax_cm)
+        pos = Float64[r_probe, 0.0, z_probe]
+        classified = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
+        classified === nothing && continue
+        classified.id == region.id || continue
+        @test LXeMC._classify_escape_volume(fk, pos) == expected[region.tag]
+        push!(seen_tags, region.tag)
+    end
+    # Confirm the test actually exercised every tag in DET3 we expect to see
+    for tag in (TAG_FV, TAG_TPC_ACTIVE, TAG_SKIN, TAG_PASSIVE_LXE)
+        @test tag in seen_tags
+    end
+end
+
+
+# =====================================================================
 # Test 3b: Geometric solids and CylShell
 # =====================================================================
 @testset "Geometry solids" begin

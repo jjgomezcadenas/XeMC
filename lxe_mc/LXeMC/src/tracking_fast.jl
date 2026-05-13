@@ -49,17 +49,8 @@ struct FastGammaTrackResult
 end
 
 
-@inline function _visible_threshold_MeV(cfg::SimConfig, region_name::String)::Float64
-    region_name == "Skin" && return cfg.veto_skin
-    region_name in ("TopActive", "BarrelActive", "BottomActive") && return cfg.veto_TPC
-    region_name == "FV" && return cfg.veto_TPC
-    return Inf
-end
-
-
-@inline function _is_passive_region(region_name::String)::Bool
-    region_name == "LXe_dome" || region_name == "LXe_below_FC" || region_name == "LXe_below_cathode" ||
-        region_name == "FC_PTFE" || region_name == "FC_rings"
+@inline function _is_passive_region(tag::RegionTag)::Bool
+    tag == TAG_PASSIVE_LXE || tag == TAG_STRUCTURAL
 end
 
 
@@ -79,20 +70,22 @@ end
 end
 
 
-"""Return the appropriate terminal status for a gamma absorbed in `rname`."""
+"""Return the appropriate terminal status for a gamma absorbed in the region with `tag`."""
 @inline function _terminal_status(deposits::Vector{FastGammaDeposit},
-                                   rname::String,
+                                   tag::RegionTag,
+                                   name::String,
                                    pos::Vector{Float64},
                                    dir::Vector{Float64})
-    if rname == "Skin"
-        _fast_track_result(:vetoed_skin, deposits, rname, 0.0, pos, dir)
-    elseif rname in ("TopActive", "BarrelActive", "BottomActive")
-        _fast_track_result(:vetoed_tpc, deposits, rname, 0.0, pos, dir)
-    elseif _is_passive_region(rname)
-        _fast_track_result(:absorbed_passive, deposits, rname, 0.0, pos, dir)
+    status = if tag == TAG_SKIN
+        :vetoed_skin
+    elseif tag == TAG_TPC_ACTIVE
+        :vetoed_tpc
+    elseif _is_passive_region(tag)
+        :absorbed_passive
     else
-        _fast_track_result(:below_cut, deposits, rname, 0.0, pos, dir)
+        :below_cut
     end
+    _fast_track_result(status, deposits, name, 0.0, pos, dir)
 end
 
 
@@ -125,8 +118,8 @@ function transport_gamma_fastkernel(gamma,
         region = classify_fastkernel(fk, (pos[1], pos[2], pos[3]))
         region === nothing && return _fast_track_result(:escaped, deposits, "MARS", E, pos, dir)
 
-        if region.name == "FV"
-            return _fast_track_result(:handoff_fv, deposits, "FV", E, pos, dir)
+        if region.tag == TAG_FV
+            return _fast_track_result(:handoff_fv, deposits, region.name, E, pos, dir)
         end
 
         mat = region.material
@@ -164,9 +157,9 @@ function transport_gamma_fastkernel(gamma,
                 push!(deposits, FastGammaDeposit(dep, copy(pos), rname))
 
                 # Veto check on Compton deposit
-                if rname == "Skin" && dep >= cfg.veto_skin
+                if region.tag == TAG_SKIN && dep >= cfg.veto_skin
                     return _fast_track_result(:vetoed_skin, deposits, rname, Egp, pos, dir)
-                elseif rname in ("TopActive", "BarrelActive", "BottomActive") && dep >= cfg.veto_TPC
+                elseif region.tag == TAG_TPC_ACTIVE && dep >= cfg.veto_TPC
                     return _fast_track_result(:vetoed_tpc, deposits, rname, Egp, pos, dir)
                 end
 
@@ -179,7 +172,7 @@ function transport_gamma_fastkernel(gamma,
                     _replace_last_deposit!(deposits,
                         FastGammaDeposit(dep_total, deposits[end].position,
                                          deposits[end].region))
-                    return _terminal_status(deposits, rname, pos, dir)
+                    return _terminal_status(deposits, region.tag, rname, pos, dir)
                 end
 
                 # Update direction and continue
@@ -192,7 +185,7 @@ function transport_gamma_fastkernel(gamma,
             else
                 # Pair or photoelectric: terminal, full energy deposited
                 push!(deposits, FastGammaDeposit(E, copy(pos), rname))
-                return _terminal_status(deposits, rname, pos, dir)
+                return _terminal_status(deposits, region.tag, rname, pos, dir)
             end
         end
 
