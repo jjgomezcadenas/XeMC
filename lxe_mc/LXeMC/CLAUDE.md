@@ -19,6 +19,10 @@ LXeMC/
   data/          detector_lz_v3.json, source_geometry_lz_v1.json,
                  sim_config.json, materials/, nist_data/
   design/        Design docs (see below)
+    legacy/      Archived plans + superseded docs (read-only history)
+  docs/          LZ reference papers (LZ-TDR.txt, LZ-1910.09124v2.txt,
+                 lz_bb0nu.txt + lz_bb0nu_summary.tex) and analysis docs
+    analysis/    MC vs LZ paper comparison (background_status.md)
   py/            Python analysis scripts (Stage 3)
   py/util/       Python validation utilities
 ```
@@ -76,23 +80,47 @@ Read in this order for fastest orientation:
 
 1. **This file** — orientation and code map
 2. `design/caveats.md` — operational gotchas (read before editing code)
-3. `design/status_sources.md` — what sources are implemented, what's remaining
-4. `design/tracking_and_transport.md` — struct definitions, function signatures, transport flow
-5. `design/geometry_v3.md` — JSON geometry schema, tracking tree, mass anchoring
-6. `design/running_recipe.md` — how to run the 3-stage pipeline
-7. `design/lxemc.tex` — full authoritative reference (physics, geometry, transport, sources, limitations)
+3. `design/status_sources.md` — what sources are implemented, recent milestone, what's remaining
+4. `docs/analysis/background_status.md` — **current MC-vs-LZ-paper comparison table** (where each per-component rate stands; quick way to see today's state)
+5. `design/tracking_and_transport.md` — struct definitions, function signatures, transport flow
+6. `design/geometry_v3.md` — JSON geometry schema, tracking tree, mass anchoring
+7. `design/running_recipe.md` — how to run the 3-stage pipeline
+8. `design/lxemc.tex` — full authoritative reference (physics, geometry, transport, sources, limitations)
+
+Archived design (do not edit, read for history only):
+
+- `design/legacy/fix_transport.md` — applied: tag-based dispatch in transport helpers (commit 57895b0)
+- `design/legacy/fix_pmt_cable_geometry.md` — applied: PMT cables + Skin PMT relocation, pmt_barrel deleted (commits 2dc8c7a..e3989c4)
+
+## Active work / open issues
+
+- **TPC PMTs / bases / structures all under-predict LZ paper by 12–36%**.
+  Cables and Skin PMTs+bases now match LZ (~10%). The remaining
+  under-prediction is shared across three components and likely has a
+  single cause (PMT-array structural attenuation? analysis cuts?). Not
+  yet investigated. See `docs/analysis/background_status.md` for the
+  current comparison table.
+- **Field-cage sources** (FC_PTFE, FC_rings, FC_topgrid, FC_botgrid,
+  FC_resistors, FC_sensors): defined in JSON but no flux pipeline yet.
+  See `design/status_sources.md` "Remaining work" section.
 
 ## Before ending a session
 
 Update these files if you changed code or design:
 
-- `design/status_sources.md` — source table, remaining work
+- `design/status_sources.md` — source table, remaining work, recent milestones
+- `docs/analysis/background_status.md` — refresh MC-vs-LZ comparison if rates changed
 - `design/caveats.md` — operational gotchas, struct fields, dispatch rules
 - `design/tracking_and_transport.md` — struct definitions, function signatures
 - `design/running_recipe.md` — pipeline commands (if new sources added)
 - `design/lxemc.tex` — authoritative reference (physics, geometry, transport)
 - `design/geometry_v3.md` — if JSON schema or tracking tree changed
-- This file (`CLAUDE.md`) — if files were added/removed/renamed or code map changed
+- This file (`CLAUDE.md`) — if files were added/removed/renamed, code map changed, or "Active work" list needs refresh
+
+When a multi-commit refactor lands, **archive the plan doc**: move
+`design/<plan>.md` → `design/legacy/<plan>.md` and add a one-line
+pointer to it in this file's "Archived design" list. Keeps `design/`
+to currently-active plans only.
 
 ## Workflow rules
 

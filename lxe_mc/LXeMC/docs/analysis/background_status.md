@@ -60,3 +60,30 @@ By total annual rate in the ROI:
 
 The grand total 12.99 cts/yr matches the LZ projection of ~13 background
 events per year in the ±1σ ROI.
+
+## LXeMC vs LZ paper — current PMT-group rates (2026-05-13)
+
+After the PMT source-geometry refactor (branch `sources`, commits
+`2dc8c7a`...`e3989c4`) the LXeMC predictions for the PMT-related groups
+are:
+
+| Component | LZ paper (cts/yr) | LXeMC (cts/yr) | MC / LZ |
+|:----------|------------------:|---------------:|--------:|
+| TPC PMTs | 1.077 | 0.684 | 0.64 |
+| TPC PMT bases | 0.555 | 0.491 | 0.88 |
+| TPC PMT structures | 0.968 | 0.622 | 0.64 |
+| **TPC PMT cables** | **0.526** | **0.482** | **0.92** |
+| **Skin PMTs + bases** | **0.274** | **0.270** | **0.99** |
+| **PMT-group total** | **3.400** | **2.549** | **0.75** |
+
+**Cables and Skin PMTs+bases match LZ paper to within 10%**, the
+result of the May 2026 geometry refactor (cables relocated to upper/
+lower conduits, Skin PMTs localised on the field-cage outer side and
+near the cathode-level ring).
+
+**TPC PMTs, bases, and structures all under-predict by 12–36%** with
+similar fractions across the three components. This is a separate
+open issue: all three have correct positions in the source geometry
+and match LZ activities, so the discrepancy likely shares a single
+cause (e.g. attenuation modelling of the PMT-array structural
+material, or differing analysis cuts). Not yet investigated.
