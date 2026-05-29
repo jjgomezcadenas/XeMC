@@ -1,0 +1,30 @@
+{
+    "_doc": "Placeholder NEXT-like detector geometry. Simple cylinder filled with HPGXe. Dimensions approximate NEXT-100. To be refined with real NEXT geometry.",
+    "name": "NEXT_placeholder",
+    "version": "0.1",
+    "units": "cm",
+
+    "volumes": [
+        {
+            "name": "World",
+            "shape": "cylinder",
+            "radius_cm": 200.0,
+            "half_height_cm": 200.0,
+            "position_cm": [0.0, 0.0, 0.0],
+            "material": "Vacuum",
+            "parent": null,
+            "tag": "world"
+        },
+        {
+            "name": "TPC",
+            "shape": "cylinder",
+            "radius_cm": 50.0,
+            "half_height_cm": 65.0,
+            "position_cm": [0.0, 0.0, 0.0],
+            "material": "HPGXe",
+            "parent": "World",
+            "tag": "sensitive",
+            "_doc": "Active TPC volume. NEXT-100: ~1 m drift, ~1 m diameter."
+        }
+    ]
+}

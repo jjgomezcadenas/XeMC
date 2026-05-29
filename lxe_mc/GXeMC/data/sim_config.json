@@ -1,0 +1,51 @@
+{
+    "_doc": "GXeMC transport and analysis parameters.",
+
+    "gas": {
+        "pressure_bar": 10.0,
+        "temperature_K": 300.0,
+        "material": "HPGXe"
+    },
+
+    "photon_cuts": {
+        "Egamma_cut_MeV": 0.010
+    },
+
+    "lepton_cuts": {
+        "Te_cut_MeV": 0.010
+    },
+
+    "bremsstrahlung": {
+        "k_min_MeV": 0.050
+    },
+
+    "stepping": {
+        "ds_step_cm": 0.010
+    },
+
+    "delta_rays": {
+        "production_threshold_MeV": 0.010
+    },
+
+    "safety": {
+        "generation_cap": 100
+    },
+
+    "early_termination": {
+        "Qbb_MeV": 2.458,
+        "E_min_margin_MeV": 0.050
+    },
+
+    "output": {
+        "voxel_mm": 2.0,
+        "W_eV": 21.9
+    },
+
+    "constants": {
+        "me_MeV": 0.5109989461,
+        "re_cm": 2.8179403262e-13,
+        "alpha_fs": 0.007297352566,
+        "N_A": 6.02214076e23,
+        "R_gas_J_per_mol_K": 8.31446
+    }
+}

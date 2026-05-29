@@ -1,0 +1,4 @@
+# NEXT geometry description
+
+We describe the detector starting in the fiducial gas volume, which is a cylinder
+So, we start describing the gas detector and the pressure vessel. The active gas volume must contain 1 ton of xenon and is 200 cm long. The diameter of this "virtual cylinder" must be adjusted to hold 1 ton of xenon at 15 bar. This cylinder describes the fiducial gas volume. Surroinging the shell gas volume we have a thin cylinder shell made of titanium that simulated the field cage. In the end caps of the fiducial volume we have two transparent grids (90% transparent) made also of titanium. One of the grids is the cathode, the toher one is the gate. Then there is a volume of xenon gas, 5 mm thick (for electroluminsecence) and the anode (another transparent grid). Behind the anode a teflon plane defines the tracking plane.

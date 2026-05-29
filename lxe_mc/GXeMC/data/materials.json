@@ -1,0 +1,20 @@
+{
+    "_doc": "GXeMC material definitions. Paths are relative to data/. HPGXe density is a placeholder; actual density computed at runtime from pressure and temperature.",
+
+    "Vacuum": {
+        "density": 0.0,
+        "components": {},
+        "active": false
+    },
+
+    "HPGXe": {
+        "density": 0.089,
+        "components": {"Xe": 1.0},
+        "active": true,
+        "EK_MeV": 0.034561,
+        "fluorescence_yield_K": 0.89,
+        "fluorescence_E_MeV": 0.0297,
+        "xcom": "xcom_xe.csv",
+        "estar": "estar_xe.csv"
+    }
+}
